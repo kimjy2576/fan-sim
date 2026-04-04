@@ -2,12 +2,114 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import * as THREE from "three";
 
 const C = {
-  bg: "#0a0e17", card: "#111827", border: "#1e2d4a",
-  text: "#e2e8f0", dim: "#4a5568", muted: "#718096",
+  bg: "#0a0e17", card: "#111827", border: "#1e2d4a", text: "#e2e8f0", dim: "#4a5568", muted: "#718096",
   blade: "#60a5fa", shroud: "#94a3b8", hub: "#f59e0b",
   backplate: "#a78bfa", eye: "#34d399", accent: "#f472b6",
-  red: "#ef4444", green: "#4ade80", cyan: "#22d3ee", purple: "#a855f7",
+  red: "#ef4444", green: "#4ade80", cyan: "#22d3ee", purple: "#a855f7", orange: "#f59e0b", amber: "#fbbf24", pink: "#f472b6",
 };
+
+// ═══ MATERIAL DATABASE ═══
+const MATERIALS = {
+  SPCC: { name:"SPCC (냉연강판)", E:200e9, rho:7850, sigma_y:220e6, color:"#94a3b8" },
+  SGCC: { name:"SGCC (도금강판)", E:200e9, rho:7850, sigma_y:200e6, color:"#a1a1aa" },
+  SUS304: { name:"SUS304", E:193e9, rho:8000, sigma_y:215e6, color:"#d4d4d8" },
+  A5052: { name:"A5052 (알루미늄)", E:70e9, rho:2680, sigma_y:195e6, color:"#60a5fa" },
+  PP: { name:"PP", E:1.5e9, rho:900, sigma_y:35e6, color:"#4ade80" },
+  ABS: { name:"ABS", E:2.3e9, rho:1050, sigma_y:45e6, color:"#fbbf24" },
+};
+
+// ═══ AERO COMPUTE (simplified) ═══
+function computeAero(p) {
+  const { D1,D2,b1,b2,beta1,beta2,Z,RPM,tBlade=1 } = p;
+  const T=298.15, rho=1.184, mu=1.85e-5;
+  const omega=2*Math.PI*RPM/60, r1=D1/2000, r2=D2/2000, b1m=b1/1000, b2m=b2/1000;
+  const b1R=beta1*Math.PI/180, b2R=beta2*Math.PI/180;
+  const U1=omega*r1, U2=omega*r2;
+  const sigma=1-(Math.PI*Math.sin(b2R))/Z;
+  const QmaxM3s=Math.PI*(D2/1000)*b2m*U2*1.2;
+  const pitch2=Math.PI*(D2/1000)/Z, Dh=2*pitch2*b2m/(pitch2+b2m);
+  const tBladeM=tBlade/1000, k_inc=1-(tBladeM/(Math.PI*(D1/1000)/Z))**2;
+  let Lb=0,px=r1,py=0,th=0;
+  for(let i=1;i<=20;i++){const t=i/20,r=r1+t*(r2-r1),rP=r1+(i-1)/20*(r2-r1),rM=(r+rP)/2,tM=(t+(i-1)/20)/2,bM=b1R+tM*(b2R-b1R);if(Math.abs(Math.tan(bM))>0.001)th+=(-1/(rM*Math.tan(bM)))*(r-rP);const x=r*Math.cos(th),y=r*Math.sin(th);Lb+=Math.sqrt((x-px)**2+(y-py)**2);px=x;py=y;}
+  let bestEta=0, bep=null;
+  for(let i=0;i<=40;i++){
+    const Qm3s=(i/40)*QmaxM3s,Q=Qm3s*60;
+    const Cr1=Qm3s/(Math.PI*(D1/1000)*b1m),Cr2=Qm3s/(Math.PI*(D2/1000)*b2m);
+    const Ct2=sigma*U2-Cr2/Math.tan(b2R),C2=Math.sqrt(Cr2**2+Ct2**2);
+    const W1=Math.sqrt(Cr1**2+U1**2),W2=Math.sqrt(Cr2**2+(Ct2-U2)**2);
+    const Pt_e=rho*U2*Ct2;
+    const incA=Math.atan2(Cr1,U1)-b1R; const dPinc=k_inc*0.5*rho*(W1*Math.sin(incA))**2;
+    const Wa=(W1+W2)/2,Re=rho*Wa*Dh/mu,f=Re>2300?1/Math.pow(-1.8*Math.log10(6.9/Re+(0.00005/Dh/3.7)**1.11),2):(Re>0?64/Re:0.02);
+    const dPfric=f*(Lb/Dh)*0.5*rho*Wa**2;
+    const DR=W1>0?1-W2/W1+Math.abs(Ct2)/(2*Z*W1/Math.PI):0;
+    const dPrec=DR>0.5?0.0085*(DR-0.5)**2*rho*U2**2:0;
+    const ReDisk=rho*omega*r2**2/mu,Cm=ReDisk>0?0.0622/Math.pow(ReDisk,0.2):0.005;
+    const Pdf=2*0.5*Cm*rho*omega**3*r2**5,dPdisk=Qm3s>1e-6?Pdf/Qm3s:Pdf/1e-6;
+    const eps=0.12+0.5*tBladeM/pitch2,dPjw=0.5*rho*C2**2*eps**2;
+    const dPtot=dPinc+dPfric+dPrec+Math.min(dPdisk,Pt_e*0.5)+dPjw;
+    const Pt=Math.max(0,Pt_e-dPtot),Pdyn=0.5*rho*C2**2,Ps=Pt-Pdyn;
+    const Pshaft=Qm3s>1e-6?Pt_e*Qm3s+Pdf:Pdf;
+    const eta=Pshaft>0?Math.max(0,Ps*Qm3s)/Pshaft:0;
+    if(eta>bestEta){bestEta=eta;bep={Q,Qm3s,Pt,Ps,Pdyn,eta,C2,W1,W2,Ct2};}
+  }
+  if(!bep) bep={Q:0,Qm3s:0,Pt:0,Ps:0,Pdyn:0,eta:0,C2:0,W1:0,W2:0,Ct2:0};
+  const BPF=Z*RPM/60, Ns=bep.Qm3s>0?RPM*Math.sqrt(bep.Qm3s)/Math.pow(Math.max(1,bep.Pt)/rho,0.75):0;
+  const dR=(p.tGap||8)/(D2/2);
+  const SPL=(bep.Qm3s>0&&bep.Pt>0?10*Math.log10(bep.Pt**2*bep.Qm3s/(rho*343**3))+56:30)-20*Math.log10(Math.max(0.03,dR)/0.10);
+  return { bep,BPF,SPL,Ns,U1,U2,omega,Lb,rho };
+}
+
+// ═══ STRUCTURAL MODEL ═══
+function computeStructure(p, aero, mat) {
+  const { D1,D2,b1,b2,Z,tBlade=1 } = p;
+  const { omega,bep,Lb } = aero;
+  const r1=D1/2000,r2=D2/2000,b_avg=(b1+b2)/2/1000,t=tBlade/1000;
+  const sigma_c=mat.rho*omega**2*(r2**2-r1**2)/2;
+  const F_aero=bep.Pt>0?bep.Pt/Z*b_avg*Lb:0;
+  const S_sec=t**2*b_avg/6;
+  const sigma_b=S_sec>0?F_aero*Lb/2/S_sec:0;
+  const sigma_total=sigma_c+sigma_b;
+  const SF=sigma_total>0?mat.sigma_y/sigma_total:999;
+  const I_blade=t**3*b_avg/12, A_blade=t*b_avg;
+  const f_n=Lb>0?(1.8751**2)/(2*Math.PI*Lb**2)*Math.sqrt(mat.E*I_blade/(mat.rho*A_blade)):0;
+  const BPF=aero.BPF;
+  const resMargin=BPF>0?Math.abs(f_n-BPF)/BPF:1;
+  const bladeMass=mat.rho*t*b_avg*Lb*Z;
+  return { sigma_c:sigma_c/1e6, sigma_b:sigma_b/1e6, sigma_total:sigma_total/1e6, SF, f_n, resMargin, bladeMass:bladeMass*1000, SF_ok:SF>2, res_ok:resMargin>0.15 };
+}
+
+// ═══ SWEEP VARS ═══
+const SWEEP_VARS = [
+  {key:'D2',label:'D₂',unit:'mm',min:100,max:300,step:5},
+  {key:'D1',label:'D₁',unit:'mm',min:60,max:200,step:5},
+  {key:'beta2',label:'β₂',unit:'°',min:90,max:180,step:5},
+  {key:'beta1',label:'β₁',unit:'°',min:5,max:85,step:5},
+  {key:'Z',label:'Z',unit:'',min:16,max:48,step:2},
+  {key:'b2',label:'b₂',unit:'mm',min:20,max:100,step:5},
+  {key:'RPM',label:'RPM',unit:'',min:600,max:2400,step:100},
+  {key:'tBlade',label:'t',unit:'mm',min:0.5,max:3.0,step:0.5},
+];
+
+// ═══ MINI CHART ═══
+function MiniChart({data,xKey,yKey,w=160,h=100,color=C.blue,label,yUnit=''}){
+  if(!data||data.length<2) return null;
+  const xs=data.map(d=>d[xKey]),ys=data.map(d=>d[yKey]).filter(isFinite);
+  const xMin=Math.min(...xs),xMax=Math.max(...xs),yMin=Math.min(...ys),yMax=Math.max(...ys);
+  const p={l:32,r:6,t:14,b:16},pw=w-p.l-p.r,ph=h-p.t-p.b;
+  const sx=v=>p.l+(v-xMin)/((xMax-xMin)||1)*pw, sy=v=>p.t+ph-(v-yMin)/((yMax-yMin)||1)*ph;
+  const pts=data.map(d=>`${sx(d[xKey])},${sy(d[yKey])}`).join(' ');
+  return <svg width={w} height={h}>
+    <text x={w/2} y={10} fill={C.dim} fontSize={7} fontFamily="monospace" textAnchor="middle">{label}</text>
+    <line x1={p.l} y1={p.t} x2={p.l} y2={p.t+ph} stroke={C.border} strokeWidth={0.5}/>
+    <line x1={p.l} y1={p.t+ph} x2={p.l+pw} y2={p.t+ph} stroke={C.border} strokeWidth={0.5}/>
+    <polyline points={pts} fill="none" stroke={color} strokeWidth={1.5}/>
+    {data.map((d,i)=><circle key={i} cx={sx(d[xKey])} cy={sy(d[yKey])} r={1.5} fill={color} opacity={0.7}/>)}
+    <text x={p.l-2} y={p.t+6} fill={C.dim} fontSize={6} fontFamily="monospace" textAnchor="end">{yMax.toFixed(1)}</text>
+    <text x={p.l-2} y={p.t+ph} fill={C.dim} fontSize={6} fontFamily="monospace" textAnchor="end">{yMin.toFixed(1)}</text>
+    <text x={p.l} y={h-2} fill={C.dim} fontSize={6} fontFamily="monospace">{xMin}</text>
+    <text x={p.l+pw} y={h-2} fill={C.dim} fontSize={6} fontFamily="monospace" textAnchor="end">{xMax}</text>
+  </svg>;
+}
 
 function S({ label, value, min, max, step, onChange, unit, color }) {
   const [editing, setEditing] = useState(false);
@@ -250,6 +352,15 @@ export default function ImpellerViewer() {
   const [autoRotate, setAutoRotate] = useState(true);
   const [explode, setExplode] = useState(0);
   const [viewTab, setViewTab] = useState(0);
+  const [RPM, setRPM] = useState(1400);
+  const [matKey, setMatKey] = useState('SPCC');
+  const [sweepVar, setSweepVar] = useState('beta2');
+  const [sweepMin, setSweepMin] = useState(100);
+  const [sweepMax, setSweepMax] = useState(170);
+  const [sweepSteps, setSweepSteps] = useState(15);
+
+  const mat = MATERIALS[matKey];
+  const baseParams = { D1, D2, Deye, b1, b2, beta1, beta2, Z, RPM, tBlade };
 
   const mountRef = useRef(null);
   const sceneRef = useRef(null);
@@ -335,14 +446,36 @@ export default function ImpellerViewer() {
 
   const ratios = useMemo(() => ({ D1D2:(D1/D2).toFixed(3), DeyeD1:(Deye/D1).toFixed(3), DuD2:(Du/D2).toFixed(3), b2D2:(b2/D2).toFixed(3), b1b2:(b1/b2).toFixed(2) }), [D1,D2,Deye,Du,b1,b2]);
 
+  // Base case performance + structure
+  const baseAero = useMemo(() => computeAero(baseParams), [D1,D2,Deye,b1,b2,beta1,beta2,Z,RPM,tBlade]);
+  const baseStruc = useMemo(() => computeStructure(baseParams, baseAero, mat), [baseAero, matKey, tBlade, b1, b2, D1, D2, Z]);
+
+  // Sweep results
+  const sweepResults = useMemo(() => {
+    const sv = SWEEP_VARS.find(v => v.key === sweepVar);
+    if (!sv) return [];
+    const results = [], step = (sweepMax - sweepMin) / Math.max(1, sweepSteps);
+    for (let i = 0; i <= sweepSteps; i++) {
+      const val = sweepMin + i * step;
+      const params = { ...baseParams, [sweepVar]: val };
+      try {
+        const aero = computeAero(params);
+        const struc = computeStructure(params, aero, mat);
+        results.push({ x: val, Q: aero.bep.Q, Ps: aero.bep.Ps, eta: aero.bep.eta, SPL: aero.SPL, BPF: aero.BPF,
+          SF: struc.SF, sigma: struc.sigma_total, f_n: struc.f_n, res: struc.resMargin, mass: struc.bladeMass });
+      } catch {}
+    }
+    return results;
+  }, [D1,D2,Deye,b1,b2,beta1,beta2,Z,RPM,tBlade,matKey,sweepVar,sweepMin,sweepMax,sweepSteps]);
+
   return (
     <div style={{ background: C.bg, minHeight: "100vh", color: C.text }} className="font-sans">
       <div className="px-3 pt-3 pb-1">
-        <h1 className="text-sm font-bold" style={{ fontFamily: "monospace" }}><span style={{ color: C.accent }}>◆</span> Impeller 3D Parametric Study</h1>
-        <p style={{ color: C.dim, fontFamily: "monospace", fontSize: 9 }}>17개 설계변수 | 숫자 더블클릭: 직접 입력 | 드래그: 회전 | 스크롤: 줌</p>
+        <h1 className="text-sm font-bold" style={{ fontFamily: "monospace" }}><span style={{ color: C.accent }}>◆</span> Impeller Design & Parametric Study</h1>
+        <p style={{ color: C.dim, fontFamily: "monospace", fontSize: 9 }}>17개 설계변수 | 3D + 2D + 성능·소음·구조 sweep</p>
       </div>
       <div className="px-3 flex gap-0.5">
-        {[{l:"3D",c:C.blade},{l:"정면도",c:C.eye},{l:"단면도",c:C.shroud},{l:"저면도",c:C.backplate}].map((t,i)=>
+        {[{l:"3D",c:C.blade},{l:"정면도",c:C.eye},{l:"단면도",c:C.shroud},{l:"저면도",c:C.backplate},{l:"파라메트릭",c:C.pink}].map((t,i)=>
           <Tab key={i} active={viewTab===i} onClick={()=>setViewTab(i)} color={t.c}>{t.l}</Tab>)}
       </div>
       <div className="px-3 py-1">
@@ -360,10 +493,72 @@ export default function ImpellerViewer() {
           {viewTab===1 && <div className="py-2"><FrontView {...{Deye,D1,D2,Du,b1,b2,bladePts,Z,bladeType,bendPos}} /></div>}
           {viewTab===2 && <div className="py-2"><SectionView {...{Deye,D1,D2,Du,b1,b2,eyeRise}} /></div>}
           {viewTab===3 && <div className="py-2"><BottomView {...{D2,Du,Deye}} /></div>}
+          {viewTab===4 && (() => {
+            const sv = SWEEP_VARS.find(v => v.key === sweepVar);
+            return <div className="p-2">
+              <div style={{ color: C.pink, fontFamily: "monospace", fontSize: 9, marginBottom: 3 }}>SWEEP 변수 선택</div>
+              <div className="flex gap-1 flex-wrap mb-2">
+                {SWEEP_VARS.map(v => <button key={v.key} onClick={() => { setSweepVar(v.key); setSweepMin(v.min); setSweepMax(v.max); }}
+                  className="px-2 py-0.5 rounded" style={{ fontFamily:"monospace", fontSize:7,
+                    background:sweepVar===v.key?C.card:"transparent", color:sweepVar===v.key?C.pink:C.dim,
+                    border:`1px solid ${sweepVar===v.key?C.pink:C.border}` }}>{v.label}</button>)}
+              </div>
+              <div className="grid grid-cols-3 gap-2 mb-2">
+                <S label="Min" value={sweepMin} min={sv?.min||0} max={sv?.max||999} step={sv?.step||1} onChange={setSweepMin} unit={sv?.unit||''} color={C.pink} />
+                <S label="Max" value={sweepMax} min={sv?.min||0} max={sv?.max||999} step={sv?.step||1} onChange={setSweepMax} unit={sv?.unit||''} color={C.pink} />
+                <S label="Steps" value={sweepSteps} min={3} max={30} step={1} onChange={setSweepSteps} unit="" color={C.dim} />
+              </div>
+              {sweepResults.length > 0 && <>
+                <div className="grid grid-cols-3 gap-1 mb-2">
+                  <MiniChart data={sweepResults} xKey="x" yKey="eta" color={C.green} label="η 효율" />
+                  <MiniChart data={sweepResults} xKey="x" yKey="Ps" color={C.cyan} label="Ps [Pa]" />
+                  <MiniChart data={sweepResults} xKey="x" yKey="SPL" color={C.purple} label="SPL [dB]" />
+                  <MiniChart data={sweepResults} xKey="x" yKey="SF" color={C.orange} label="안전율 SF" />
+                  <MiniChart data={sweepResults} xKey="x" yKey="f_n" color={C.cyan} label="f_n [Hz]" />
+                  <MiniChart data={sweepResults} xKey="x" yKey="Q" color={C.amber} label="Q [m³/min]" />
+                </div>
+                <div style={{ overflowX:"auto", maxHeight:200 }}>
+                  <table style={{ fontFamily:"monospace", fontSize:7, borderCollapse:"collapse", width:"100%" }}>
+                    <thead><tr style={{ borderBottom:`1px solid ${C.border}` }}>
+                      {[sv?.label||'X','Q','Ps','η%','SPL','σ','SF','f_n','f/B'].map(h => <th key={h} className="px-1 py-0.5 text-right" style={{color:C.dim}}>{h}</th>)}
+                    </tr></thead>
+                    <tbody>{sweepResults.map((r,i) => {
+                      const fnB = r.BPF>0?r.f_n/r.BPF:0;
+                      const best = r.eta===Math.max(...sweepResults.map(d=>d.eta));
+                      return <tr key={i} style={{ borderBottom:`1px solid ${C.border}11`, background:best?`${C.green}11`:"transparent" }}>
+                        <td className="px-1 py-0.5 text-right" style={{color:C.pink}}>{r.x.toFixed(sv?.step<1?1:0)}</td>
+                        <td className="px-1 py-0.5 text-right" style={{color:C.amber}}>{r.Q.toFixed(1)}</td>
+                        <td className="px-1 py-0.5 text-right" style={{color:C.cyan}}>{r.Ps.toFixed(0)}</td>
+                        <td className="px-1 py-0.5 text-right" style={{color:C.green}}>{(r.eta*100).toFixed(1)}</td>
+                        <td className="px-1 py-0.5 text-right" style={{color:r.SPL>70?C.red:C.purple}}>{r.SPL.toFixed(1)}</td>
+                        <td className="px-1 py-0.5 text-right" style={{color:C.orange}}>{r.sigma.toFixed(1)}</td>
+                        <td className="px-1 py-0.5 text-right" style={{color:r.SF>2?C.green:C.red}}>{r.SF.toFixed(1)}</td>
+                        <td className="px-1 py-0.5 text-right" style={{color:C.cyan}}>{r.f_n.toFixed(0)}</td>
+                        <td className="px-1 py-0.5 text-right" style={{color:Math.abs(fnB-1)<0.15?C.red:C.dim}}>{fnB.toFixed(2)}</td>
+                      </tr>;})}</tbody>
+                  </table>
+                </div>
+                <div style={{ fontFamily:"monospace", fontSize:6, color:C.dim, marginTop:4 }}>
+                  <span style={{color:C.green}}>■</span> 최고효율 | <span style={{color:C.red}}>■</span> SF{"<"}2 / 공진위험 | 재질: {mat.name}
+                </div>
+              </>}
+            </div>;
+          })()}
         </div>
       </div>
       <div className="px-3 pb-2">
         <div className="rounded-lg p-2" style={{ background: C.card, border: `1px solid ${C.border}` }}>
+          {/* Material + RPM */}
+          <div className="flex items-center gap-2 mb-2 pb-1" style={{ borderBottom: `1px solid ${C.border}` }}>
+            <span style={{ color: C.dim, fontFamily: "monospace", fontSize: 9 }}>재질</span>
+            <div className="flex gap-0.5 flex-wrap flex-1">
+              {Object.entries(MATERIALS).map(([k,m]) =>
+                <button key={k} onClick={() => setMatKey(k)} className="px-1.5 py-0.5 rounded"
+                  style={{ fontFamily:"monospace", fontSize:7, background:matKey===k?C.card:"transparent",
+                    color:matKey===k?m.color:C.dim, border:`1px solid ${matKey===k?m.color:C.border}` }}>{k}</button>)}
+            </div>
+            <div className="w-28"><S label="RPM" value={RPM} min={400} max={3000} step={10} onChange={setRPM} unit="" color={C.green} /></div>
+          </div>
           <div className="grid grid-cols-2 gap-x-3">
             <div>
               <div style={{ color: C.dim, fontFamily: "monospace", fontSize: 9, marginBottom: 2 }}>DIAMETERS</div>
@@ -412,15 +607,33 @@ export default function ImpellerViewer() {
                 <div className="font-bold" style={{color:m.ok?C.green:C.hub,fontFamily:"monospace",fontSize:11}}>{m.v}</div>
               </div>)}
           </div>
-          <div className="mt-2 p-1.5 rounded" style={{ background: C.bg, fontFamily: "monospace", fontSize: 8, color: C.muted }}>
-            <span style={{color:C.eye}}>D_eye={Deye}</span> → <span style={{color:C.cyan}}>D₁={D1}</span> → <span style={{color:C.blade}}>D₂={D2}</span> | <span style={{color:C.backplate}}>D_u={Du}</span>{Du>D2?` (+${Du-D2}mm)`:Du<D2?" ⚠":"=D₂"}
-            <br/>b₁={b1}→b₂={b2} | β₁={beta1}°→β₂={beta2}° | Z={Z} | t={tBlade}mm | Eye곡면={eyeRise}mm
-            <br/>프로파일: <span style={{color:C.blade}}>{bladeType==='sfs'?`직선-필렛-직선 (R=${Rfillet}, Bend=${(bendPos*100)|0}%)`:bladeType==='arc'?'단일 원호':'선형 β'}</span>
-            {Deye<D1&&<><br/><span style={{color:C.eye}}>Vaneless: {((D1-Deye)/2).toFixed(1)}mm</span></>}
+
+          {/* Performance + Structural results */}
+          <div className="mt-2 pt-2 grid grid-cols-4 gap-1" style={{ borderTop: `1px solid ${C.border}` }}>
+            {[
+              { l:"Q_BEP", v:baseAero.bep.Q.toFixed(1), u:"m³/min", c:C.amber },
+              { l:"Ps", v:baseAero.bep.Ps.toFixed(0), u:"Pa", c:C.cyan },
+              { l:"η", v:(baseAero.bep.eta*100).toFixed(1), u:"%", c:C.green },
+              { l:"SPL", v:baseAero.SPL.toFixed(1), u:"dB", c:baseAero.SPL>70?C.red:C.purple },
+              { l:"σ_max", v:baseStruc.sigma_total.toFixed(1), u:"MPa", c:C.orange },
+              { l:"SF", v:baseStruc.SF.toFixed(1), u:"", c:baseStruc.SF_ok?C.green:C.red },
+              { l:"f_n", v:baseStruc.f_n.toFixed(0), u:"Hz", c:baseStruc.res_ok?C.cyan:C.red },
+              { l:"BPF", v:baseAero.BPF.toFixed(0), u:"Hz", c:C.purple },
+            ].map(m => <div key={m.l} className="text-center py-1 rounded" style={{background:C.bg}}>
+              <div style={{color:C.dim,fontFamily:"monospace",fontSize:6}}>{m.l}</div>
+              <div className="font-bold" style={{color:m.c,fontFamily:"monospace",fontSize:10}}>{m.v}<span style={{fontSize:6,color:C.dim}}>{m.u}</span></div>
+            </div>)}
+          </div>
+
+          <div className="mt-1 p-1 rounded" style={{ background: C.bg, fontFamily: "monospace", fontSize: 7, color: C.muted }}>
+            {mat.name} | σ_c={baseStruc.sigma_c.toFixed(1)}+σ_b={baseStruc.sigma_b.toFixed(1)}={baseStruc.sigma_total.toFixed(1)}MPa |
+            f_n/BPF={(baseAero.BPF>0?(baseStruc.f_n/baseAero.BPF).toFixed(2):"—")} {baseStruc.res_ok?"✓":"⚠공진"} |
+            질량:{baseStruc.bladeMass.toFixed(1)}g |
+            {bladeType==='sfs'?` SFS R=${Rfillet}`:bladeType==='arc'?' 원호':' 선형β'}
           </div>
         </div>
       </div>
-      <div className="text-center pb-3" style={{color:C.border,fontFamily:"monospace",fontSize:9}}>Impeller 3D Viewer v1.3 — Blade Profile</div>
+      <div className="text-center pb-3" style={{color:C.border,fontFamily:"monospace",fontSize:9}}>Impeller Design & Parametric Study v1.0</div>
     </div>
   );
 }
