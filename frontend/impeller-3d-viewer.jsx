@@ -31,9 +31,10 @@ function computeAero(p) {
   const tBladeM=tBlade/1000, k_inc=1-(tBladeM/(Math.PI*(D1/1000)/Z))**2;
   let Lb=0,px=r1,py=0,th=0;
   for(let i=1;i<=20;i++){const t=i/20,r=r1+t*(r2-r1),rP=r1+(i-1)/20*(r2-r1),rM=(r+rP)/2,tM=(t+(i-1)/20)/2,bM=b1R+tM*(b2R-b1R);if(Math.abs(Math.tan(bM))>0.001)th+=(-1/(rM*Math.tan(bM)))*(r-rP);const x=r*Math.cos(th),y=r*Math.sin(th);Lb+=Math.sqrt((x-px)**2+(y-py)**2);px=x;py=y;}
-  let bestEta=0, bep=null;
-  for(let i=0;i<=40;i++){
-    const Qm3s=(i/40)*QmaxM3s,Q=Qm3s*60;
+  let bestEta=0, bep=null, bestIdx=0;
+  const N=200, pts=[];
+  for(let i=0;i<=N;i++){
+    const Qm3s=(i/N)*QmaxM3s,Q=Qm3s*60;
     const Cr1=Qm3s/(Math.PI*(D1/1000)*b1m),Cr2=Qm3s/(Math.PI*(D2/1000)*b2m);
     const Ct2=sigma*U2-Cr2/Math.tan(b2R),C2=Math.sqrt(Cr2**2+Ct2**2);
     const W1=Math.sqrt(Cr1**2+U1**2),W2=Math.sqrt(Cr2**2+(Ct2-U2)**2);
@@ -50,9 +51,25 @@ function computeAero(p) {
     const Pt=Math.max(0,Pt_e-dPtot),Pdyn=0.5*rho*C2**2,Ps=Pt-Pdyn;
     const Pshaft=Qm3s>1e-6?Pt_e*Qm3s+Pdf:Pdf;
     const eta=Pshaft>0?Math.max(0,Ps*Qm3s)/Pshaft:0;
-    if(eta>bestEta){bestEta=eta;bep={Q,Qm3s,Pt,Ps,Pdyn,eta,C2,W1,W2,Ct2};}
+    pts.push({Q,Qm3s,Pt,Ps,Pdyn,eta,C2,W1,W2,Ct2});
+    if(eta>bestEta){bestEta=eta;bestIdx=i;}
   }
-  if(!bep) bep={Q:0,Qm3s:0,Pt:0,Ps:0,Pdyn:0,eta:0,C2:0,W1:0,W2:0,Ct2:0};
+  // Parabolic interpolation around peak for smooth BEP
+  if(bestIdx>0 && bestIdx<N){
+    const a=pts[bestIdx-1].eta, b=pts[bestIdx].eta, c=pts[bestIdx+1].eta;
+    const denom=2*(a-2*b+c);
+    if(Math.abs(denom)>1e-12){
+      const shift=(a-c)/denom; // -1 to +1
+      const t=Math.max(0,Math.min(1,(bestIdx+shift)/N));
+      const Qm3s=t*QmaxM3s, Q=Qm3s*60;
+      const Cr2=Qm3s/(Math.PI*(D2/1000)*b2m);
+      const Ct2=sigma*U2-Cr2/Math.tan(b2R),C2=Math.sqrt(Cr2**2+Ct2**2);
+      const Pt=pts[bestIdx].Pt+(shift>0?(pts[bestIdx+1].Pt-pts[bestIdx].Pt)*shift:(pts[bestIdx].Pt-pts[bestIdx-1].Pt)*shift);
+      const Pdyn=0.5*rho*C2**2, Ps=Pt-Pdyn;
+      const etaI=b-denom*shift*shift/4;
+      bep={Q,Qm3s,Pt,Ps,Pdyn,eta:Math.max(0,etaI),C2,W1:pts[bestIdx].W1,W2:pts[bestIdx].W2,Ct2};
+    } else bep=pts[bestIdx];
+  } else bep=pts[bestIdx]||pts[0];
   const BPF=Z*RPM/60, Ns=bep.Qm3s>0?RPM*Math.sqrt(bep.Qm3s)/Math.pow(Math.max(1,bep.Pt)/rho,0.75):0;
   const dR=(p.tGap||8)/(D2/2);
   const SPL=(bep.Qm3s>0&&bep.Pt>0?10*Math.log10(bep.Pt**2*bep.Qm3s/(rho*343**3))+56:30)-20*Math.log10(Math.max(0.03,dR)/0.10);
