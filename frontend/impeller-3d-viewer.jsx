@@ -378,8 +378,8 @@ export default function ImpellerViewer() {
             </div>
             <div>
               <div style={{ color: C.dim, fontFamily: "monospace", fontSize: 9, marginBottom: 2 }}>BLADE</div>
-              <S label="β₁" value={beta1} min={10} max={60} step={1} onChange={setBeta1} unit="°" color={C.green} />
-              <S label="β₂" value={beta2} min={95} max={170} step={1} onChange={setBeta2} unit="°" color={C.red} />
+              <S label="β₁" value={beta1} min={0} max={90} step={1} onChange={setBeta1} unit="°" color={C.green} />
+              <S label="β₂" value={beta2} min={90} max={180} step={1} onChange={setBeta2} unit="°" color={C.red} />
               <S label="Z" value={Z} min={16} max={48} step={1} onChange={setZ} unit="" color={C.purple} />
               <S label="t" value={tBlade} min={0.3} max={3} step={0.1} onChange={setTBlade} unit="mm" color={C.blade} />
               <div style={{ color: C.dim, fontFamily: "monospace", fontSize: 9, marginTop: 4, marginBottom: 2 }}>PROFILE</div>
