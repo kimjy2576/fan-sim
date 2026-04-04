@@ -244,12 +244,20 @@ function compute(p) {
     const Pdyn_imp = 0.5 * rho * C2 ** 2;
     const Ps_imp = Pt_imp - Pdyn_imp;
 
-    // === SCROLL (friction integral) ===
+    // === SCROLL (physics-based) ===
     const scrollCapture = scrollOn ? wrapFrac : 0;
     const Pdyn_captured = Pdyn_imp * scrollCapture;
     const Pdyn_uncaptured = Pdyn_imp * (1 - scrollCapture);
 
-    let dPs_scroll = 0, dP_scroll_fric = 0, eta_scroll_calc = 0;
+    // [NEW] Impeller exit jet-wake mixing loss
+    // Non-uniform exit flow (blade jet + wake) mixes in vaneless diffuser/scroll
+    // Loss ∝ C₂² × wake fraction. For sirocco with Z=30-44: ε_wake ≈ 0.15-0.25
+    const pitch2_local = Math.PI * (D2 / 1000) / Z;
+    const blockage = tBladeM / pitch2_local; // blade blockage ratio t/pitch
+    const epsilon_wake = 0.12 + 0.5 * blockage; // wake fraction
+    const dP_jetwake = 0.5 * rho * C2 ** 2 * epsilon_wake ** 2; // jet-wake mixing loss
+
+    let dPs_scroll = 0, dP_scroll_loss_total = 0, eta_scroll_calc = 0;
     if (scrollOn && Pdyn_captured > 0) {
       // [5] Scroll hydraulic friction integral
       const A_sc_exit = Qm3s > 0 ? Qm3s / Math.max(1, C2 * 0.5) : bScrollM * 0.02;
@@ -259,11 +267,15 @@ function compute(p) {
       const C_sc_avg = Qm3s > 0 ? Qm3s / Math.max(0.0001, A_sc_exit) * 0.7 : C2 * 0.5;
       const Re_sc = rho * Math.abs(C_sc_avg) * Math.max(0.005, D_h_sc) / mu;
       const f_sc = Re_sc > 2300 ? 0.316 / Math.pow(Re_sc, 0.25) : (Re_sc > 0 ? 64 / Re_sc : 0.02);
-      dP_scroll_fric = f_sc * (L_scroll / Math.max(0.005, D_h_sc)) * 0.5 * rho * C_sc_avg ** 2;
-      const mixFactor = scrollMethod === 'fv' ? 0.03 : 0.06;
+      const dP_scroll_fric = f_sc * (L_scroll / Math.max(0.005, D_h_sc)) * 0.5 * rho * C_sc_avg ** 2;
+
+      // Scroll mixing: incoming impeller flow mixes with scroll flow
+      // For sirocco: velocity mismatch is large → high mixing loss
+      const mixFactor = scrollMethod === 'fv' ? 0.15 : 0.25; // FV: 15%, CV: 25%
       const dP_sc_mix = mixFactor * Pdyn_captured;
-      const scLossTotal = dP_scroll_fric + dP_sc_mix;
-      dPs_scroll = Math.max(0, Pdyn_captured - scLossTotal);
+
+      dP_scroll_loss_total = dP_scroll_fric + dP_sc_mix;
+      dPs_scroll = Math.max(0, Pdyn_captured - dP_scroll_loss_total);
       eta_scroll_calc = Pdyn_captured > 0 ? dPs_scroll / Pdyn_captured : 0;
     }
 
@@ -286,9 +298,11 @@ function compute(p) {
     const dPs_diff = scrollOn ? etaDiffuser * CpIdeal * Pdyn_scroll_exit : 0;
     const Pdyn_fan_exit = Math.max(0, Pdyn_scroll_exit - dPs_diff + Pdyn_uncaptured * 0.15);
 
-    // Fan total
-    const Ps_fan = Ps_imp + dPs_scroll - dP_scroll_fric - dP_tongue - dP_uncaptured + dPs_diff;
-    const Pt_fan = Ps_fan + Pdyn_fan_exit;
+    // Fan total (energy balance: Pt drops by all losses through the system)
+    // Pt_imp already accounts for impeller losses
+    // Additional losses: jet-wake + scroll + tongue + uncaptured
+    const Pt_fan = Math.max(0, Pt_imp - dP_jetwake - dP_scroll_loss_total - dP_tongue - dP_uncaptured);
+    const Ps_fan = Pt_fan - Pdyn_fan_exit;
 
     // [9] Radial Force — Stepanoff(1957) + Lorett correction
     const Q_ratio = Q_design > 0 ? Qm3s / Q_design : 1;
@@ -309,10 +323,10 @@ function compute(p) {
     pq.push({
       Q, Qm3s,
       Pt_e, Pt_imp, Ps_imp: Math.max(-100, Ps_imp), Pdyn_imp,
-      dP_vaneless, dPinc, dPfric, dPrec, dPdisk: Math.min(dPdisk, Pt_e * 0.5), dPleak,
+      dP_vaneless, dPinc, dPfric, dPrec, dPdisk: Math.min(dPdisk, Pt_e * 0.5), dPleak, dP_jetwake,
       eta_imp_t: Math.max(0, Math.min(1, eta_imp_t)),
       eta_imp_s: Math.max(0, Math.min(1, eta_imp_s)),
-      dPs_scroll, dP_scroll_loss: dP_scroll_fric, dP_tongue, dPs_diff, dP_uncaptured,
+      dPs_scroll, dP_scroll_loss: dP_scroll_loss_total, dP_tongue, dPs_diff, dP_uncaptured,
       Pdyn_scroll_exit, Pdyn_fan_exit,
       Pt_fan: Math.max(0, Pt_fan), Ps_fan: Math.max(-100, Ps_fan),
       eta_fan_t: Math.max(0, Math.min(1, eta_fan_t)),
@@ -1308,10 +1322,10 @@ export default function FanSimPro() {
           {tab === 3 && <div>
             <div style={{color:C.dim,fontFamily:"monospace",fontSize:9,fontWeight:700,marginBottom:4}}>IMPELLER LOSS vs FLOW</div>
             <div className="flex justify-center"><Chart data={pq} xKey="Q" w={cW} h={cH} xLabel="Q [m³/min]" yLabel="ΔP_loss [Pa]"
-              lines={[{key:"dP_vaneless",color:C.green,w:1.5,dash:"3,3"},{key:"dPinc",color:C.red,w:1.5},{key:"dPfric",color:C.blue,w:1.5},{key:"dPrec",color:C.purple,w:1.5},{key:"dPdisk",color:C.orange,w:1,dash:"3,3"},{key:"dPleak",color:C.cyan,w:1,dash:"3,3"}]}
+              lines={[{key:"dP_vaneless",color:C.green,w:1.5,dash:"3,3"},{key:"dPinc",color:C.red,w:1.5},{key:"dPfric",color:C.blue,w:1.5},{key:"dPrec",color:C.purple,w:1.5},{key:"dPdisk",color:C.orange,w:1,dash:"3,3"},{key:"dPleak",color:C.cyan,w:1,dash:"3,3"},{key:"dP_jetwake",color:C.pink,w:2}]}
               markers={[{x:bep.Q,y:bep.dPfric,color:C.amber,label:"BEP"}]} /></div>
             <div className="flex justify-center gap-2 mt-1 flex-wrap">
-              {[{c:C.green,l:"Vaneless"},{c:C.red,l:"Incidence"},{c:C.blue,l:"Friction"},{c:C.purple,l:"Recirc"},{c:C.orange,l:"Disk"},{c:C.cyan,l:"Leak"}].map(x=>
+              {[{c:C.green,l:"Vaneless"},{c:C.red,l:"Incidence"},{c:C.blue,l:"Friction"},{c:C.purple,l:"Recirc"},{c:C.orange,l:"Disk"},{c:C.cyan,l:"Leak"},{c:C.pink,l:"Jet-Wake"}].map(x=>
                 <div key={x.l} className="flex items-center gap-1"><div className="w-3 h-0.5" style={{background:x.c}} /><span style={{color:x.c,fontFamily:"monospace",fontSize:9}}>{x.l}</span></div>)}
             </div>
             {/* Scroll + Diffuser losses at BEP */}
@@ -1321,6 +1335,7 @@ export default function FanSimPro() {
               {n:"Vaneless 손실",v:-(bep.dP_vaneless||0),c:C.green},
               {n:"임펠러 손실 합",v:bep.Pt_e-bep.Pt_imp,c:C.red},
               {n:"→ 임펠러 전압",v:bep.Pt_imp,c:C.blue},
+              {n:"Jet-Wake 손실",v:-(bep.dP_jetwake||0),c:C.pink},
               {n:"→ 임펠러 정압",v:bep.Ps_imp,c:C.cyan},
               {n:"Scroll 정압 회수",v:bep.dPs_scroll,c:C.scroll},
               {n:"Scroll 손실",v:-(bep.dP_scroll_loss+bep.dP_tongue),c:C.amber},
