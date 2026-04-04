@@ -95,19 +95,27 @@ function MiniChart({data,xKey,yKey,w=160,h=100,color=C.blue,label,yUnit=''}){
   if(!data||data.length<2) return null;
   const xs=data.map(d=>d[xKey]),ys=data.map(d=>d[yKey]).filter(isFinite);
   const xMin=Math.min(...xs),xMax=Math.max(...xs),yMin=Math.min(...ys),yMax=Math.max(...ys);
-  const p={l:32,r:6,t:14,b:16},pw=w-p.l-p.r,ph=h-p.t-p.b;
+  const big=w>200;
+  const p={l:big?42:32,r:big?12:6,t:big?20:14,b:big?22:16},pw=w-p.l-p.r,ph=h-p.t-p.b;
   const sx=v=>p.l+(v-xMin)/((xMax-xMin)||1)*pw, sy=v=>p.t+ph-(v-yMin)/((yMax-yMin)||1)*ph;
   const pts=data.map(d=>`${sx(d[xKey])},${sy(d[yKey])}`).join(' ');
-  return <svg width={w} height={h}>
-    <text x={w/2} y={10} fill={C.dim} fontSize={7} fontFamily="monospace" textAnchor="middle">{label}</text>
+  const fs=big?9:7, dotR=big?2.5:1.5, lw=big?2:1.5;
+  // Grid lines
+  const gridY = big ? 4 : 2;
+  return <svg width={w} height={h} style={{display:"block",margin:"0 auto"}}>
+    <text x={w/2} y={big?14:10} fill={C.muted} fontSize={big?10:7} fontFamily="monospace" textAnchor="middle" fontWeight={big?"bold":"normal"}>{label}</text>
+    {Array.from({length:gridY+1}).map((_,i) => {
+      const y = p.t + (ph/gridY)*i;
+      const val = yMax - (yMax-yMin)*(i/gridY);
+      return <g key={i}><line x1={p.l} y1={y} x2={p.l+pw} y2={y} stroke={C.border} strokeWidth={0.3}/>
+        <text x={p.l-3} y={y+3} fill={C.dim} fontSize={fs-2} fontFamily="monospace" textAnchor="end">{val.toFixed(yMax-yMin>10?0:1)}</text></g>;
+    })}
     <line x1={p.l} y1={p.t} x2={p.l} y2={p.t+ph} stroke={C.border} strokeWidth={0.5}/>
     <line x1={p.l} y1={p.t+ph} x2={p.l+pw} y2={p.t+ph} stroke={C.border} strokeWidth={0.5}/>
-    <polyline points={pts} fill="none" stroke={color} strokeWidth={1.5}/>
-    {data.map((d,i)=><circle key={i} cx={sx(d[xKey])} cy={sy(d[yKey])} r={1.5} fill={color} opacity={0.7}/>)}
-    <text x={p.l-2} y={p.t+6} fill={C.dim} fontSize={6} fontFamily="monospace" textAnchor="end">{yMax.toFixed(1)}</text>
-    <text x={p.l-2} y={p.t+ph} fill={C.dim} fontSize={6} fontFamily="monospace" textAnchor="end">{yMin.toFixed(1)}</text>
-    <text x={p.l} y={h-2} fill={C.dim} fontSize={6} fontFamily="monospace">{xMin}</text>
-    <text x={p.l+pw} y={h-2} fill={C.dim} fontSize={6} fontFamily="monospace" textAnchor="end">{xMax}</text>
+    <polyline points={pts} fill="none" stroke={color} strokeWidth={lw}/>
+    {data.map((d,i)=><circle key={i} cx={sx(d[xKey])} cy={sy(d[yKey])} r={dotR} fill={color} opacity={0.8}/>)}
+    <text x={p.l} y={h-3} fill={C.dim} fontSize={fs-1} fontFamily="monospace">{xMin}</text>
+    <text x={p.l+pw} y={h-3} fill={C.dim} fontSize={fs-1} fontFamily="monospace" textAnchor="end">{xMax}</text>
   </svg>;
 }
 
@@ -358,6 +366,7 @@ export default function ImpellerViewer() {
   const [sweepMin, setSweepMin] = useState(100);
   const [sweepMax, setSweepMax] = useState(170);
   const [sweepSteps, setSweepSteps] = useState(15);
+  const [sweepOut, setSweepOut] = useState('eta'); // selected output chart
 
   const mat = MATERIALS[matKey];
   const baseParams = { D1, D2, Deye, b1, b2, beta1, beta2, Z, RPM, tBlade };
@@ -509,14 +518,20 @@ export default function ImpellerViewer() {
                 <S label="Steps" value={sweepSteps} min={3} max={30} step={1} onChange={setSweepSteps} unit="" color={C.dim} />
               </div>
               {sweepResults.length > 0 && <>
-                <div className="grid grid-cols-3 gap-1 mb-2">
-                  <MiniChart data={sweepResults} xKey="x" yKey="eta" color={C.green} label="η 효율" />
-                  <MiniChart data={sweepResults} xKey="x" yKey="Ps" color={C.cyan} label="Ps [Pa]" />
-                  <MiniChart data={sweepResults} xKey="x" yKey="SPL" color={C.purple} label="SPL [dB]" />
-                  <MiniChart data={sweepResults} xKey="x" yKey="SF" color={C.orange} label="안전율 SF" />
-                  <MiniChart data={sweepResults} xKey="x" yKey="f_n" color={C.cyan} label="f_n [Hz]" />
-                  <MiniChart data={sweepResults} xKey="x" yKey="Q" color={C.amber} label="Q [m³/min]" />
+                <div style={{ color: C.dim, fontFamily: "monospace", fontSize: 8, marginBottom: 3 }}>출력 변수</div>
+                <div className="flex gap-1 flex-wrap mb-2">
+                  {[{k:'eta',l:'η 효율',c:C.green},{k:'Ps',l:'Ps 정압',c:C.cyan},{k:'Q',l:'Q 유량',c:C.amber},
+                    {k:'SPL',l:'SPL 소음',c:C.purple},{k:'SF',l:'SF 안전율',c:C.orange},{k:'f_n',l:'f_n 고유진동수',c:C.cyan}
+                  ].map(v => <button key={v.k} onClick={() => setSweepOut(v.k)} className="px-2 py-0.5 rounded"
+                    style={{ fontFamily:"monospace", fontSize:8, background:sweepOut===v.k?C.card:"transparent",
+                      color:sweepOut===v.k?v.c:C.dim, border:`1px solid ${sweepOut===v.k?v.c:C.border}` }}>{v.l}</button>)}
                 </div>
+                {(() => {
+                  const outMap = {eta:{c:C.green,l:'η 효율',u:''},Ps:{c:C.cyan,l:'Ps 정압 [Pa]',u:'Pa'},Q:{c:C.amber,l:'Q_BEP [m³/min]',u:''},
+                    SPL:{c:C.purple,l:'SPL [dB]',u:'dB'},SF:{c:C.orange,l:'안전율 SF',u:''},f_n:{c:C.cyan,l:'f_n [Hz]',u:'Hz'}};
+                  const o = outMap[sweepOut] || outMap.eta;
+                  return <MiniChart data={sweepResults} xKey="x" yKey={sweepOut} w={340} h={200} color={o.c} label={`${o.l}  vs  ${sv?.label||sweepVar}`} yUnit={o.u} />;
+                })()}
                 <div style={{ overflowX:"auto", maxHeight:200 }}>
                   <table style={{ fontFamily:"monospace", fontSize:7, borderCollapse:"collapse", width:"100%" }}>
                     <thead><tr style={{ borderBottom:`1px solid ${C.border}` }}>
