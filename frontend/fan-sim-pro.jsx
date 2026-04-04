@@ -121,9 +121,12 @@ function compute(p) {
           Rtongue = 5, wrapAngle = 360, tAngle = 30,
           crossSection = 'rect', bScroll = 55, scrollMethod = 'cv',
           tBlade = 0.001, sealLen = 0.005, diskGap = 0.005,
-          roughness = 0.00005, cSound = 343, airProps } = p;
+          roughness = 0.00005, cSound = 343, airProps,
+          Du: Du_raw } = p;
 
   const Deye = Deye_raw || D1;
+  const Du = Du_raw || D2; // back plate OD, defaults to D2
+  const r_du = Du / 2000; // back plate outer radius [m]
   // Use pre-computed humid air properties (or fallback)
   const rho = airProps ? airProps.rho : 1.225 * 293.15 / (T_in + 273.15);
   const mu = airProps ? airProps.mu : 1.81e-5;
@@ -223,13 +226,13 @@ function compute(p) {
     const dPrec_ex = Qr < 0.5 ? 0.005 * rho * U2 ** 2 * (1 - 2 * Qr) ** 2 : 0;
     const dPrec = dPrec_dr + dPrec_ex;
 
-    // Disk friction — Daily & Nece with gap ratio
-    const sR = diskGapM / Math.max(0.001, r2);
-    const ReDisk = rho * omega * r2 ** 2 / mu;
+    // Disk friction — Daily & Nece (uses r_du = back plate radius, both sides)
+    const sR = diskGapM / Math.max(0.001, r_du);
+    const ReDisk = rho * omega * r_du ** 2 / mu;
     const Cm_disk = ReDisk > 0
       ? (sR < 0.05 ? 0.0622 / Math.pow(ReDisk, 0.2) : 3.7 * sR ** 0.1 / Math.pow(ReDisk, 0.5))
       : 0.005;
-    const Pdf = 0.5 * Cm_disk * rho * omega ** 3 * r2 ** 5;
+    const Pdf = 2 * 0.5 * Cm_disk * rho * omega ** 3 * r_du ** 5; // ×2 = both sides
     const dPdisk = Qm3s > 1e-6 ? Pdf / Qm3s : Pdf / 1e-6;
 
     // [4] Leakage at EYE
@@ -612,6 +615,7 @@ export default function FanSimPro() {
   const [D1, setD1] = useState(120); // blade inner diameter
   const [Deye, setDeye] = useState(110); // shroud eye opening diameter
   const [D2, setD2] = useState(175);
+  const [Du, setDu] = useState(180); // back plate outer diameter
   const [b1, setB1] = useState(60);
   const [b2, setB2] = useState(50);
   const [beta1, setBeta1] = useState(30);
@@ -658,7 +662,7 @@ export default function FanSimPro() {
   // ─── Save/Load System ───
   const collectState = () => ({
     _version: '4.0', _timestamp: new Date().toISOString(),
-    D1, Deye, D2, b1, b2, beta1, beta2, Z, RPM, T_in, RH,
+    D1, Deye, D2, Du, b1, b2, beta1, beta2, Z, RPM, T_in, RH,
     scrollOn, tGap, tAngle, bladeType, Rfillet, bendPos,
     scrollMethod, crossSection, bScroll, Rtongue, wrapAngle,
     diffuserAR, etaDiffuser, tBlade, sealLen, diskGap,
@@ -670,6 +674,7 @@ export default function FanSimPro() {
     if (d.D1 != null) setD1(d.D1);
     if (d.Deye != null) setDeye(d.Deye);
     if (d.D2 != null) setD2(d.D2);
+    if (d.Du != null) setDu(d.Du);
     if (d.b1 != null) setB1(d.b1);
     if (d.b2 != null) setB2(d.b2);
     if (d.beta1 != null) setBeta1(d.beta1);
@@ -779,12 +784,12 @@ export default function FanSimPro() {
   }, [crossSection, bScroll, tGap, D2, scrollMethod, wrapAngle]);
 
   const params = useMemo(() => ({
-    D1, D2, Deye, b1, b2, beta1, beta2, Z, RPM, T_in, RH,
+    D1, D2, Deye, Du, b1, b2, beta1, beta2, Z, RPM, T_in, RH,
     etaScroll: etaScrollAuto, tGap, diffuserAR, etaDiffuser, scrollOn,
     Rtongue, scrollMethod, crossSection, bScroll, wrapAngle, tAngle,
     tBlade, sealLen, diskGap, P_atm, cSound, roughness: roughness / 1000, // mm→m
     airProps,
-  }), [D1, D2, Deye, b1, b2, beta1, beta2, Z, RPM, T_in, RH,
+  }), [D1, D2, Deye, Du, b1, b2, beta1, beta2, Z, RPM, T_in, RH,
     etaScrollAuto, tGap, diffuserAR, etaDiffuser, scrollOn,
     Rtongue, scrollMethod, crossSection, bScroll, wrapAngle, tAngle,
     tBlade, sealLen, diskGap, P_atm, cSound, roughness, airProps]);
@@ -896,6 +901,7 @@ export default function FanSimPro() {
                 <S label="D_eye" value={Deye} min={40} max={200} step={1} onChange={setDeye} unit="mm" color={C.green} />
                 <S label="D₁" value={D1} min={50} max={220} step={1} onChange={setD1} unit="mm" color={C.cyan} />
                 <S label="D₂" value={D2} min={80} max={320} step={1} onChange={setD2} unit="mm" color={C.blue} />
+                <S label="D_u" value={Du} min={80} max={350} step={1} onChange={setDu} unit="mm" color={C.purple} />
                 <S label="b₁" value={b1} min={15} max={120} step={1} onChange={setB1} unit="mm" />
                 <S label="b₂" value={b2} min={15} max={120} step={1} onChange={setB2} unit="mm" color={C.orange} />
               </div>
