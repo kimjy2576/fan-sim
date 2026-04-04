@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 
 // ─── Theme ───
 const C = {
@@ -635,6 +635,105 @@ export default function FanSimPro() {
   const [P_atm, setPAtm] = useState(101325); // atmospheric pressure Pa
   const [cSound, setCSound] = useState(343); // speed of sound m/s
   const [roughness, setRoughness] = useState(0.05); // surface roughness mm
+  const [saveOpen, setSaveOpen] = useState(false);
+  const [saves, setSaves] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('fansim_saves') || '{}'); } catch { return {}; }
+  });
+  const fileInputRef = useRef(null);
+
+  // ─── Save/Load System ───
+  const collectState = () => ({
+    _version: '4.0', _timestamp: new Date().toISOString(),
+    D1, Deye, D2, b1, b2, beta1, beta2, Z, RPM, T_in, RH,
+    scrollOn, tGap, tAngle, bladeType, Rfillet, bendPos,
+    scrollMethod, crossSection, bScroll, Rtongue, wrapAngle,
+    diffuserAR, etaDiffuser, tBlade, sealLen, diskGap,
+    P_atm, cSound, roughness,
+  });
+
+  const restoreState = (d) => {
+    if (!d || typeof d !== 'object') return false;
+    if (d.D1 != null) setD1(d.D1);
+    if (d.Deye != null) setDeye(d.Deye);
+    if (d.D2 != null) setD2(d.D2);
+    if (d.b1 != null) setB1(d.b1);
+    if (d.b2 != null) setB2(d.b2);
+    if (d.beta1 != null) setBeta1(d.beta1);
+    if (d.beta2 != null) setBeta2(d.beta2);
+    if (d.Z != null) setZ(d.Z);
+    if (d.RPM != null) setRPM(d.RPM);
+    if (d.T_in != null) setTin(d.T_in);
+    if (d.RH != null) setRH(d.RH);
+    if (d.scrollOn != null) setScrollOn(d.scrollOn);
+    if (d.tGap != null) setTGap(d.tGap);
+    if (d.tAngle != null) setTAngle(d.tAngle);
+    if (d.bladeType != null) setBladeType(d.bladeType);
+    if (d.Rfillet != null) setRfillet(d.Rfillet);
+    if (d.bendPos != null) setBendPos(d.bendPos);
+    if (d.scrollMethod != null) setScrollMethod(d.scrollMethod);
+    if (d.crossSection != null) setCrossSection(d.crossSection);
+    if (d.bScroll != null) setBScroll(d.bScroll);
+    if (d.Rtongue != null) setRtongue(d.Rtongue);
+    if (d.wrapAngle != null) setWrapAngle(d.wrapAngle);
+    if (d.diffuserAR != null) setDiffuserAR(d.diffuserAR);
+    if (d.etaDiffuser != null) setEtaDiffuser(d.etaDiffuser);
+    if (d.tBlade != null) setTBlade(d.tBlade);
+    if (d.sealLen != null) setSealLen(d.sealLen);
+    if (d.diskGap != null) setDiskGap(d.diskGap);
+    if (d.P_atm != null) setPAtm(d.P_atm);
+    if (d.cSound != null) setCSound(d.cSound);
+    if (d.roughness != null) setRoughness(d.roughness);
+    return true;
+  };
+
+  const exportJSON = () => {
+    const data = collectState();
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `fansim_D${D2}_Z${Z}_${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const importJSON = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const data = JSON.parse(ev.target.result);
+        if (restoreState(data)) {
+          alert(`로드 완료: ${file.name}`);
+        } else {
+          alert('파일 형식 오류');
+        }
+      } catch { alert('JSON 파싱 실패'); }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
+  const saveSlot = (slot) => {
+    const data = collectState();
+    data._name = `Slot ${slot} — D₂=${D2} Z=${Z} β₂=${beta2}°`;
+    const next = { ...saves, [slot]: data };
+    setSaves(next);
+    try { localStorage.setItem('fansim_saves', JSON.stringify(next)); } catch {}
+  };
+
+  const loadSlot = (slot) => {
+    const data = saves[slot];
+    if (data) { restoreState(data); }
+  };
+
+  const deleteSlot = (slot) => {
+    const next = { ...saves };
+    delete next[slot];
+    setSaves(next);
+    try { localStorage.setItem('fansim_saves', JSON.stringify(next)); } catch {}
+  };
 
   // ─── Humid air properties ───
   const airProps = useMemo(() => {
@@ -708,11 +807,70 @@ export default function FanSimPro() {
           </h1>
           <p style={{ color: C.dim, fontFamily: "monospace", fontSize: 9 }}>Geometry + Physics + Performance</p>
         </div>
-        <button onClick={() => setParamsOpen(!paramsOpen)} className="text-xs px-2 py-1 rounded"
-          style={{ background: C.card, color: C.muted, border: `1px solid ${C.border}`, fontFamily: "monospace" }}>
-          {paramsOpen ? "▲ 접기" : "▼ 파라미터"}
-        </button>
+        <div className="flex gap-1">
+          <button onClick={() => setSaveOpen(!saveOpen)} className="text-xs px-2 py-1 rounded"
+            style={{ background: C.card, color: C.cyan, border: `1px solid ${C.border}`, fontFamily: "monospace", fontSize: 10 }}>
+            {saveOpen ? "✕" : "💾"}
+          </button>
+          <button onClick={() => setParamsOpen(!paramsOpen)} className="text-xs px-2 py-1 rounded"
+            style={{ background: C.card, color: C.muted, border: `1px solid ${C.border}`, fontFamily: "monospace" }}>
+            {paramsOpen ? "▲ 접기" : "▼ 파라미터"}
+          </button>
+        </div>
       </div>
+
+      {/* ─── Save/Load Panel ─── */}
+      {saveOpen && (
+        <div className="px-3 pb-1">
+          <div className="rounded-lg p-2" style={{ background: C.card, border: `1px solid ${C.cyan}44` }}>
+            <div style={{ color: C.cyan, fontFamily: "monospace", fontSize: 9, fontWeight: 700, marginBottom: 4 }}>SAVE / LOAD</div>
+            {/* JSON file export/import */}
+            <div className="flex gap-1 mb-2">
+              <button onClick={exportJSON} className="flex-1 py-1 rounded text-xs"
+                style={{ background: C.bg, color: C.green, border: `1px solid ${C.green}44`, fontFamily: "monospace", fontSize: 9 }}>
+                📥 JSON 내보내기
+              </button>
+              <button onClick={() => fileInputRef.current?.click()} className="flex-1 py-1 rounded text-xs"
+                style={{ background: C.bg, color: C.orange, border: `1px solid ${C.orange}44`, fontFamily: "monospace", fontSize: 9 }}>
+                📤 JSON 불러오기
+              </button>
+              <input ref={fileInputRef} type="file" accept=".json" onChange={importJSON} style={{ display: 'none' }} />
+            </div>
+            {/* Save slots */}
+            <div style={{ color: C.dim, fontFamily: "monospace", fontSize: 8, marginBottom: 3 }}>SAVE SLOTS</div>
+            <div className="flex flex-col gap-1">
+              {[1, 2, 3, 4, 5].map(slot => {
+                const s = saves[slot];
+                const isEmpty = !s;
+                return (
+                  <div key={slot} className="flex items-center gap-1" style={{ fontFamily: "monospace", fontSize: 9 }}>
+                    <span className="w-4" style={{ color: C.dim }}>{slot}.</span>
+                    <div className="flex-1 py-0.5 px-1.5 rounded truncate" style={{
+                      background: C.bg, color: isEmpty ? C.dim : C.text, fontSize: 8,
+                      border: `1px solid ${isEmpty ? C.border : C.cyan}33`,
+                    }}>
+                      {isEmpty ? "— 비어 있음 —" : (
+                        <span>{s._name || `D₂=${s.D2} Z=${s.Z}`} <span style={{ color: C.dim }}>{s._timestamp?.slice(5, 16)}</span></span>
+                      )}
+                    </div>
+                    <button onClick={() => saveSlot(slot)} className="px-1.5 py-0.5 rounded"
+                      style={{ background: C.bg, color: C.green, border: `1px solid ${C.green}33`, fontSize: 8 }}>저장</button>
+                    <button onClick={() => loadSlot(slot)} disabled={isEmpty} className="px-1.5 py-0.5 rounded"
+                      style={{ background: C.bg, color: isEmpty ? C.dim : C.cyan, border: `1px solid ${isEmpty ? C.border : C.cyan}33`, fontSize: 8, opacity: isEmpty ? 0.4 : 1 }}>로드</button>
+                    {!isEmpty && (
+                      <button onClick={() => deleteSlot(slot)} className="px-1 py-0.5 rounded"
+                        style={{ background: C.bg, color: C.red, border: `1px solid ${C.red}33`, fontSize: 8 }}>✕</button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            <div className="mt-1" style={{ color: C.dim, fontFamily: "monospace", fontSize: 7 }}>
+              JSON: 파일로 내보내기/불러오기. Slot: 브라우저 내 저장 (Railway 배포 시 유지됨).
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ─── Parameters ─── */}
       {paramsOpen && (
