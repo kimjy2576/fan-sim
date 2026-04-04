@@ -96,33 +96,40 @@ function FrontView({ Deye, D1, D2, Du, bladePts, Z }) {
   </svg>;
 }
 
-function SectionView({ Deye, D1, D2, Du, b1, b2 }) {
+function SectionView({ Deye, D1, D2, Du, b1, b2, eyeRise }) {
   const w = 340, h = 200, cx = w / 2, cy = h / 2 + 10;
   const maxR = Math.max(D2, Du) / 2; const sc = (w / 2 - 30) / maxR;
-  const bSc = (h - 70) / Math.max(b1, b2);
+  const bSc = (h - 70) / Math.max(b1, b2, b1 + eyeRise);
   const rE = Deye/2*sc, r1s = D1/2*sc, r2s = D2/2*sc, rU = Du/2*sc;
   const h1 = b1*bSc*0.5, h2 = b2*bSc*0.5, hubR = rE*0.4;
+  const eyeH = eyeRise * bSc * 0.5; // eye rise in SVG units
+  // Eye curve control point offset
+  const eyeCurveR = eyeRise * 0.8 * sc; // radial spread of curve
   return <svg width={w} height={h} style={{ display: "block", margin: "0 auto" }}>
     <text x={w/2} y={14} fill={C.dim} fontSize={9} fontFamily="monospace" textAnchor="middle">단면도 (Section View)</text>
     <line x1={cx} y1={22} x2={cx} y2={h-8} stroke={C.dim} strokeWidth={0.5} strokeDasharray="4,3" opacity={0.3} />
     <text x={cx+3} y={26} fill={C.dim} fontSize={7} fontFamily="monospace">CL</text>
     {[1, -1].map(s => <g key={s}>
-      <path d={`M${cx+s*rE*0.82} ${cy-h1-10} Q${cx+s*rE*0.92} ${cy-h1-3} ${cx+s*rE} ${cy-h1} L${cx+s*r2s} ${cy-h2}`} fill="none" stroke={C.shroud} strokeWidth={1.5} />
+      <path d={`M${cx+s*rE} ${cy-h1-eyeH} Q${cx+s*(rE+eyeCurveR*0.5)} ${cy-h1-eyeH*0.2} ${cx+s*(rE+eyeCurveR)} ${cy-h1} L${cx+s*r2s} ${cy-h2}`} fill="none" stroke={C.shroud} strokeWidth={1.5} />
       <line x1={cx+s*rU} y1={cy+h2} x2={cx+s*hubR} y2={cy+h1} stroke={C.backplate} strokeWidth={1.5} />
       {Du>D2 && <line x1={cx+s*rU} y1={cy+h2} x2={cx+s*r2s} y2={cy+h2} stroke={C.accent} strokeWidth={1.5} strokeDasharray="3,2" />}
       <line x1={cx+s*r2s} y1={cy-h2} x2={cx+s*r2s} y2={cy+h2} stroke={C.blade} strokeWidth={1} opacity={0.5} />
       <line x1={cx+s*r1s} y1={cy-h1} x2={cx+s*r1s} y2={cy+h1} stroke={C.cyan} strokeWidth={0.7} opacity={0.3} strokeDasharray="2,2" />
-      <line x1={cx+s*rE*0.6} y1={cy-h1-25} x2={cx+s*rE*0.6} y2={cy-h1-8} stroke={C.green} strokeWidth={1.5} opacity={0.6} markerEnd="url(#aS)" />
+      <line x1={cx+s*rE*0.6} y1={cy-h1-eyeH-15} x2={cx+s*rE*0.6} y2={cy-h1-eyeH+2} stroke={C.green} strokeWidth={1.5} opacity={0.6} markerEnd="url(#aS)" />
       <line x1={cx+s*(r2s+6)} y1={cy} x2={cx+s*(r2s+18)} y2={cy} stroke={C.green} strokeWidth={1} opacity={0.4} markerEnd="url(#aS)" />
     </g>)}
     <defs><marker id="aS" viewBox="0 0 10 10" refX={8} refY={5} markerWidth={5} markerHeight={5} orient="auto"><path d="M0 0L10 5L0 10z" fill={C.green} opacity={0.5} /></marker></defs>
     <rect x={cx-r2s} y={cy-h2} width={r2s*2} height={h2+h1} fill={C.blade} opacity={0.06} rx={1} />
     <rect x={cx-hubR} y={cy+h1} width={hubR*2} height={4} fill={C.border} stroke={C.hub} strokeWidth={0.8} rx={1} />
-    <text x={cx} y={cy-h1-30} fill={C.green} fontSize={8} fontFamily="monospace" textAnchor="middle" opacity={0.6}>↓ AIR IN ↓</text>
+    <text x={cx} y={cy-h1-eyeH-18} fill={C.green} fontSize={8} fontFamily="monospace" textAnchor="middle" opacity={0.6}>↓ AIR IN ↓</text>
     <text x={10} y={cy} fill={C.green} fontSize={7} fontFamily="monospace" opacity={0.4}>→ AIR OUT</text>
     <text x={cx+r2s+8} y={cy-4} fill={C.blade} fontSize={7} fontFamily="monospace">D₂</text>
     <text x={cx+rU+4} y={cy+h2+14} fill={C.backplate} fontSize={7} fontFamily="monospace">D_u={Du}</text>
     {Deye < D1 && <text x={cx+(rE+r1s)/2} y={cy-h1-3} fill={C.eye} fontSize={6} fontFamily="monospace" textAnchor="middle" opacity={0.5}>vaneless</text>}
+    {eyeRise > 0 && <>
+      <line x1={cx-rE-6} y1={cy-h1} x2={cx-rE-6} y2={cy-h1-eyeH} stroke={C.shroud} strokeWidth={0.5} />
+      <text x={cx-rE-10} y={cy-h1-eyeH/2+3} fill={C.shroud} fontSize={6} fontFamily="monospace" textAnchor="end">{eyeRise}mm</text>
+    </>}
     <line x1={cx+r1s+8} y1={cy-h1} x2={cx+r1s+8} y2={cy+h1} stroke={C.cyan} strokeWidth={0.5} />
     <text x={cx+r1s+12} y={cy+3} fill={C.cyan} fontSize={7} fontFamily="monospace">b₁={b1}</text>
     <line x1={cx+r2s+8} y1={cy-h2} x2={cx+r2s+8} y2={cy+h2} stroke={C.hub} strokeWidth={0.5} />
@@ -158,6 +165,7 @@ export default function ImpellerViewer() {
   const [beta2, setBeta2] = useState(145);
   const [Z, setZ] = useState(36);
   const [tBlade, setTBlade] = useState(1.0);
+  const [eyeRise, setEyeRise] = useState(10); // shroud eye curve height mm
   const [showShroud, setShowShroud] = useState(true);
   const [showBackplate, setShowBackplate] = useState(true);
   const [autoRotate, setAutoRotate] = useState(true);
@@ -209,14 +217,42 @@ export default function ImpellerViewer() {
     const hubR=Deye*0.2, sT=2, bpT=2, ex=explode;
     if(showBackplate){const g=buildDisc(Du/2,hubR,bpT); grp.add(new THREE.Mesh(g,new THREE.MeshPhongMaterial({color:0x8b5cf6,transparent:true,opacity:0.7,side:THREE.DoubleSide,shininess:60}))); grp.children[grp.children.length-1].position.y=-ex;
       if(Du>D2+1){const rg=new THREE.RingGeometry(D2/2,Du/2,64); const rm=new THREE.Mesh(rg,new THREE.MeshPhongMaterial({color:0xf472b6,transparent:true,opacity:0.25,side:THREE.DoubleSide})); rm.rotation.x=-Math.PI/2; rm.position.y=-ex+0.5; grp.add(rm);}}
-    if(showShroud){const g=buildDisc(D2/2,Deye/2,sT); const m=new THREE.Mesh(g,new THREE.MeshPhongMaterial({color:0x94a3b8,transparent:true,opacity:0.3,side:THREE.DoubleSide,shininess:80})); m.position.y=b2+ex; grp.add(m);}
+    if(showShroud){
+      // Flat shroud disc D_eye → D2
+      const g=buildDisc(D2/2,Deye/2,sT); const m=new THREE.Mesh(g,new THREE.MeshPhongMaterial({color:0x94a3b8,transparent:true,opacity:0.3,side:THREE.DoubleSide,shininess:80})); m.position.y=b2+ex; grp.add(m);
+      // Eye curve: revolved profile from eye lip down to blade inlet level
+      if(eyeRise > 0) {
+        const nCurve = 16;
+        const curvePoints = [];
+        for(let i = 0; i <= nCurve; i++) {
+          const t = i / nCurve; // 0=top of lip, 1=blade inlet
+          // Quadratic bezier: P0=(Deye/2, b1+eyeRise), P1=(Deye/2, b1), P2=(Deye/2+eyeRise*0.5, b1)
+          // Parametric: smooth from vertical to horizontal
+          const angle = t * Math.PI / 2; // 0 to 90°
+          const r = Deye / 2 + eyeRise * 0.8 * Math.sin(angle); // radius grows with sine
+          const y = b1 + eyeRise * Math.cos(angle); // height drops with cosine
+          curvePoints.push(new THREE.Vector2(r, y));
+        }
+        // Add thickness
+        const outerPts = curvePoints.map(p => new THREE.Vector2(p.x + sT * 0.5, p.y));
+        const innerPts = [...curvePoints].reverse().map(p => new THREE.Vector2(p.x - sT * 0.5, p.y));
+        const allPts = [...outerPts, ...innerPts];
+        const curveShape = new THREE.Shape(allPts);
+        const latheGeo = new THREE.LatheGeometry(curvePoints, 64);
+        const curveMesh = new THREE.Mesh(latheGeo, new THREE.MeshPhongMaterial({
+          color: 0x94a3b8, transparent: true, opacity: 0.35, side: THREE.DoubleSide, shininess: 80
+        }));
+        curveMesh.position.y = ex;
+        grp.add(curveMesh);
+      }
+    }
     const hg=new THREE.CylinderGeometry(hubR,hubR,bpT+8,32); hg.translate(0,-(bpT+8)/2,0); grp.add(new THREE.Mesh(hg,new THREE.MeshPhongMaterial({color:0xf59e0b,shininess:100})));
     const bMat=new THREE.MeshPhongMaterial({color:0x60a5fa,side:THREE.DoubleSide,shininess:60,transparent:true,opacity:0.85});
     for(let i=0;i<Z;i++) grp.add(new THREE.Mesh(buildBlade(bladePts,b1,b2,D1,D2,(2*Math.PI*i)/Z),bMat));
     for(let i=0;i<8;i++){const a=(2*Math.PI*i)/8,r=Deye*0.3; const f=new THREE.Vector3(r*Math.cos(a),b2+50+ex,r*Math.sin(a)), t=new THREE.Vector3(r*Math.cos(a),b2+5+ex,r*Math.sin(a)); grp.add(new THREE.ArrowHelper(new THREE.Vector3().subVectors(t,f).normalize(),f,f.distanceTo(t),0x34d399,5,3));}
     grp.add(new THREE.ArrowHelper(new THREE.Vector3(0,-1,0),new THREE.Vector3(0,b2+65+ex,0),55,0x4ade80,7,4));
     const eyeR=new THREE.Mesh(new THREE.RingGeometry(Deye/2-1,Deye/2+0.5,64),new THREE.MeshBasicMaterial({color:0x34d399,transparent:true,opacity:0.5,side:THREE.DoubleSide})); eyeR.rotation.x=-Math.PI/2; eyeR.position.y=b2+3+ex; grp.add(eyeR);
-  }, [Deye,D1,D2,Du,b1,b2,bladePts,Z,tBlade,showShroud,showBackplate,explode,viewTab]);
+  }, [Deye,D1,D2,Du,b1,b2,bladePts,Z,tBlade,eyeRise,showShroud,showBackplate,explode,viewTab]);
 
   const ratios = useMemo(() => ({ D1D2:(D1/D2).toFixed(3), DeyeD1:(Deye/D1).toFixed(3), DuD2:(Du/D2).toFixed(3), b2D2:(b2/D2).toFixed(3), b1b2:(b1/b2).toFixed(2) }), [D1,D2,Deye,Du,b1,b2]);
 
@@ -224,7 +260,7 @@ export default function ImpellerViewer() {
     <div style={{ background: C.bg, minHeight: "100vh", color: C.text }} className="font-sans">
       <div className="px-3 pt-3 pb-1">
         <h1 className="text-sm font-bold" style={{ fontFamily: "monospace" }}><span style={{ color: C.accent }}>◆</span> Impeller 3D Parametric Study</h1>
-        <p style={{ color: C.dim, fontFamily: "monospace", fontSize: 9 }}>13개 설계변수 | 숫자 더블클릭: 직접 입력 | 드래그: 회전 | 스크롤: 줌</p>
+        <p style={{ color: C.dim, fontFamily: "monospace", fontSize: 9 }}>14개 설계변수 | 숫자 더블클릭: 직접 입력 | 드래그: 회전 | 스크롤: 줌</p>
       </div>
       <div className="px-3 flex gap-0.5">
         {[{l:"3D",c:C.blade},{l:"정면도",c:C.eye},{l:"단면도",c:C.shroud},{l:"저면도",c:C.backplate}].map((t,i)=>
@@ -243,7 +279,7 @@ export default function ImpellerViewer() {
             </div>
           </>}
           {viewTab===1 && <div className="py-2"><FrontView {...{Deye,D1,D2,Du,b1,b2,bladePts,Z}} /></div>}
-          {viewTab===2 && <div className="py-2"><SectionView {...{Deye,D1,D2,Du,b1,b2}} /></div>}
+          {viewTab===2 && <div className="py-2"><SectionView {...{Deye,D1,D2,Du,b1,b2,eyeRise}} /></div>}
           {viewTab===3 && <div className="py-2"><BottomView {...{D2,Du,Deye}} /></div>}
         </div>
       </div>
@@ -256,9 +292,10 @@ export default function ImpellerViewer() {
               <S label="D₁" value={D1} min={50} max={220} step={1} onChange={setD1} unit="mm" color={C.cyan} />
               <S label="D₂" value={D2} min={80} max={320} step={1} onChange={setD2} unit="mm" color={C.blade} />
               <S label="D_u" value={Du} min={80} max={350} step={1} onChange={setDu} unit="mm" color={C.backplate} />
-              <div style={{ color: C.dim, fontFamily: "monospace", fontSize: 9, marginTop: 4, marginBottom: 2 }}>WIDTH</div>
+              <div style={{ color: C.dim, fontFamily: "monospace", fontSize: 9, marginTop: 4, marginBottom: 2 }}>WIDTH / SHAPE</div>
               <S label="b₁" value={b1} min={15} max={120} step={1} onChange={setB1} unit="mm" color={C.text} />
               <S label="b₂" value={b2} min={15} max={120} step={1} onChange={setB2} unit="mm" color={C.hub} />
+              <S label="Eye R" value={eyeRise} min={0} max={25} step={1} onChange={setEyeRise} unit="mm" color={C.shroud} />
             </div>
             <div>
               <div style={{ color: C.dim, fontFamily: "monospace", fontSize: 9, marginBottom: 2 }}>BLADE</div>
@@ -277,12 +314,12 @@ export default function ImpellerViewer() {
           </div>
           <div className="mt-2 p-1.5 rounded" style={{ background: C.bg, fontFamily: "monospace", fontSize: 8, color: C.muted }}>
             <span style={{color:C.eye}}>D_eye={Deye}</span> → <span style={{color:C.cyan}}>D₁={D1}</span> → <span style={{color:C.blade}}>D₂={D2}</span> | <span style={{color:C.backplate}}>D_u={Du}</span>{Du>D2?` (+${Du-D2}mm)`:Du<D2?" ⚠":"=D₂"}
-            <br/>b₁={b1}→b₂={b2} | β₁={beta1}°→β₂={beta2}° | Z={Z} | t={tBlade}mm
+            <br/>b₁={b1}→b₂={b2} | β₁={beta1}°→β₂={beta2}° | Z={Z} | t={tBlade}mm | Eye곡면={eyeRise}mm
             {Deye<D1&&<><br/><span style={{color:C.eye}}>Vaneless: {((D1-Deye)/2).toFixed(1)}mm</span></>}
           </div>
         </div>
       </div>
-      <div className="text-center pb-3" style={{color:C.border,fontFamily:"monospace",fontSize:9}}>Impeller 3D Viewer v1.1</div>
+      <div className="text-center pb-3" style={{color:C.border,fontFamily:"monospace",fontSize:9}}>Impeller 3D Viewer v1.2</div>
     </div>
   );
 }
