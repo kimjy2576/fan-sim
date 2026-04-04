@@ -33,7 +33,8 @@ function S({ label, value, min, max, step, onChange, unit, color }) {
   );
 }
 
-function bladePoints(D1, D2, beta1, beta2, n = 16) {
+// ─── Blade profiles (3 types) ───
+function bladeLinear(D1, D2, beta1, beta2, n = 20) {
   const r1 = D1 / 2, r2 = D2 / 2, b1R = beta1 * Math.PI / 180, b2R = beta2 * Math.PI / 180;
   let theta = 0; const pts = [{ r: r1, theta: 0 }];
   for (let i = 1; i <= n; i++) {
@@ -42,6 +43,77 @@ function bladePoints(D1, D2, beta1, beta2, n = 16) {
     if (Math.abs(Math.tan(bM)) > 0.001) theta += (-1 / (rM * Math.tan(bM))) * (r - rP);
     pts.push({ r, theta });
   }
+  return pts;
+}
+
+function bladeSFS(D1, D2, beta1, beta2, Rfillet, bendPos, n = 50) {
+  const r1 = D1 / 2, r2 = D2 / 2, b1R = beta1 * Math.PI / 180, b2R = beta2 * Math.PI / 180;
+  const blendW = Math.min(0.9, Math.max(0.05, Rfillet / 50));
+  const tMid = Math.max(0.1, Math.min(0.9, bendPos));
+  const tStart = Math.max(0.02, tMid - blendW / 2), tEnd = Math.min(0.98, tMid + blendW / 2);
+  let theta = 0; const pts = [{ r: r1, theta: 0 }];
+  for (let i = 1; i <= n; i++) {
+    const t = i / n, r = r1 + t * (r2 - r1), rP = r1 + (i - 1) / n * (r2 - r1);
+    const rM = (r + rP) / 2, tM_pt = (t + (i - 1) / n) / 2;
+    let beta;
+    if (tM_pt <= tStart) beta = b1R;
+    else if (tM_pt >= tEnd) beta = b2R;
+    else { const s = (tM_pt - tStart) / (tEnd - tStart); beta = b1R + 0.5 * (1 - Math.cos(s * Math.PI)) * (b2R - b1R); }
+    if (Math.abs(Math.tan(beta)) > 0.001) theta += (-1 / (rM * Math.tan(beta))) * (r - rP);
+    pts.push({ r, theta });
+  }
+  return pts;
+}
+
+function bladeArc(D1, D2, beta1, beta2) {
+  // Helper functions
+  const bladeTangent = (alpha, betaRad) => {
+    const er_x = Math.cos(alpha), er_y = Math.sin(alpha);
+    const et_x = -Math.sin(alpha), et_y = Math.cos(alpha);
+    return { tx: Math.sin(betaRad) * er_x - Math.cos(betaRad) * et_x, ty: Math.sin(betaRad) * er_y - Math.cos(betaRad) * et_y };
+  };
+  const cartToPolar = (xyPts) => {
+    if (!xyPts.length) return [];
+    const theta0 = Math.atan2(xyPts[0].y, xyPts[0].x);
+    return xyPts.map(p => ({ r: Math.sqrt(p.x ** 2 + p.y ** 2), theta: Math.atan2(p.y, p.x) - theta0 }));
+  };
+
+  const r1 = D1 / 2, r2 = D2 / 2;
+  const b1R = beta1 * Math.PI / 180, b2R = beta2 * Math.PI / 180;
+  const { tx: n1x, ty: n1y } = (() => { const t = bladeTangent(0, b1R); return { tx: -t.ty, ty: t.tx }; })();
+  let Rlo = 1, Rhi = r2 * 10, Rbest = r2;
+  for (let iter = 0; iter < 60; iter++) {
+    const R = (Rlo + Rhi) / 2, Cx = r1 + R * n1x, Cy = R * n1y;
+    const D_val = (r2 ** 2 + Cx ** 2 + Cy ** 2 - R ** 2) / 2;
+    const amp = Math.sqrt(Cx ** 2 + Cy ** 2);
+    if (amp < 1e-10 || Math.abs(D_val / (r2 * amp)) > 1) { Rlo = R; continue; }
+    const phase = Math.atan2(Cy, Cx), a2 = phase + Math.acos(Math.max(-1, Math.min(1, D_val / (r2 * amp))));
+    const p2x = r2 * Math.cos(a2), p2y = r2 * Math.sin(a2);
+    const dx = p2x - Cx, dy = p2y - Cy;
+    const { tx: t2x, ty: t2y } = bladeTangent(a2, b2R);
+    const cross = (-dy) * t2y - dx * t2x;
+    if (cross > 0) Rhi = R; else Rlo = R; Rbest = R;
+  }
+  const R = Rbest, Cx = r1 + R * n1x, Cy = R * n1y;
+  const angStart = Math.atan2(-Cy, r1 - Cx);
+  const D_val = (r2 ** 2 + Cx ** 2 + Cy ** 2 - R ** 2) / 2;
+  const amp = Math.sqrt(Cx ** 2 + Cy ** 2), phase = Math.atan2(Cy, Cx);
+  const a2 = phase + Math.acos(Math.max(-1, Math.min(1, D_val / (r2 * amp))));
+  const angEnd = Math.atan2(r2 * Math.sin(a2) - Cy, r2 * Math.cos(a2) - Cx);
+  let sweep = angEnd - angStart;
+  if (sweep > Math.PI) sweep -= 2 * Math.PI; if (sweep < -Math.PI) sweep += 2 * Math.PI;
+  const n = 40, xyPts = [];
+  for (let i = 0; i <= n; i++) { const t = i / n; const ang = angStart + t * sweep; xyPts.push({ x: Cx + R * Math.cos(ang), y: Cy + R * Math.sin(ang) }); }
+  return cartToPolar(xyPts);
+}
+
+function bladeShape(D1, D2, beta1, beta2, type, Rfillet, bendPos) {
+  let pts;
+  try {
+    if (type === 'arc') pts = bladeArc(D1, D2, beta1, beta2);
+    else if (type === 'sfs') pts = bladeSFS(D1, D2, beta1, beta2, Rfillet, bendPos);
+  } catch (e) {}
+  if (!pts || pts.length < 3 || pts.some(p => !isFinite(p.r) || !isFinite(p.theta))) pts = bladeLinear(D1, D2, beta1, beta2);
   return pts;
 }
 
@@ -68,15 +140,18 @@ function Tab({ active, onClick, children, color }) {
     borderBottom: active ? `2px solid ${color || C.blade}` : "2px solid transparent" }}>{children}</button>;
 }
 
-function FrontView({ Deye, D1, D2, Du, bladePts, Z }) {
+function FrontView({ Deye, D1, D2, Du, bladePts, Z, bladeType, bendPos }) {
   const w = 340, h = 280, cx = w / 2, cy = h / 2 + 10;
   const maxR = Math.max(D2, Du) / 2; const sc = (Math.min(w, h) / 2 - 25) / maxR;
+  const rBend = D1/2 + bendPos * (D2/2 - D1/2);
   return <svg width={w} height={h} style={{ display: "block", margin: "0 auto" }}>
     <text x={w/2} y={16} fill={C.dim} fontSize={9} fontFamily="monospace" textAnchor="middle">정면도 (Front — Eye 방향에서 본 모습)</text>
     {Du > D2 && <circle cx={cx} cy={cy} r={Du/2*sc} fill="none" stroke={C.accent} strokeWidth={1} strokeDasharray="4,3" opacity={0.4} />}
     <circle cx={cx} cy={cy} r={D2/2*sc} fill="none" stroke={C.blade} strokeWidth={1.5} />
     <circle cx={cx} cy={cy} r={D1/2*sc} fill="none" stroke={C.cyan} strokeWidth={0.8} strokeDasharray="3,3" opacity={0.6} />
     <circle cx={cx} cy={cy} r={Deye/2*sc} fill="none" stroke={C.eye} strokeWidth={1.5} />
+    {/* SFS bend radius indicator */}
+    {bladeType === 'sfs' && <circle cx={cx} cy={cy} r={rBend*sc} fill="none" stroke={C.accent} strokeWidth={0.7} strokeDasharray="4,4" opacity={0.5} />}
     <circle cx={cx} cy={cy} r={Deye*0.2*sc} fill={C.border} stroke={C.hub} strokeWidth={1} />
     {Array.from({ length: Z }).map((_, i) => {
       const a = (2 * Math.PI * i) / Z;
@@ -92,6 +167,7 @@ function FrontView({ Deye, D1, D2, Du, bladePts, Z }) {
     <text x={cx} y={cy + 3} fill={C.green} fontSize={8} fontFamily="monospace" textAnchor="middle" opacity={0.5}>AIR IN ⊙</text>
     <text x={cx} y={cy + D2/2*sc + 18} fill={C.blade} fontSize={8} fontFamily="monospace" textAnchor="middle">D₂={D2}mm</text>
     <text x={cx} y={cy + D2/2*sc + 30} fill={C.eye} fontSize={8} fontFamily="monospace" textAnchor="middle">D_eye={Deye}mm</text>
+    {bladeType==='sfs' && <text x={cx} y={cy - rBend*sc - 4} fill={C.accent} fontSize={7} fontFamily="monospace" textAnchor="middle" opacity={0.6}>Bend D={rBend*2|0}mm</text>}
     {Du > D2 && <text x={cx} y={cy - Du/2*sc - 6} fill={C.accent} fontSize={7} fontFamily="monospace" textAnchor="middle">D_u={Du}mm (+{Du-D2})</text>}
   </svg>;
 }
@@ -165,6 +241,9 @@ export default function ImpellerViewer() {
   const [beta2, setBeta2] = useState(145);
   const [Z, setZ] = useState(36);
   const [tBlade, setTBlade] = useState(1.0);
+  const [bladeType, setBladeType] = useState('sfs'); // 'arc', 'sfs', 'linear'
+  const [Rfillet, setRfillet] = useState(15);
+  const [bendPos, setBendPos] = useState(0.5);
   const [eyeRise, setEyeRise] = useState(10); // shroud eye curve height mm
   const [showShroud, setShowShroud] = useState(true);
   const [showBackplate, setShowBackplate] = useState(true);
@@ -182,7 +261,7 @@ export default function ImpellerViewer() {
   const mouseRef = useRef({ isDown: false, x: 0, y: 0, rotX: 0.4, rotY: 0, dist: 300 });
   useEffect(() => { autoRef.current = autoRotate; }, [autoRotate]);
 
-  const bladePts = useMemo(() => bladePoints(D1, D2, beta1, beta2), [D1, D2, beta1, beta2]);
+  const bladePts = useMemo(() => bladeShape(D1, D2, beta1, beta2, bladeType, Rfillet, bendPos), [D1, D2, beta1, beta2, bladeType, Rfillet, bendPos]);
 
   useEffect(() => {
     if (viewTab !== 0) return;
@@ -260,7 +339,7 @@ export default function ImpellerViewer() {
     <div style={{ background: C.bg, minHeight: "100vh", color: C.text }} className="font-sans">
       <div className="px-3 pt-3 pb-1">
         <h1 className="text-sm font-bold" style={{ fontFamily: "monospace" }}><span style={{ color: C.accent }}>◆</span> Impeller 3D Parametric Study</h1>
-        <p style={{ color: C.dim, fontFamily: "monospace", fontSize: 9 }}>14개 설계변수 | 숫자 더블클릭: 직접 입력 | 드래그: 회전 | 스크롤: 줌</p>
+        <p style={{ color: C.dim, fontFamily: "monospace", fontSize: 9 }}>17개 설계변수 | 숫자 더블클릭: 직접 입력 | 드래그: 회전 | 스크롤: 줌</p>
       </div>
       <div className="px-3 flex gap-0.5">
         {[{l:"3D",c:C.blade},{l:"정면도",c:C.eye},{l:"단면도",c:C.shroud},{l:"저면도",c:C.backplate}].map((t,i)=>
@@ -278,7 +357,7 @@ export default function ImpellerViewer() {
                 <input type="range" min={0} max={30} step={1} value={explode} onChange={e=>setExplode(+e.target.value)} className="w-16 h-1" style={{accentColor:C.accent}} /></div>
             </div>
           </>}
-          {viewTab===1 && <div className="py-2"><FrontView {...{Deye,D1,D2,Du,b1,b2,bladePts,Z}} /></div>}
+          {viewTab===1 && <div className="py-2"><FrontView {...{Deye,D1,D2,Du,b1,b2,bladePts,Z,bladeType,bendPos}} /></div>}
           {viewTab===2 && <div className="py-2"><SectionView {...{Deye,D1,D2,Du,b1,b2,eyeRise}} /></div>}
           {viewTab===3 && <div className="py-2"><BottomView {...{D2,Du,Deye}} /></div>}
         </div>
@@ -303,6 +382,27 @@ export default function ImpellerViewer() {
               <S label="β₂" value={beta2} min={95} max={170} step={1} onChange={setBeta2} unit="°" color={C.red} />
               <S label="Z" value={Z} min={16} max={48} step={1} onChange={setZ} unit="" color={C.purple} />
               <S label="t" value={tBlade} min={0.3} max={3} step={0.1} onChange={setTBlade} unit="mm" color={C.blade} />
+              <div style={{ color: C.dim, fontFamily: "monospace", fontSize: 9, marginTop: 4, marginBottom: 2 }}>PROFILE</div>
+              <div className="flex gap-1 mb-1">
+                {[{k:'sfs',l:'직선-필렛-직선'},{k:'arc',l:'단일 원호'},{k:'linear',l:'선형 β'}].map(m =>
+                  <button key={m.k} onClick={() => setBladeType(m.k)} className="flex-1 py-0.5 rounded"
+                    style={{ fontFamily:"monospace", fontSize: 7,
+                      background: bladeType===m.k ? C.card : "transparent",
+                      color: bladeType===m.k ? C.blade : C.dim,
+                      border: `1px solid ${bladeType===m.k ? C.blade : C.border}` }}>{m.l}</button>)}
+              </div>
+              {bladeType === 'sfs' && (() => {
+                const r1mm = D1/2, r2mm = D2/2, rBend = r1mm + bendPos * (r2mm - r1mm);
+                return <>
+                  <S label="R" value={Rfillet} min={1} max={50} step={1} onChange={setRfillet} unit="mm" color={C.accent} />
+                  <S label="Bend" value={bendPos} min={0.15} max={0.85} step={0.01} onChange={setBendPos} unit="" color={C.cyan} />
+                  <div style={{ color: C.dim, fontFamily: "monospace", fontSize: 7 }}>
+                    절곡 r={rBend.toFixed(1)}mm (D={rBend*2|0}mm) span {(bendPos*100)|0}%
+                  </div>
+                </>;
+              })()}
+              {bladeType === 'arc' && <div style={{ color: C.dim, fontFamily: "monospace", fontSize: 7 }}>β₁,β₂ 접선 유일 원호. 프레스 1회 성형.</div>}
+              {bladeType === 'linear' && <div style={{ color: C.dim, fontFamily: "monospace", fontSize: 7 }}>β가 r₁→r₂에서 선형 변화.</div>}
             </div>
           </div>
           <div className="mt-2 pt-2 grid grid-cols-5 gap-1" style={{ borderTop: `1px solid ${C.border}` }}>
@@ -315,11 +415,12 @@ export default function ImpellerViewer() {
           <div className="mt-2 p-1.5 rounded" style={{ background: C.bg, fontFamily: "monospace", fontSize: 8, color: C.muted }}>
             <span style={{color:C.eye}}>D_eye={Deye}</span> → <span style={{color:C.cyan}}>D₁={D1}</span> → <span style={{color:C.blade}}>D₂={D2}</span> | <span style={{color:C.backplate}}>D_u={Du}</span>{Du>D2?` (+${Du-D2}mm)`:Du<D2?" ⚠":"=D₂"}
             <br/>b₁={b1}→b₂={b2} | β₁={beta1}°→β₂={beta2}° | Z={Z} | t={tBlade}mm | Eye곡면={eyeRise}mm
+            <br/>프로파일: <span style={{color:C.blade}}>{bladeType==='sfs'?`직선-필렛-직선 (R=${Rfillet}, Bend=${(bendPos*100)|0}%)`:bladeType==='arc'?'단일 원호':'선형 β'}</span>
             {Deye<D1&&<><br/><span style={{color:C.eye}}>Vaneless: {((D1-Deye)/2).toFixed(1)}mm</span></>}
           </div>
         </div>
       </div>
-      <div className="text-center pb-3" style={{color:C.border,fontFamily:"monospace",fontSize:9}}>Impeller 3D Viewer v1.2</div>
+      <div className="text-center pb-3" style={{color:C.border,fontFamily:"monospace",fontSize:9}}>Impeller 3D Viewer v1.3 — Blade Profile</div>
     </div>
   );
 }
