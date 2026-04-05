@@ -262,27 +262,29 @@ function buildBlade(pts, b1, b2, D1, D2, angle) {
 }
 
 // ═══ SCROLL GEOMETRY ═══
-function scrollProfile(r2, wrapDeg, type, bScroll, startDeg = 0, nSeg = 72) {
-  // startDeg = cutoff angle (where tongue is, where spiral begins)
-  const r2m = r2;
+function scrollProfile(r2, wrapDeg, type, bScroll, startDeg = 0, cutoffGap = 8, nSeg = 72) {
+  // Spiral starts at tongue tip: r_start = r₂ + cutoffGap
+  const rStart = r2 + cutoffGap;
   const wrapRad = wrapDeg * Math.PI / 180;
   const startRad = startDeg * Math.PI / 180;
   const pts = [];
 
   if (type === 'cv') {
-    const k = r2m * 0.12;
+    // Archimedes: r(θ) = rStart + k·θ
+    const k = r2 * 0.12;
     for (let i = 0; i <= nSeg; i++) {
-      const dTheta = (i / nSeg) * wrapRad; // angle from start
-      const theta = startRad + dTheta; // absolute angle
-      const r = r2m + k * dTheta;
+      const dTheta = (i / nSeg) * wrapRad;
+      const theta = startRad + dTheta;
+      const r = rStart + k * dTheta;
       pts.push({ theta, r });
     }
   } else {
+    // Log spiral: r(θ) = rStart · e^(θ·tanα)
     const alpha = 6 * Math.PI / 180;
     for (let i = 0; i <= nSeg; i++) {
       const dTheta = (i / nSeg) * wrapRad;
       const theta = startRad + dTheta;
-      const r = r2m * Math.exp(dTheta * Math.tan(alpha));
+      const r = rStart * Math.exp(dTheta * Math.tan(alpha));
       pts.push({ theta, r });
     }
   }
@@ -354,7 +356,7 @@ function Tab({ active, onClick, children, color }) {
 
 function FrontView({ Deye, D1, D2, Du, bladePts, Z, bladeType, bendPos, showScroll, scrollType, wrapAngle, cutoffGap, cutoffAngle, Rtongue }) {
   const w = 340, h = 280, cx = w / 2, cy = h / 2 + 10;
-  const sPts = showScroll ? scrollProfile(D2/2, wrapAngle, scrollType, 55, cutoffAngle) : [];
+  const sPts = showScroll ? scrollProfile(D2/2, wrapAngle, scrollType, 55, cutoffAngle, cutoffGap) : [];
   const maxR = showScroll && sPts.length > 0 ? Math.max(Du/2, ...sPts.map(p=>p.r)) + 10 : Math.max(D2, Du) / 2;
   const sc = (Math.min(w, h) / 2 - 25) / maxR;
   const rBend = D1/2 + bendPos * (D2/2 - D1/2);
@@ -392,31 +394,34 @@ function FrontView({ Deye, D1, D2, Du, bladePts, Z, bladeType, bendPos, showScro
       const tipX = cx + rTongue * Math.cos(tongueTheta) * sc;
       const tipY = cy - rTongue * Math.sin(tongueTheta) * sc;
       const rTipSc = Rtongue * sc;
-      // Scroll end point (last point of spiral)
-      const endPt = sPts.length > 0 ? sPts[sPts.length - 1] : { r: rTongue, theta: 0 };
-      const endX = cx + endPt.r * Math.cos(endPt.theta) * sc;
-      const endY = cy - endPt.r * Math.sin(endPt.theta) * sc;
-      // Inner wall (from tongue back toward scroll at D₂+gap)
-      const innerLen = 20 * sc; // length of tongue inner wall
-      const tDir = tongueTheta + Math.PI / 2; // perpendicular to radial
-      const wallX1 = tipX + innerLen * Math.cos(tDir);
-      const wallY1 = tipY - innerLen * Math.sin(tDir);
+      // Scroll start point (first point = tongue tip position)
+      const startPt = sPts.length > 0 ? sPts[0] : null;
+      // Scroll end point (last point after wrapping)
+      const endPt = sPts.length > 0 ? sPts[sPts.length - 1] : null;
+      const endX = endPt ? cx + endPt.r * Math.cos(endPt.theta) * sc : tipX;
+      const endY = endPt ? cy - endPt.r * Math.sin(endPt.theta) * sc : tipY;
       // Cutoff gap indicator
       const d2X = cx + (D2/2) * Math.cos(tongueTheta) * sc;
       const d2Y = cy - (D2/2) * Math.sin(tongueTheta) * sc;
+      // Tongue inner wall direction (tangential, from tip toward scroll interior)
+      const wallDir = tongueTheta + Math.PI / 2;
+      const wallLen = 20 * sc;
+      const wallX1 = tipX + wallLen * Math.cos(wallDir);
+      const wallY1 = tipY - wallLen * Math.sin(wallDir);
       return <>
+        {/* Closing wall: scroll end → tongue outer wall */}
+        <line x1={endX} y1={endY} x2={tipX} y2={tipY} stroke="#d4a44a" strokeWidth={1} opacity={0.5} />
         {/* Tongue tip circle */}
         <circle cx={tipX} cy={tipY} r={Math.max(2, rTipSc)} fill="none" stroke={C.red} strokeWidth={1.5} opacity={0.8} />
-        {/* Tongue body - inner wall line */}
+        {/* Tongue inner wall */}
         <line x1={tipX} y1={tipY} x2={wallX1} y2={wallY1} stroke={C.red} strokeWidth={1.2} opacity={0.6} />
         {/* Cutoff gap line */}
         <line x1={d2X} y1={d2Y} x2={tipX} y2={tipY} stroke={C.red} strokeWidth={0.5} strokeDasharray="2,2" opacity={0.4} />
-        {/* Gap dimension */}
+        {/* Start marker */}
+        <circle cx={tipX} cy={tipY} r={3} fill={C.red} opacity={0.5} />
+        {/* Labels */}
         <text x={(d2X+tipX)/2+6} y={(d2Y+tipY)/2-4} fill={C.red} fontSize={6} fontFamily="monospace" opacity={0.7}>δ={cutoffGap}mm</text>
-        {/* Tongue tip R label */}
-        <text x={tipX+8} y={tipY+4} fill={C.red} fontSize={6} fontFamily="monospace" opacity={0.6}>R={Rtongue}</text>
-        {/* Tongue marker dot */}
-        <circle cx={tipX} cy={tipY} r={1.5} fill={C.red} opacity={0.9} />
+        <text x={tipX+8} y={tipY+12} fill={C.red} fontSize={6} fontFamily="monospace" opacity={0.6}>R={Rtongue}</text>
       </>;
     })()}
     <text x={cx} y={cy + D2/2*sc + 18} fill={C.blade} fontSize={8} fontFamily="monospace" textAnchor="middle">D₂={D2}mm</text>
@@ -628,7 +633,7 @@ export default function ImpellerViewer() {
 
     // Scroll casing
     if (showScroll) {
-      const sPts = scrollProfile(D2/2, wrapAngle, scrollType, bScroll, cutoffAngle);
+      const sPts = scrollProfile(D2/2, wrapAngle, scrollType, bScroll, cutoffAngle, cutoffGap);
       const sGeo = buildScrollMesh(sPts, bScroll, scrollGapF, scrollGapB, scrollCross);
       if (sGeo) {
         const sMat = new THREE.MeshPhongMaterial({ color: 0xd4a44a, transparent: true, opacity: 0.2, side: THREE.DoubleSide, shininess: 40 });
