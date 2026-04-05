@@ -354,7 +354,7 @@ function Tab({ active, onClick, children, color }) {
     borderBottom: active ? `2px solid ${color || C.blade}` : "2px solid transparent" }}>{children}</button>;
 }
 
-function FrontView({ Deye, D1, D2, Du, bladePts, Z, bladeType, bendPos, showScroll, scrollType, wrapAngle, cutoffGap, cutoffAngle, Rtongue }) {
+function FrontView({ Deye, D1, D2, Du, bladePts, Z, bladeType, bendPos, showScroll, scrollType, wrapAngle, cutoffGap, cutoffAngle, Rtongue, diffAngle, diffLength, diffType }) {
   const w = 340, h = 280, cx = w / 2, cy = h / 2 + 10;
   const sPts = showScroll ? scrollProfile(D2/2, wrapAngle, scrollType, 55, cutoffAngle, cutoffGap) : [];
   const maxR = showScroll && sPts.length > 0 ? Math.max(Du/2, ...sPts.map(p=>p.r)) + 10 : Math.max(D2, Du) / 2;
@@ -389,6 +389,61 @@ function FrontView({ Deye, D1, D2, Du, bladePts, Z, bladeType, bendPos, showScro
       const x = cx + p.r * Math.cos(p.theta) * sc, y = cy - p.r * Math.sin(p.theta) * sc;
       return `${i===0?'M':'L'} ${x} ${y}`;
     }).join(' ')} fill="none" stroke="#d4a44a" strokeWidth={1.5} opacity={0.6} />}
+    {/* Diffuser */}
+    {showScroll && sPts.length > 1 && (() => {
+      const endPt = sPts[sPts.length - 1];
+      const startPt = sPts[0]; // tongue/cutoff start
+      // Diffuser exit direction: tangent at scroll end
+      const exitTheta = endPt.theta;
+      const exitDir = exitTheta + Math.PI / 2; // tangential direction
+      // Scroll exit opening: inner wall (tongue) to outer wall (spiral end)
+      const rInner = rTongue; // tongue side
+      const rOuter = endPt.r; // spiral end side
+      const innerX = cx + rInner * Math.cos(exitTheta) * sc;
+      const innerY = cy - rInner * Math.sin(exitTheta) * sc;
+      const outerX = cx + rOuter * Math.cos(exitTheta) * sc;
+      const outerY = cy - rOuter * Math.sin(exitTheta) * sc;
+      const exitW = (rOuter - rInner) * sc; // exit width in SVG
+      const dL = diffLength * sc; // diffuser length in SVG
+      const halfA = diffAngle * Math.PI / 180;
+      // Diffuser walls
+      const dx = Math.cos(exitDir), dy = -Math.sin(exitDir);
+      const nx = Math.cos(exitTheta), ny = -Math.sin(exitTheta); // normal (expansion direction)
+      // Inner wall end
+      const iEndX = innerX + dL * dx - (diffType !== 'single' ? 0 : dL * Math.tan(halfA) * nx * 0.5);
+      const iEndY = innerY + dL * dy - (diffType !== 'single' ? 0 : dL * Math.tan(halfA) * ny * 0.5);
+      // Outer wall end
+      const oEndX = outerX + dL * dx + dL * Math.tan(halfA) * nx;
+      const oEndY = outerY + dL * dy + dL * Math.tan(halfA) * ny;
+
+      if (diffType === 'round') {
+        // Curved expansion
+        const midX = (innerX + outerX) / 2 + dL * 0.5 * dx;
+        const midY = (innerY + outerY) / 2 + dL * 0.5 * dy;
+        return <g opacity={0.5}>
+          <path d={`M${innerX} ${innerY} Q${innerX + dL*0.5*dx} ${innerY + dL*0.5*dy} ${iEndX} ${iEndY}`} fill="none" stroke="#d4a44a" strokeWidth={1.2} />
+          <path d={`M${outerX} ${outerY} Q${outerX + dL*0.5*dx + dL*0.3*Math.tan(halfA)*nx} ${outerY + dL*0.5*dy + dL*0.3*Math.tan(halfA)*ny} ${oEndX} ${oEndY}`} fill="none" stroke="#d4a44a" strokeWidth={1.2} />
+          <line x1={iEndX} y1={iEndY} x2={oEndX} y2={oEndY} stroke="#d4a44a" strokeWidth={1} strokeDasharray="3,2" />
+        </g>;
+      }
+      if (diffType === 'stepped') {
+        const midL = dL * 0.5;
+        const stepX = halfA > 0 ? dL * Math.tan(halfA) * nx * 0.5 : 0;
+        const stepY = halfA > 0 ? dL * Math.tan(halfA) * ny * 0.5 : 0;
+        return <g opacity={0.5}>
+          <path d={`M${outerX} ${outerY} L${outerX + midL*dx} ${outerY + midL*dy} L${outerX + midL*dx + stepX} ${outerY + midL*dy + stepY} L${oEndX} ${oEndY}`} fill="none" stroke="#d4a44a" strokeWidth={1.2} />
+          <line x1={innerX} y1={innerY} x2={iEndX} y2={iEndY} stroke="#d4a44a" strokeWidth={1.2} />
+          <line x1={iEndX} y1={iEndY} x2={oEndX} y2={oEndY} stroke="#d4a44a" strokeWidth={1} strokeDasharray="3,2" />
+        </g>;
+      }
+      // Single (straight) diffuser
+      return <g opacity={0.5}>
+        <line x1={innerX} y1={innerY} x2={iEndX} y2={iEndY} stroke="#d4a44a" strokeWidth={1.2} />
+        <line x1={outerX} y1={outerY} x2={oEndX} y2={oEndY} stroke="#d4a44a" strokeWidth={1.2} />
+        <line x1={iEndX} y1={iEndY} x2={oEndX} y2={oEndY} stroke="#d4a44a" strokeWidth={1} strokeDasharray="3,2" />
+        <text x={(iEndX+oEndX)/2+6} y={(iEndY+oEndY)/2} fill="#d4a44a" fontSize={5} fontFamily="monospace">출구</text>
+      </g>;
+    })()}
     {/* Tongue */}
     {showScroll && (() => {
       const tipX = cx + rTongue * Math.cos(tongueTheta) * sc;
@@ -540,6 +595,10 @@ export default function ImpellerViewer() {
   const [cutoffGap, setCutoffGap] = useState(8); // mm, gap between D₂ and tongue tip
   const [cutoffAngle, setCutoffAngle] = useState(0); // degrees, tongue angular position (0=3 o'clock)
   const [Rtongue, setRtongue] = useState(5); // mm, tongue tip radius
+  // Diffuser
+  const [diffAngle, setDiffAngle] = useState(7); // half-angle degrees
+  const [diffLength, setDiffLength] = useState(40); // mm
+  const [diffType, setDiffType] = useState('single'); // 'single', 'stepped', 'round'
   const [matKey, setMatKey] = useState('SPCC');
   const [sweepVar, setSweepVar] = useState('beta2');
   const [sweepMin, setSweepMin] = useState(100);
@@ -663,9 +722,53 @@ export default function ImpellerViewer() {
       );
       wallMesh.rotation.y = -wallDir;
       grp.add(wallMesh);
+
+      // Diffuser — extends from scroll exit
+      if (diffLength > 0) {
+        const exitTheta = tTheta + wrapAngle * Math.PI / 180;
+        const exitDir = exitTheta + Math.PI / 2;
+        const rInner = rTip;
+        const rOuter = sPts.length > 0 ? sPts[sPts.length - 1].r : rTip + 20;
+        const exitW = rOuter - rInner;
+        const halfA = diffAngle * Math.PI / 180;
+        const exitMidR = (rInner + rOuter) / 2;
+        const dL = diffLength;
+        // Diffuser as a box, positioned at scroll exit, rotated to tangent direction
+        const outW = exitW + 2 * dL * Math.tan(halfA);
+        const dGeo = new THREE.BufferGeometry();
+        const dVerts = [];
+        const nSteps = diffType === 'round' ? 8 : (diffType === 'stepped' ? 3 : 2);
+        for (let i = 0; i <= nSteps; i++) {
+          const t = i / nSteps;
+          const along = t * dL;
+          let wHalf;
+          if (diffType === 'round') { wHalf = exitW / 2 + (outW - exitW) / 2 * (1 - Math.cos(t * Math.PI / 2)); }
+          else if (diffType === 'stepped') { wHalf = exitW / 2 + (outW - exitW) / 2 * (t > 0.5 ? 1 : 0); }
+          else { wHalf = exitW / 2 + (outW - exitW) / 2 * t; }
+          const px = exitMidR * Math.cos(exitTheta) + along * Math.cos(exitDir);
+          const pz = exitMidR * Math.sin(exitTheta) + along * Math.sin(exitDir);
+          const nx = Math.cos(exitTheta), nz = Math.sin(exitTheta);
+          dVerts.push(px - wHalf * nx, 0, pz - wHalf * nz);
+          dVerts.push(px + wHalf * nx, 0, pz + wHalf * nz);
+          dVerts.push(px + wHalf * nx, tongueH, pz + wHalf * nz);
+          dVerts.push(px - wHalf * nx, tongueH, pz - wHalf * nz);
+        }
+        const dIdx = [];
+        for (let i = 0; i < nSteps; i++) {
+          const b = i * 4, n = (i + 1) * 4;
+          for (let j = 0; j < 4; j++) { const j2 = (j + 1) % 4; dIdx.push(b+j, n+j, n+j2); dIdx.push(b+j, n+j2, b+j2); }
+        }
+        dGeo.setAttribute('position', new THREE.Float32BufferAttribute(dVerts, 3));
+        dGeo.setIndex(dIdx); dGeo.computeVertexNormals();
+        const dMat = new THREE.MeshPhongMaterial({ color: 0xd4a44a, transparent: true, opacity: 0.15, side: THREE.DoubleSide });
+        const dMesh = new THREE.Mesh(dGeo, dMat);
+        dMesh.position.y = -scrollGapB - 2;
+        grp.add(dMesh);
+      }
     }
   }, [Deye,D1,D2,Du,b1,b2,bladePts,Z,tBlade,eyeRise,showShroud,showBackplate,showScroll,explode,viewTab,
-      scrollType,wrapAngle,scrollGapF,scrollGapB,bScroll,scrollCross,cutoffGap,cutoffAngle,Rtongue]);
+      scrollType,wrapAngle,scrollGapF,scrollGapB,bScroll,scrollCross,cutoffGap,cutoffAngle,Rtongue,
+      diffAngle,diffLength,diffType]);
 
   const ratios = useMemo(() => ({ D1D2:(D1/D2).toFixed(3), DeyeD1:(Deye/D1).toFixed(3), DuD2:(Du/D2).toFixed(3), b2D2:(b2/D2).toFixed(3), b1b2:(b1/b2).toFixed(2) }), [D1,D2,Deye,Du,b1,b2]);
 
@@ -714,7 +817,7 @@ export default function ImpellerViewer() {
                 <input type="range" min={0} max={30} step={1} value={explode} onChange={e=>setExplode(+e.target.value)} className="w-16 h-1" style={{accentColor:C.accent}} /></div>
             </div>
           </>}
-          {viewTab===1 && <div className="py-2"><FrontView {...{Deye,D1,D2,Du,b1,b2,bladePts,Z,bladeType,bendPos,showScroll,scrollType,wrapAngle,cutoffGap,cutoffAngle,Rtongue}} /></div>}
+          {viewTab===1 && <div className="py-2"><FrontView {...{Deye,D1,D2,Du,b1,b2,bladePts,Z,bladeType,bendPos,showScroll,scrollType,wrapAngle,cutoffGap,cutoffAngle,Rtongue,diffAngle,diffLength,diffType}} /></div>}
           {viewTab===2 && <div className="py-2"><SectionView {...{Deye,D1,D2,Du,b1,b2,eyeRise,showScroll,scrollGapF,scrollGapB,bScroll}} /></div>}
           {viewTab===3 && <div className="py-2"><BottomView {...{D2,Du,Deye}} /></div>}
           {viewTab===4 && (() => {
@@ -871,10 +974,27 @@ export default function ImpellerViewer() {
                 <S label="R" value={Rtongue} min={1} max={20} step={0.5} onChange={setRtongue} unit="mm" color={C.red} />
               </div>
             </div>
+            {/* Diffuser */}
+            <div className="mt-1 pt-1" style={{ borderTop: `1px solid ${C.border}33` }}>
+              <div className="flex items-center gap-2 mb-1">
+                <span style={{ color: "#d4a44a", fontFamily: "monospace", fontSize: 8 }}>DIFFUSER</span>
+                <div className="flex gap-0.5 ml-auto">
+                  {[{k:'single',l:'단일'},{k:'stepped',l:'단계'},{k:'round',l:'Round'}].map(m =>
+                    <button key={m.k} onClick={() => setDiffType(m.k)} className="px-1.5 py-0.5 rounded"
+                      style={{ fontFamily:"monospace", fontSize:6,
+                        background:diffType===m.k?C.card:"transparent", color:diffType===m.k?"#d4a44a":C.dim,
+                        border:`1px solid ${diffType===m.k?"#d4a44a":C.border}` }}>{m.l}</button>)}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-x-2">
+                <S label="Angle" value={diffAngle} min={0} max={20} step={0.5} onChange={setDiffAngle} unit="°" color="#d4a44a" />
+                <S label="Length" value={diffLength} min={10} max={120} step={1} onChange={setDiffLength} unit="mm" color="#d4a44a" />
+              </div>
+            </div>
             <div style={{ color: C.dim, fontFamily: "monospace", fontSize: 7, marginTop: 2 }}>
-              {scrollType==='cv'?'아르키메데스 r(θ)=r₂+kθ':'로그 나선 r(θ)=r₂·e^(θtanα)'}
-              {' | '}{scrollCross==='rect'?'사각':'원형'} | Wrap {wrapAngle}° |
-              Tongue: δ={cutoffGap}mm θ={cutoffAngle}° R={Rtongue}mm
+              {scrollType==='cv'?'아르키메데스':'로그나선'} | {scrollCross==='rect'?'사각':'원형'} | Wrap {wrapAngle}° |
+              Tongue δ={cutoffGap} R={Rtongue} |
+              Diff {diffType} {diffAngle}° L={diffLength}mm
             </div>
           </div>
 
