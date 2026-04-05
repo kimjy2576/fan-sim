@@ -361,7 +361,7 @@ function Tab({ active, onClick, children, color }) {
     borderBottom: active ? `2px solid ${color || C.blade}` : "2px solid transparent" }}>{children}</button>;
 }
 
-function FrontView({ Deye, D1, D2, Du, bladePts, Z, bladeType, bendPos, showScroll, scrollType, wrapAngle, cutoffGap, cutoffAngle, Rtongue, diffAngle, diffLength, diffType, diffInnerWall }) {
+function FrontView({ Deye, D1, D2, Du, bladePts, Z, bladeType, bendPos, showScroll, scrollType, wrapAngle, cutoffGap, cutoffAngle, Rtongue, tongueOutLen, tongueOutAngle, diffAngle, diffLength, diffType, diffInnerWall }) {
   const w = 340, h = 280, cx = w / 2, cy = h / 2 + 10;
   const sPts = showScroll ? scrollProfile(D2/2, wrapAngle, scrollType, 55, cutoffAngle, cutoffGap) : [];
   const maxR = showScroll && sPts.length > 0 ? Math.max(Du/2, ...sPts.map(p=>p.r)) + 10 : Math.max(D2, Du) / 2;
@@ -480,9 +480,13 @@ function FrontView({ Deye, D1, D2, Du, bladePts, Z, bladeType, bendPos, showScro
       } else {
         exitDir = tongueTheta + Math.PI / 2; // fallback
       }
-      const outLen = diffInnerWall ? 15 * sc : diffLength * 0.65 * sc;
-      const outEndX = tipX + outLen * Math.cos(exitDir);
-      const outEndY = tipY + outLen * Math.sin(exitDir);
+      const outLen = tongueOutLen * sc;
+      // Outer face angle: exitDir + tongueOutAngle (diverges inward from diffuser)
+      const outAngleRad = tongueOutAngle * Math.PI / 180;
+      // Rotate exitDir by outAngle toward impeller center (inward divergence)
+      const outFaceDir = exitDir + outAngleRad;
+      const outEndX = tipX + outLen * Math.cos(outFaceDir);
+      const outEndY = tipY + outLen * Math.sin(outFaceDir);
 
       // Tip round arc: from inner face end → outer face start
       // Arc center offset from tip toward impeller center
@@ -652,6 +656,8 @@ export default function ImpellerViewer() {
   const [cutoffGap, setCutoffGap] = useState(8); // mm, gap between D₂ and tongue tip
   const [cutoffAngle, setCutoffAngle] = useState(0); // degrees, tongue angular position (0=3 o'clock)
   const [Rtongue, setRtongue] = useState(5); // mm, tongue tip radius
+  const [tongueOutLen, setTongueOutLen] = useState(35); // mm, tongue outer face length
+  const [tongueOutAngle, setTongueOutAngle] = useState(5); // degrees, tongue outer face divergence angle
   // Diffuser
   const [diffAngle, setDiffAngle] = useState(7); // half-angle degrees
   const [diffLength, setDiffLength] = useState(40); // mm
@@ -785,18 +791,17 @@ export default function ImpellerViewer() {
       inMesh.rotation.y = -inDir;
       grp.add(inMesh);
 
-      // Outer face (diffuser side) — goes toward diffuser exit direction
-      // Exit direction = tangent at scroll end point
+      // Outer face (diffuser side) — configurable length and angle
       let outDirA;
       if (sPts.length >= 2) {
         const p1 = sPts[sPts.length - 2], p2 = sPts[sPts.length - 1];
         const dx = p2.r * Math.cos(p2.theta) - p1.r * Math.cos(p1.theta);
         const dz = p2.r * Math.sin(p2.theta) - p1.r * Math.sin(p1.theta);
-        outDirA = Math.atan2(dz, dx);
+        outDirA = Math.atan2(dz, dx) + tongueOutAngle * Math.PI / 180;
       } else {
-        outDirA = tTheta + Math.PI / 2; // fallback
+        outDirA = tTheta + Math.PI / 2 + tongueOutAngle * Math.PI / 180;
       }
-      const outLen = diffInnerWall ? 12 : diffLength * 0.65;
+      const outLen = tongueOutLen;
       const outGeo = new THREE.BoxGeometry(outLen, tongueH, wallThick);
       const outMesh = new THREE.Mesh(outGeo, wallMat.clone());
       outMesh.material.opacity = 0.25;
@@ -855,7 +860,7 @@ export default function ImpellerViewer() {
       }
     }
   }, [Deye,D1,D2,Du,b1,b2,bladePts,Z,tBlade,bladeLean,eyeRise,showShroud,showBackplate,showScroll,explode,viewTab,
-      scrollType,wrapAngle,scrollGapF,scrollGapB,bScroll,scrollCross,cutoffGap,cutoffAngle,Rtongue,
+      scrollType,wrapAngle,scrollGapF,scrollGapB,bScroll,scrollCross,cutoffGap,cutoffAngle,Rtongue,tongueOutLen,tongueOutAngle,
       diffAngle,diffLength,diffType,diffInnerWall]);
 
   const ratios = useMemo(() => ({ D1D2:(D1/D2).toFixed(3), DeyeD1:(Deye/D1).toFixed(3), DuD2:(Du/D2).toFixed(3), b2D2:(b2/D2).toFixed(3), b1b2:(b1/b2).toFixed(2) }), [D1,D2,Deye,Du,b1,b2]);
@@ -905,7 +910,7 @@ export default function ImpellerViewer() {
                 <input type="range" min={0} max={30} step={1} value={explode} onChange={e=>setExplode(+e.target.value)} className="w-16 h-1" style={{accentColor:C.accent}} /></div>
             </div>
           </>}
-          {viewTab===1 && <div className="py-2"><FrontView {...{Deye,D1,D2,Du,b1,b2,bladePts,Z,bladeType,bendPos,showScroll,scrollType,wrapAngle,cutoffGap,cutoffAngle,Rtongue,diffAngle,diffLength,diffType,diffInnerWall}} /></div>}
+          {viewTab===1 && <div className="py-2"><FrontView {...{Deye,D1,D2,Du,b1,b2,bladePts,Z,bladeType,bendPos,showScroll,scrollType,wrapAngle,cutoffGap,cutoffAngle,Rtongue,tongueOutLen,tongueOutAngle,diffAngle,diffLength,diffType,diffInnerWall}} /></div>}
           {viewTab===2 && <div className="py-2"><SectionView {...{Deye,D1,D2,Du,b1,b2,eyeRise,showScroll,scrollGapF,scrollGapB,bScroll}} /></div>}
           {viewTab===3 && <div className="py-2"><BottomView {...{D2,Du,Deye}} /></div>}
           {viewTab===4 && (() => {
@@ -1077,6 +1082,11 @@ export default function ImpellerViewer() {
                 <S label="θ" value={cutoffAngle} min={0} max={45} step={1} onChange={setCutoffAngle} unit="°" color={C.red} />
                 <S label="R" value={Rtongue} min={1} max={20} step={0.5} onChange={setRtongue} unit="mm" color={C.red} />
               </div>
+              <div style={{ color: C.dim, fontFamily: "monospace", fontSize: 7, marginTop: 2, marginBottom: 1 }}>외면 (디퓨저 내벽 역할)</div>
+              <div className="grid grid-cols-2 gap-x-2">
+                <S label="L_out" value={tongueOutLen} min={5} max={80} step={1} onChange={setTongueOutLen} unit="mm" color={C.red} />
+                <S label="α_out" value={tongueOutAngle} min={-10} max={15} step={0.5} onChange={setTongueOutAngle} unit="°" color={C.red} />
+              </div>
             </div>
             {/* Diffuser */}
             <div className="mt-1 pt-1" style={{ borderTop: `1px solid ${C.border}33` }}>
@@ -1101,7 +1111,7 @@ export default function ImpellerViewer() {
             </div>
             <div style={{ color: C.dim, fontFamily: "monospace", fontSize: 7, marginTop: 2 }}>
               {scrollType==='cv'?'아르키메데스':'로그나선'} | {scrollCross==='rect'?'사각':'원형'} | Wrap {wrapAngle}° |
-              Tongue δ={cutoffGap} R={Rtongue} |
+              Tongue δ={cutoffGap} R={Rtongue} 외면 L={tongueOutLen} α={tongueOutAngle}° |
               Diff {diffType} {diffAngle}° L={diffLength}mm {diffInnerWall?'':'(내벽 개방)'}
             </div>
           </div>
