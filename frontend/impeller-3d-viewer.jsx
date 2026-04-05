@@ -451,7 +451,7 @@ function FrontView({ Deye, D1, D2, Du, bladePts, Z, bladeType, bendPos, showScro
         {!diffInnerWall && <text x={(innerX+outerX)/2-10} y={(innerY+outerY)/2} fill="#d4a44a" fontSize={5} fontFamily="monospace">개방</text>}
       </g>;
     })()}
-    {/* Tongue — one continuous wall: inner face → tip round → outer face */}
+    {/* Tongue — continuous wall: inner face → tip round → outer face (→ diffuser) */}
     {showScroll && (() => {
       const tipX = cx + rTongue * Math.cos(tongueTheta) * sc;
       const tipY = cy - rTongue * Math.sin(tongueTheta) * sc;
@@ -462,54 +462,75 @@ function FrontView({ Deye, D1, D2, Du, bladePts, Z, bladeType, bendPos, showScro
       const d2X = cx + (D2/2) * Math.cos(tongueTheta) * sc;
       const d2Y = cy - (D2/2) * Math.sin(tongueTheta) * sc;
 
-      // Directions
-      const inDir = tongueTheta + Math.PI / 2;  // inner face: toward scroll interior
-      const outDir = tongueTheta - Math.PI / 2; // outer face: toward diffuser exit
-
-      // Inner face (scroll side)
+      // Inner face direction: tangential into scroll
+      const inDir = tongueTheta + Math.PI / 2;
       const inLen = 22 * sc;
       const inEndX = tipX + inLen * Math.cos(inDir);
       const inEndY = tipY - inLen * Math.sin(inDir);
 
-      // Outer face (diffuser side) — tongue metal continues past tip
-      const outLen = diffInnerWall ? 12 * sc : diffLength * 0.6 * sc; // shorter if full inner wall exists
-      const outEndX = tipX + outLen * Math.cos(outDir);
-      const outEndY = tipY - outLen * Math.sin(outDir);
-
-      // Tip round center (offset from tip by R toward impeller center)
-      const tipCx = tipX - rTipSc * Math.cos(tongueTheta);
-      const tipCy = tipY + rTipSc * Math.sin(tongueTheta);
-
-      // Round arc from inner face end → outer face start (semicircle around tip)
-      const arcPts = [];
-      const nArc = 12;
-      for (let i = 0; i <= nArc; i++) {
-        const a = inDir + (i / nArc) * Math.PI; // 180° arc from inner to outer
-        arcPts.push({ x: tipCx + rTipSc * Math.cos(a), y: tipCy - rTipSc * Math.sin(a) });
+      // Outer face direction: toward diffuser exit (tangent at scroll end)
+      // For 360° wrap, scroll end is near tongue but at larger radius
+      // Exit direction = tangent of spiral at exit point
+      let exitDir;
+      if (sPts.length >= 2) {
+        const p1 = sPts[sPts.length - 2], p2 = sPts[sPts.length - 1];
+        const x1 = p1.r * Math.cos(p1.theta), y1 = p1.r * Math.sin(p1.theta);
+        const x2 = p2.r * Math.cos(p2.theta), y2 = p2.r * Math.sin(p2.theta);
+        exitDir = Math.atan2(-(y2 - y1), x2 - x1); // SVG y is inverted
+      } else {
+        exitDir = tongueTheta + Math.PI / 2; // fallback
       }
-      const arcPath = arcPts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+      const outLen = diffInnerWall ? 15 * sc : diffLength * 0.65 * sc;
+      const outEndX = tipX + outLen * Math.cos(exitDir);
+      const outEndY = tipY + outLen * Math.sin(exitDir);
+
+      // Tip round arc: from inner face end → outer face start
+      // Arc center offset from tip toward impeller center
+      const arcCx = tipX - rTipSc * Math.cos(tongueTheta);
+      const arcCy = tipY + rTipSc * Math.sin(tongueTheta);
+      // Arc from inDir side to exitDir side
+      const arcStartA = Math.atan2(-(inEndY - inLen * Math.cos(inDir) + inLen * Math.cos(inDir) - arcCy), (tipX + 0 - arcCx));
+      // Simpler: just draw arc points from inner to outer
+      const nArc = 12;
+      const aStart = Math.atan2(tipY - arcCy, tipX - arcCx) - 0.1; // start near inner side
+      const arcPts = [];
+      // Compute angles for inner and outer connection points
+      const innerConnA = Math.atan2(tipY - rTipSc * Math.sin(inDir - Math.PI/2) - arcCy,
+                                     tipX + rTipSc * Math.cos(inDir - Math.PI/2) - arcCx);
+      // Just do a clean semicircle from inner to outer around the tip
+      const tipR = rTipSc;
+      const angIn = inDir - Math.PI; // angle pointing from arc center toward inner face side
+      const angOut = exitDir + Math.PI; // angle pointing from arc center toward outer face side
+      let angSweep = angOut - angIn;
+      if (angSweep > Math.PI) angSweep -= 2 * Math.PI;
+      if (angSweep < -Math.PI) angSweep += 2 * Math.PI;
+      if (Math.abs(angSweep) < 0.3) angSweep = -Math.PI; // fallback to semicircle
+      for (let i = 0; i <= nArc; i++) {
+        const a = angIn + (i / nArc) * angSweep;
+        arcPts.push({ x: arcCx + tipR * Math.cos(a), y: arcCy + tipR * Math.sin(a) });
+      }
 
       return <>
         {/* Closing wall: scroll end → tongue area */}
         <line x1={endX} y1={endY} x2={tipX} y2={tipY} stroke="#d4a44a" strokeWidth={1} opacity={0.5} />
 
         {/* Inner face (scroll side) */}
-        <line x1={arcPts[0].x} y1={arcPts[0].y} x2={inEndX} y2={inEndY}
+        <line x1={tipX} y1={tipY} x2={inEndX} y2={inEndY}
           stroke={C.red} strokeWidth={1.5} opacity={0.7} />
 
-        {/* Tip round arc */}
-        <path d={arcPath} fill="none" stroke={C.red} strokeWidth={1.5} opacity={0.8} />
+        {/* Tip round */}
+        <circle cx={tipX} cy={tipY} r={rTipSc} fill="none" stroke={C.red} strokeWidth={1.5} opacity={0.6} />
 
-        {/* Outer face (diffuser side) */}
-        <line x1={arcPts[nArc].x} y1={arcPts[nArc].y} x2={outEndX} y2={outEndY}
+        {/* Outer face (diffuser inner wall direction) */}
+        <line x1={tipX} y1={tipY} x2={outEndX} y2={outEndY}
           stroke={C.red} strokeWidth={1.5} opacity={0.7} />
 
-        {/* Cutoff gap indicator */}
+        {/* Cutoff gap */}
         <line x1={d2X} y1={d2Y} x2={tipX} y2={tipY} stroke={C.red} strokeWidth={0.5} strokeDasharray="2,2" opacity={0.4} />
 
         {/* Labels */}
         <text x={(d2X+tipX)/2+6} y={(d2Y+tipY)/2-4} fill={C.red} fontSize={6} fontFamily="monospace" opacity={0.7}>δ={cutoffGap}</text>
-        <text x={tipCx+rTipSc+4} y={tipCy} fill={C.red} fontSize={5} fontFamily="monospace" opacity={0.6}>R={Rtongue}</text>
+        <text x={tipX+rTipSc+3} y={tipY-rTipSc-2} fill={C.red} fontSize={5} fontFamily="monospace" opacity={0.5}>R={Rtongue}</text>
         <text x={inEndX+4} y={inEndY} fill={C.red} fontSize={5} fontFamily="monospace" opacity={0.4}>내면</text>
         <text x={outEndX+4} y={outEndY} fill={C.red} fontSize={5} fontFamily="monospace" opacity={0.4}>외면</text>
       </>;
@@ -764,18 +785,27 @@ export default function ImpellerViewer() {
       inMesh.rotation.y = -inDir;
       grp.add(inMesh);
 
-      // Outer face (diffuser side) — tongue metal continues past tip round
-      const outDir = tTheta - Math.PI / 2;
-      const outLen = diffInnerWall ? 12 : diffLength * 0.6; // short if full inner wall, longer if open
+      // Outer face (diffuser side) — goes toward diffuser exit direction
+      // Exit direction = tangent at scroll end point
+      let outDirA;
+      if (sPts.length >= 2) {
+        const p1 = sPts[sPts.length - 2], p2 = sPts[sPts.length - 1];
+        const dx = p2.r * Math.cos(p2.theta) - p1.r * Math.cos(p1.theta);
+        const dz = p2.r * Math.sin(p2.theta) - p1.r * Math.sin(p1.theta);
+        outDirA = Math.atan2(dz, dx);
+      } else {
+        outDirA = tTheta + Math.PI / 2; // fallback
+      }
+      const outLen = diffInnerWall ? 12 : diffLength * 0.65;
       const outGeo = new THREE.BoxGeometry(outLen, tongueH, wallThick);
       const outMesh = new THREE.Mesh(outGeo, wallMat.clone());
       outMesh.material.opacity = 0.25;
       outMesh.position.set(
-        rTip * Math.cos(tTheta) + outLen / 2 * Math.cos(outDir),
+        rTip * Math.cos(tTheta) + outLen / 2 * Math.cos(outDirA),
         tY,
-        rTip * Math.sin(tTheta) + outLen / 2 * Math.sin(outDir)
+        rTip * Math.sin(tTheta) + outLen / 2 * Math.sin(outDirA)
       );
-      outMesh.rotation.y = -outDir;
+      outMesh.rotation.y = -outDirA;
       grp.add(outMesh);
 
       // Diffuser — extends from scroll exit
