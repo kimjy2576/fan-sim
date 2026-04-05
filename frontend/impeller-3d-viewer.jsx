@@ -261,15 +261,102 @@ function buildBlade(pts, b1, b2, D1, D2, angle) {
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(v, 3)); g.setIndex(idx); g.computeVertexNormals(); return g;
 }
 
+// ═══ SCROLL GEOMETRY ═══
+function scrollProfile(r2, wrapDeg, type, bScroll, nSeg = 72) {
+  // Returns array of { theta, r_outer } defining scroll wall centerline
+  const r2m = r2; // already in mm
+  const wrapRad = wrapDeg * Math.PI / 180;
+  const pts = [];
+
+  if (type === 'cv') {
+    // Archimedes spiral: r(θ) = r₂ + k*θ
+    // At design: exit area grows linearly → velocity stays roughly constant
+    const k = r2m * 0.12; // growth rate (tuned for sirocco proportions)
+    for (let i = 0; i <= nSeg; i++) {
+      const theta = (i / nSeg) * wrapRad;
+      const r = r2m + k * theta;
+      pts.push({ theta, r });
+    }
+  } else {
+    // Free vortex (log spiral): r(θ) = r₂ * e^(θ * tan α)
+    const alpha = 6 * Math.PI / 180; // ~6° spiral angle (typical)
+    for (let i = 0; i <= nSeg; i++) {
+      const theta = (i / nSeg) * wrapRad;
+      const r = r2m * Math.exp(theta * Math.tan(alpha));
+      pts.push({ theta, r });
+    }
+  }
+  return pts;
+}
+
+function buildScrollMesh(scrollPts, bScroll, scrollGapF, scrollGapB, crossSection) {
+  // Build 3D scroll casing as a series of connected quads
+  const n = scrollPts.length;
+  if (n < 2) return null;
+
+  const wallThick = 2; // mm
+  const yBot = -scrollGapB - wallThick; // bottom of casing wall
+  const yTop = bScroll + scrollGapF + wallThick; // top of casing wall
+
+  const verts = [];
+  const idx = [];
+
+  for (let i = 0; i < n; i++) {
+    const { theta, r } = scrollPts[i];
+    const rOuter = r + wallThick;
+    const cosT = Math.cos(theta), sinT = Math.sin(theta);
+
+    if (crossSection === 'rect') {
+      // 4 corners per section: bottom-inner, bottom-outer, top-outer, top-inner
+      verts.push(r * cosT, yBot, r * sinT);       // 0: bot inner
+      verts.push(rOuter * cosT, yBot, rOuter * sinT); // 1: bot outer
+      verts.push(rOuter * cosT, yTop, rOuter * sinT); // 2: top outer
+      verts.push(r * cosT, yTop, r * sinT);       // 3: top inner
+    } else {
+      // Circular: approximate with 8 points around semicircle
+      const cx_r = (r + rOuter) / 2;
+      const cy = (yBot + yTop) / 2;
+      const rx = (rOuter - r) / 2;
+      const ry = (yTop - yBot) / 2;
+      for (let j = 0; j < 8; j++) {
+        const a = (j / 7) * Math.PI * 2;
+        const pr = cx_r + rx * Math.cos(a);
+        const py = cy + ry * Math.sin(a);
+        verts.push(pr * cosT, py, pr * sinT);
+      }
+    }
+  }
+
+  const ppSec = crossSection === 'rect' ? 4 : 8; // points per section
+
+  // Connect adjacent sections with quads
+  for (let i = 0; i < n - 1; i++) {
+    const base = i * ppSec, next = (i + 1) * ppSec;
+    for (let j = 0; j < ppSec; j++) {
+      const j2 = (j + 1) % ppSec;
+      const a = base + j, b = base + j2, c = next + j2, d = next + j;
+      idx.push(a, d, c); idx.push(a, c, b);
+    }
+  }
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+  geo.setIndex(idx);
+  geo.computeVertexNormals();
+  return geo;
+}
+
 function Tab({ active, onClick, children, color }) {
   return <button onClick={onClick} className="px-3 py-1 text-xs rounded-t" style={{ fontFamily: "monospace", fontSize: 10,
     background: active ? C.card : "transparent", color: active ? (color || C.text) : C.dim,
     borderBottom: active ? `2px solid ${color || C.blade}` : "2px solid transparent" }}>{children}</button>;
 }
 
-function FrontView({ Deye, D1, D2, Du, bladePts, Z, bladeType, bendPos }) {
+function FrontView({ Deye, D1, D2, Du, bladePts, Z, bladeType, bendPos, showScroll, scrollType, wrapAngle }) {
   const w = 340, h = 280, cx = w / 2, cy = h / 2 + 10;
-  const maxR = Math.max(D2, Du) / 2; const sc = (Math.min(w, h) / 2 - 25) / maxR;
+  const sPts = showScroll ? scrollProfile(D2/2, wrapAngle, scrollType, 55) : [];
+  const maxR = showScroll && sPts.length > 0 ? Math.max(Du/2, ...sPts.map(p=>p.r)) : Math.max(D2, Du) / 2;
+  const sc = (Math.min(w, h) / 2 - 25) / maxR;
   const rBend = D1/2 + bendPos * (D2/2 - D1/2);
   return <svg width={w} height={h} style={{ display: "block", margin: "0 auto" }}>
     <text x={w/2} y={16} fill={C.dim} fontSize={9} fontFamily="monospace" textAnchor="middle">정면도 (Front — Eye 방향에서 본 모습)</text>
@@ -292,6 +379,11 @@ function FrontView({ Deye, D1, D2, Du, bladePts, Z, bladeType, bendPos }) {
     })}
     <defs><marker id="aF" viewBox="0 0 10 10" refX={8} refY={5} markerWidth={5} markerHeight={5} orient="auto"><path d="M0 0L10 5L0 10z" fill={C.green} opacity={0.5} /></marker></defs>
     <text x={cx} y={cy + 3} fill={C.green} fontSize={8} fontFamily="monospace" textAnchor="middle" opacity={0.5}>AIR IN ⊙</text>
+    {/* Scroll spiral */}
+    {showScroll && sPts.length > 1 && <path d={sPts.map((p,i) => {
+      const x = cx + p.r * Math.cos(p.theta) * sc, y = cy - p.r * Math.sin(p.theta) * sc;
+      return `${i===0?'M':'L'} ${x} ${y}`;
+    }).join(' ')} fill="none" stroke="#d4a44a" strokeWidth={1.5} opacity={0.6} />}
     <text x={cx} y={cy + D2/2*sc + 18} fill={C.blade} fontSize={8} fontFamily="monospace" textAnchor="middle">D₂={D2}mm</text>
     <text x={cx} y={cy + D2/2*sc + 30} fill={C.eye} fontSize={8} fontFamily="monospace" textAnchor="middle">D_eye={Deye}mm</text>
     {bladeType==='sfs' && <text x={cx} y={cy - rBend*sc - 4} fill={C.accent} fontSize={7} fontFamily="monospace" textAnchor="middle" opacity={0.6}>Bend D={rBend*2|0}mm</text>}
@@ -299,7 +391,7 @@ function FrontView({ Deye, D1, D2, Du, bladePts, Z, bladeType, bendPos }) {
   </svg>;
 }
 
-function SectionView({ Deye, D1, D2, Du, b1, b2, eyeRise }) {
+function SectionView({ Deye, D1, D2, Du, b1, b2, eyeRise, showScroll, scrollGapF, scrollGapB, bScroll }) {
   const w = 340, h = 200, cx = w / 2, cy = h / 2 + 10;
   const maxR = Math.max(D2, Du) / 2; const sc = (w / 2 - 30) / maxR;
   const bSc = (h - 70) / Math.max(b1, b2, b1 + eyeRise);
@@ -320,6 +412,24 @@ function SectionView({ Deye, D1, D2, Du, b1, b2, eyeRise }) {
       <line x1={cx+s*r1s} y1={cy-h1} x2={cx+s*r1s} y2={cy+h1} stroke={C.cyan} strokeWidth={0.7} opacity={0.3} strokeDasharray="2,2" />
       <line x1={cx+s*rE*0.6} y1={cy-h1-eyeH-15} x2={cx+s*rE*0.6} y2={cy-h1-eyeH+2} stroke={C.green} strokeWidth={1.5} opacity={0.6} markerEnd="url(#aS)" />
       <line x1={cx+s*(r2s+6)} y1={cy} x2={cx+s*(r2s+18)} y2={cy} stroke={C.green} strokeWidth={1} opacity={0.4} markerEnd="url(#aS)" />
+      {/* Scroll casing walls */}
+      {showScroll && (() => {
+        const gF = scrollGapF * bSc * 0.5; // front gap in SVG
+        const gB = scrollGapB * bSc * 0.5; // back gap in SVG
+        const wt = 3; // wall thickness SVG
+        const rScr = r2s + 8; // scroll outer wall
+        return <>
+          {/* Top wall */}
+          <line x1={cx+s*rE} y1={cy-h2-gF} x2={cx+s*rScr} y2={cy-h2-gF} stroke="#d4a44a" strokeWidth={1.5} opacity={0.5} />
+          {/* Bottom wall */}
+          <line x1={cx+s*hubR} y1={cy+h2+gB} x2={cx+s*rScr} y2={cy+h2+gB} stroke="#d4a44a" strokeWidth={1.5} opacity={0.5} />
+          {/* Outer wall */}
+          <line x1={cx+s*rScr} y1={cy-h2-gF} x2={cx+s*rScr} y2={cy+h2+gB} stroke="#d4a44a" strokeWidth={1.5} opacity={0.5} />
+          {/* Gap arrows */}
+          {gF > 2 && <text x={cx+s*(r2s+rScr)/2} y={cy-h2-gF/2+3} fill="#d4a44a" fontSize={5} fontFamily="monospace" textAnchor="middle">δ_f={scrollGapF}</text>}
+          {gB > 2 && <text x={cx+s*(r2s+rScr)/2} y={cy+h2+gB/2+3} fill="#d4a44a" fontSize={5} fontFamily="monospace" textAnchor="middle">δ_b={scrollGapB}</text>}
+        </>;
+      })()}
     </g>)}
     <defs><marker id="aS" viewBox="0 0 10 10" refX={8} refY={5} markerWidth={5} markerHeight={5} orient="auto"><path d="M0 0L10 5L0 10z" fill={C.green} opacity={0.5} /></marker></defs>
     <rect x={cx-r2s} y={cy-h2} width={r2s*2} height={h2+h1} fill={C.blade} opacity={0.06} rx={1} />
@@ -378,6 +488,14 @@ export default function ImpellerViewer() {
   const [explode, setExplode] = useState(0);
   const [viewTab, setViewTab] = useState(0);
   const [RPM, setRPM] = useState(1400);
+  // Scroll
+  const [showScroll, setShowScroll] = useState(true);
+  const [scrollType, setScrollType] = useState('cv'); // 'cv'=const velocity (Archimedes), 'fv'=free vortex (log spiral)
+  const [wrapAngle, setWrapAngle] = useState(360); // degrees
+  const [scrollGapF, setScrollGapF] = useState(3); // front (shroud side) gap mm
+  const [scrollGapB, setScrollGapB] = useState(3); // back (backplate side) gap mm
+  const [bScroll, setBScroll] = useState(55); // scroll internal width mm
+  const [scrollCross, setScrollCross] = useState('rect'); // 'rect' or 'circular'
   const [matKey, setMatKey] = useState('SPCC');
   const [sweepVar, setSweepVar] = useState('beta2');
   const [sweepMin, setSweepMin] = useState(100);
@@ -468,7 +586,20 @@ export default function ImpellerViewer() {
     for(let i=0;i<8;i++){const a=(2*Math.PI*i)/8,r=Deye*0.3; const f=new THREE.Vector3(r*Math.cos(a),b2+50+ex,r*Math.sin(a)), t=new THREE.Vector3(r*Math.cos(a),b2+5+ex,r*Math.sin(a)); grp.add(new THREE.ArrowHelper(new THREE.Vector3().subVectors(t,f).normalize(),f,f.distanceTo(t),0x34d399,5,3));}
     grp.add(new THREE.ArrowHelper(new THREE.Vector3(0,-1,0),new THREE.Vector3(0,b2+65+ex,0),55,0x4ade80,7,4));
     const eyeR=new THREE.Mesh(new THREE.RingGeometry(Deye/2-1,Deye/2+0.5,64),new THREE.MeshBasicMaterial({color:0x34d399,transparent:true,opacity:0.5,side:THREE.DoubleSide})); eyeR.rotation.x=-Math.PI/2; eyeR.position.y=b2+3+ex; grp.add(eyeR);
-  }, [Deye,D1,D2,Du,b1,b2,bladePts,Z,tBlade,eyeRise,showShroud,showBackplate,explode,viewTab]);
+
+    // Scroll casing
+    if (showScroll) {
+      const sPts = scrollProfile(D2/2, wrapAngle, scrollType, bScroll);
+      const sGeo = buildScrollMesh(sPts, bScroll, scrollGapF, scrollGapB, scrollCross);
+      if (sGeo) {
+        const sMat = new THREE.MeshPhongMaterial({ color: 0xd4a44a, transparent: true, opacity: 0.2, side: THREE.DoubleSide, shininess: 40 });
+        const sMesh = new THREE.Mesh(sGeo, sMat);
+        sMesh.position.y = -scrollGapB; // align bottom of scroll with backplate
+        grp.add(sMesh);
+      }
+    }
+  }, [Deye,D1,D2,Du,b1,b2,bladePts,Z,tBlade,eyeRise,showShroud,showBackplate,showScroll,explode,viewTab,
+      scrollType,wrapAngle,scrollGapF,scrollGapB,bScroll,scrollCross]);
 
   const ratios = useMemo(() => ({ D1D2:(D1/D2).toFixed(3), DeyeD1:(Deye/D1).toFixed(3), DuD2:(Du/D2).toFixed(3), b2D2:(b2/D2).toFixed(3), b1b2:(b1/b2).toFixed(2) }), [D1,D2,Deye,Du,b1,b2]);
 
@@ -511,13 +642,14 @@ export default function ImpellerViewer() {
             <div className="px-2 py-1 flex gap-2 flex-wrap" style={{ borderTop:`1px solid ${C.border}` }}>
               <label className="flex items-center gap-1 text-xs" style={{ fontFamily:"monospace",color:C.dim }}><input type="checkbox" checked={showShroud} onChange={e=>setShowShroud(e.target.checked)} /><span style={{color:C.shroud}}>측판</span></label>
               <label className="flex items-center gap-1 text-xs" style={{ fontFamily:"monospace",color:C.dim }}><input type="checkbox" checked={showBackplate} onChange={e=>setShowBackplate(e.target.checked)} /><span style={{color:C.backplate}}>주판</span></label>
+              <label className="flex items-center gap-1 text-xs" style={{ fontFamily:"monospace",color:C.dim }}><input type="checkbox" checked={showScroll} onChange={e=>setShowScroll(e.target.checked)} /><span style={{color:"#d4a44a"}}>스크롤</span></label>
               <label className="flex items-center gap-1 text-xs" style={{ fontFamily:"monospace",color:C.dim }}><input type="checkbox" checked={autoRotate} onChange={e=>setAutoRotate(e.target.checked)} />회전</label>
               <div className="flex items-center gap-1 ml-auto"><span style={{fontFamily:"monospace",fontSize:9,color:C.dim}}>분해</span>
                 <input type="range" min={0} max={30} step={1} value={explode} onChange={e=>setExplode(+e.target.value)} className="w-16 h-1" style={{accentColor:C.accent}} /></div>
             </div>
           </>}
-          {viewTab===1 && <div className="py-2"><FrontView {...{Deye,D1,D2,Du,b1,b2,bladePts,Z,bladeType,bendPos}} /></div>}
-          {viewTab===2 && <div className="py-2"><SectionView {...{Deye,D1,D2,Du,b1,b2,eyeRise}} /></div>}
+          {viewTab===1 && <div className="py-2"><FrontView {...{Deye,D1,D2,Du,b1,b2,bladePts,Z,bladeType,bendPos,showScroll,scrollType,wrapAngle}} /></div>}
+          {viewTab===2 && <div className="py-2"><SectionView {...{Deye,D1,D2,Du,b1,b2,eyeRise,showScroll,scrollGapF,scrollGapB,bScroll}} /></div>}
           {viewTab===3 && <div className="py-2"><BottomView {...{D2,Du,Deye}} /></div>}
           {viewTab===4 && (() => {
             const sv = SWEEP_VARS.find(v => v.key === sweepVar);
@@ -632,6 +764,44 @@ export default function ImpellerViewer() {
               {bladeType === 'linear' && <div style={{ color: C.dim, fontFamily: "monospace", fontSize: 7 }}>β가 r₁→r₂에서 선형 변화.</div>}
             </div>
           </div>
+
+          {/* SCROLL parameters */}
+          <div className="mt-2 pt-2" style={{ borderTop: `1px solid ${C.border}` }}>
+            <div className="flex items-center gap-2 mb-1">
+              <span style={{ color: "#d4a44a", fontFamily: "monospace", fontSize: 9, fontWeight: 700 }}>SCROLL</span>
+              <div className="flex gap-1">
+                {[{k:'cv',l:'등속팽창'},{k:'fv',l:'자유와류'}].map(m =>
+                  <button key={m.k} onClick={() => setScrollType(m.k)} className="px-2 py-0.5 rounded"
+                    style={{ fontFamily:"monospace", fontSize: 7,
+                      background: scrollType===m.k ? C.card : "transparent",
+                      color: scrollType===m.k ? "#d4a44a" : C.dim,
+                      border: `1px solid ${scrollType===m.k ? "#d4a44a" : C.border}` }}>{m.l}</button>)}
+              </div>
+              <div className="flex gap-1 ml-auto">
+                {[{k:'rect',l:'사각'},{k:'circular',l:'원형'}].map(m =>
+                  <button key={m.k} onClick={() => setScrollCross(m.k)} className="px-2 py-0.5 rounded"
+                    style={{ fontFamily:"monospace", fontSize: 7,
+                      background: scrollCross===m.k ? C.card : "transparent",
+                      color: scrollCross===m.k ? "#d4a44a" : C.dim,
+                      border: `1px solid ${scrollCross===m.k ? "#d4a44a" : C.border}` }}>{m.l}</button>)}
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-x-3">
+              <div>
+                <S label="Wrap" value={wrapAngle} min={180} max={360} step={5} onChange={setWrapAngle} unit="°" color="#d4a44a" />
+                <S label="b_sc" value={bScroll} min={30} max={120} step={1} onChange={setBScroll} unit="mm" color="#d4a44a" />
+              </div>
+              <div>
+                <S label="δ_f" value={scrollGapF} min={1} max={15} step={0.5} onChange={setScrollGapF} unit="mm" color="#d4a44a" />
+                <S label="δ_b" value={scrollGapB} min={1} max={15} step={0.5} onChange={setScrollGapB} unit="mm" color="#d4a44a" />
+              </div>
+            </div>
+            <div style={{ color: C.dim, fontFamily: "monospace", fontSize: 7 }}>
+              {scrollType==='cv'?'아르키메데스 나선: r(θ)=r₂+kθ (단면적 선형 증가)':'로그 나선: r(θ)=r₂·e^(θ·tanα) (각운동량 보존)'}
+              {' | '}{scrollCross==='rect'?'사각':'원형'} 단면 | Wrap {wrapAngle}° | 간극 F={scrollGapF}/B={scrollGapB}mm
+            </div>
+          </div>
+
           <div className="mt-2 pt-2 grid grid-cols-5 gap-1" style={{ borderTop: `1px solid ${C.border}` }}>
             {[{l:"D₁/D₂",v:ratios.D1D2,ok:D1/D2>=0.65&&D1/D2<=0.8},{l:"Deye/D₁",v:ratios.DeyeD1,ok:Deye<=D1},{l:"Du/D₂",v:ratios.DuD2,ok:Du>=D2},{l:"b₂/D₂",v:ratios.b2D2,ok:b2/D2>=0.2&&b2/D2<=0.5},{l:"b₁/b₂",v:ratios.b1b2,ok:b1>=b2}].map(m=>
               <div key={m.l} className="text-center py-1 rounded" style={{background:C.bg}}>
