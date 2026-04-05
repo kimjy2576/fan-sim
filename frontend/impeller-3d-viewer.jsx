@@ -361,7 +361,6 @@ function FrontView({ Deye, D1, D2, Du, bladePts, Z, bladeType, bendPos, showScro
   // Tongue position
   const tongueTheta = cutoffAngle * Math.PI / 180;
   const rTongue = D2/2 + cutoffGap; // tongue tip radial position
-  const rBend = D1/2 + bendPos * (D2/2 - D1/2);
   return <svg width={w} height={h} style={{ display: "block", margin: "0 auto" }}>
     <text x={w/2} y={16} fill={C.dim} fontSize={9} fontFamily="monospace" textAnchor="middle">정면도 (Front — Eye 방향에서 본 모습)</text>
     {Du > D2 && <circle cx={cx} cy={cy} r={Du/2*sc} fill="none" stroke={C.accent} strokeWidth={1} strokeDasharray="4,3" opacity={0.4} />}
