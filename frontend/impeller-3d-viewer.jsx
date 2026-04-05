@@ -262,27 +262,27 @@ function buildBlade(pts, b1, b2, D1, D2, angle) {
 }
 
 // ═══ SCROLL GEOMETRY ═══
-function scrollProfile(r2, wrapDeg, type, bScroll, nSeg = 72) {
-  // Returns array of { theta, r_outer } defining scroll wall centerline
-  const r2m = r2; // already in mm
+function scrollProfile(r2, wrapDeg, type, bScroll, startDeg = 0, nSeg = 72) {
+  // startDeg = cutoff angle (where tongue is, where spiral begins)
+  const r2m = r2;
   const wrapRad = wrapDeg * Math.PI / 180;
+  const startRad = startDeg * Math.PI / 180;
   const pts = [];
 
   if (type === 'cv') {
-    // Archimedes spiral: r(θ) = r₂ + k*θ
-    // At design: exit area grows linearly → velocity stays roughly constant
-    const k = r2m * 0.12; // growth rate (tuned for sirocco proportions)
+    const k = r2m * 0.12;
     for (let i = 0; i <= nSeg; i++) {
-      const theta = (i / nSeg) * wrapRad;
-      const r = r2m + k * theta;
+      const dTheta = (i / nSeg) * wrapRad; // angle from start
+      const theta = startRad + dTheta; // absolute angle
+      const r = r2m + k * dTheta;
       pts.push({ theta, r });
     }
   } else {
-    // Free vortex (log spiral): r(θ) = r₂ * e^(θ * tan α)
-    const alpha = 6 * Math.PI / 180; // ~6° spiral angle (typical)
+    const alpha = 6 * Math.PI / 180;
     for (let i = 0; i <= nSeg; i++) {
-      const theta = (i / nSeg) * wrapRad;
-      const r = r2m * Math.exp(theta * Math.tan(alpha));
+      const dTheta = (i / nSeg) * wrapRad;
+      const theta = startRad + dTheta;
+      const r = r2m * Math.exp(dTheta * Math.tan(alpha));
       pts.push({ theta, r });
     }
   }
@@ -354,7 +354,7 @@ function Tab({ active, onClick, children, color }) {
 
 function FrontView({ Deye, D1, D2, Du, bladePts, Z, bladeType, bendPos, showScroll, scrollType, wrapAngle, cutoffGap, cutoffAngle, Rtongue }) {
   const w = 340, h = 280, cx = w / 2, cy = h / 2 + 10;
-  const sPts = showScroll ? scrollProfile(D2/2, wrapAngle, scrollType, 55) : [];
+  const sPts = showScroll ? scrollProfile(D2/2, wrapAngle, scrollType, 55, cutoffAngle) : [];
   const maxR = showScroll && sPts.length > 0 ? Math.max(Du/2, ...sPts.map(p=>p.r)) + 10 : Math.max(D2, Du) / 2;
   const sc = (Math.min(w, h) / 2 - 25) / maxR;
   const rBend = D1/2 + bendPos * (D2/2 - D1/2);
@@ -628,7 +628,7 @@ export default function ImpellerViewer() {
 
     // Scroll casing
     if (showScroll) {
-      const sPts = scrollProfile(D2/2, wrapAngle, scrollType, bScroll);
+      const sPts = scrollProfile(D2/2, wrapAngle, scrollType, bScroll, cutoffAngle);
       const sGeo = buildScrollMesh(sPts, bScroll, scrollGapF, scrollGapB, scrollCross);
       if (sGeo) {
         const sMat = new THREE.MeshPhongMaterial({ color: 0xd4a44a, transparent: true, opacity: 0.2, side: THREE.DoubleSide, shininess: 40 });
