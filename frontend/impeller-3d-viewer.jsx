@@ -451,54 +451,67 @@ function FrontView({ Deye, D1, D2, Du, bladePts, Z, bladeType, bendPos, showScro
         {!diffInnerWall && <text x={(innerX+outerX)/2-10} y={(innerY+outerY)/2} fill="#d4a44a" fontSize={5} fontFamily="monospace">개방</text>}
       </g>;
     })()}
-    {/* Tongue */}
+    {/* Tongue — one continuous wall: inner face → tip round → outer face */}
     {showScroll && (() => {
       const tipX = cx + rTongue * Math.cos(tongueTheta) * sc;
       const tipY = cy - rTongue * Math.sin(tongueTheta) * sc;
-      const rTipSc = Rtongue * sc;
+      const rTipSc = Math.max(2, Rtongue * sc);
       const endPt = sPts.length > 0 ? sPts[sPts.length - 1] : null;
       const endX = endPt ? cx + endPt.r * Math.cos(endPt.theta) * sc : tipX;
       const endY = endPt ? cy - endPt.r * Math.sin(endPt.theta) * sc : tipY;
       const d2X = cx + (D2/2) * Math.cos(tongueTheta) * sc;
       const d2Y = cy - (D2/2) * Math.sin(tongueTheta) * sc;
-      // Inner wall: tongue → scroll interior (tangential +)
-      const wallDirIn = tongueTheta + Math.PI / 2;
-      const wallLen = 20 * sc;
-      const wallInX = tipX + wallLen * Math.cos(wallDirIn);
-      const wallInY = tipY - wallLen * Math.sin(wallDirIn);
-      // Outer face: tongue → diffuser exit direction (tangential -)
-      const wallDirOut = tongueTheta - Math.PI / 2;
-      const outerLen = diffLength * sc * 0.7; // tongue outer face length ~ 70% of diffuser
-      // Curved outer face: arc from tip outward with slight radial expansion
-      const outerPts = [];
-      const nCurve = 12;
-      for (let i = 0; i <= nCurve; i++) {
-        const t = i / nCurve;
-        const along = t * outerLen;
-        const radialShift = t * t * cutoffGap * 0.4 * sc; // gentle outward curve
-        const px = tipX + along * Math.cos(wallDirOut) + radialShift * Math.cos(tongueTheta);
-        const py = tipY - along * Math.sin(wallDirOut) - radialShift * Math.sin(tongueTheta);
-        outerPts.push({ x: px, y: py });
+
+      // Directions
+      const inDir = tongueTheta + Math.PI / 2;  // inner face: toward scroll interior
+      const outDir = tongueTheta - Math.PI / 2; // outer face: toward diffuser exit
+
+      // Inner face (scroll side)
+      const inLen = 22 * sc;
+      const inEndX = tipX + inLen * Math.cos(inDir);
+      const inEndY = tipY - inLen * Math.sin(inDir);
+
+      // Outer face (diffuser side) — tongue metal continues past tip
+      const outLen = diffInnerWall ? 12 * sc : diffLength * 0.6 * sc; // shorter if full inner wall exists
+      const outEndX = tipX + outLen * Math.cos(outDir);
+      const outEndY = tipY - outLen * Math.sin(outDir);
+
+      // Tip round center (offset from tip by R toward impeller center)
+      const tipCx = tipX - rTipSc * Math.cos(tongueTheta);
+      const tipCy = tipY + rTipSc * Math.sin(tongueTheta);
+
+      // Round arc from inner face end → outer face start (semicircle around tip)
+      const arcPts = [];
+      const nArc = 12;
+      for (let i = 0; i <= nArc; i++) {
+        const a = inDir + (i / nArc) * Math.PI; // 180° arc from inner to outer
+        arcPts.push({ x: tipCx + rTipSc * Math.cos(a), y: tipCy - rTipSc * Math.sin(a) });
       }
-      const outerPath = outerPts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+      const arcPath = arcPts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+
       return <>
-        {/* Closing wall: scroll end → tongue */}
+        {/* Closing wall: scroll end → tongue area */}
         <line x1={endX} y1={endY} x2={tipX} y2={tipY} stroke="#d4a44a" strokeWidth={1} opacity={0.5} />
-        {/* Tongue tip circle */}
-        <circle cx={tipX} cy={tipY} r={Math.max(2, rTipSc)} fill="none" stroke={C.red} strokeWidth={1.5} opacity={0.8} />
-        {/* Tongue inner wall (always shown — faces scroll) */}
-        <line x1={tipX} y1={tipY} x2={wallInX} y2={wallInY} stroke={C.red} strokeWidth={1.2} opacity={0.6} />
-        {/* Tongue outer face (shown when no diffuser inner wall) */}
-        {!diffInnerWall && <>
-          <path d={outerPath} fill="none" stroke={C.red} strokeWidth={1.5} opacity={0.7} />
-          <text x={outerPts[Math.floor(nCurve*0.6)]?.x+5} y={outerPts[Math.floor(nCurve*0.6)]?.y}
-            fill={C.red} fontSize={5} fontFamily="monospace" opacity={0.6}>tongue 외면</text>
-        </>}
-        {/* Cutoff gap line */}
+
+        {/* Inner face (scroll side) */}
+        <line x1={arcPts[0].x} y1={arcPts[0].y} x2={inEndX} y2={inEndY}
+          stroke={C.red} strokeWidth={1.5} opacity={0.7} />
+
+        {/* Tip round arc */}
+        <path d={arcPath} fill="none" stroke={C.red} strokeWidth={1.5} opacity={0.8} />
+
+        {/* Outer face (diffuser side) */}
+        <line x1={arcPts[nArc].x} y1={arcPts[nArc].y} x2={outEndX} y2={outEndY}
+          stroke={C.red} strokeWidth={1.5} opacity={0.7} />
+
+        {/* Cutoff gap indicator */}
         <line x1={d2X} y1={d2Y} x2={tipX} y2={tipY} stroke={C.red} strokeWidth={0.5} strokeDasharray="2,2" opacity={0.4} />
-        <circle cx={tipX} cy={tipY} r={3} fill={C.red} opacity={0.5} />
-        <text x={(d2X+tipX)/2+6} y={(d2Y+tipY)/2-4} fill={C.red} fontSize={6} fontFamily="monospace" opacity={0.7}>δ={cutoffGap}mm</text>
-        <text x={tipX+8} y={tipY+12} fill={C.red} fontSize={6} fontFamily="monospace" opacity={0.6}>R={Rtongue}</text>
+
+        {/* Labels */}
+        <text x={(d2X+tipX)/2+6} y={(d2Y+tipY)/2-4} fill={C.red} fontSize={6} fontFamily="monospace" opacity={0.7}>δ={cutoffGap}</text>
+        <text x={tipCx+rTipSc+4} y={tipCy} fill={C.red} fontSize={5} fontFamily="monospace" opacity={0.6}>R={Rtongue}</text>
+        <text x={inEndX+4} y={inEndY} fill={C.red} fontSize={5} fontFamily="monospace" opacity={0.4}>내면</text>
+        <text x={outEndX+4} y={outEndY} fill={C.red} fontSize={5} fontFamily="monospace" opacity={0.4}>외면</text>
       </>;
     })()}
     <text x={cx} y={cy + D2/2*sc + 18} fill={C.blade} fontSize={8} fontFamily="monospace" textAnchor="middle">D₂={D2}mm</text>
@@ -724,55 +737,46 @@ export default function ImpellerViewer() {
         sMesh.position.y = -scrollGapB;
         grp.add(sMesh);
       }
-      // Tongue tip — cylinder at cutoff position
+      // Tongue — continuous wall: inner face → tip round → outer face
       const tTheta = cutoffAngle * Math.PI / 180;
       const rTip = D2/2 + cutoffGap;
-      const tongueH = bScroll + scrollGapF + scrollGapB + 4; // full scroll height
+      const tongueH = bScroll + scrollGapF + scrollGapB + 4;
+      const tY = tongueH / 2 - scrollGapB - 2;
+
+      // Tip cylinder
       const tGeo = new THREE.CylinderGeometry(Rtongue, Rtongue, tongueH, 16);
       const tMat = new THREE.MeshPhongMaterial({ color: 0xef4444, transparent: true, opacity: 0.6, shininess: 80 });
       const tMesh = new THREE.Mesh(tGeo, tMat);
-      tMesh.position.set(rTip * Math.cos(tTheta), tongueH/2 - scrollGapB - 2, rTip * Math.sin(tTheta));
+      tMesh.position.set(rTip * Math.cos(tTheta), tY, rTip * Math.sin(tTheta));
       grp.add(tMesh);
-      // Tongue wall — thin box extending from tip along scroll tangent
-      const wallLen = 25, wallThick = 2;
-      const wallGeo = new THREE.BoxGeometry(wallLen, tongueH, wallThick);
-      const wallMat = new THREE.MeshPhongMaterial({ color: 0xef4444, transparent: true, opacity: 0.35, side: THREE.DoubleSide });
-      const wallMesh = new THREE.Mesh(wallGeo, wallMat);
-      const wallDir = tTheta + Math.PI / 2; // tangential direction
-      wallMesh.position.set(
-        rTip * Math.cos(tTheta) + wallLen/2 * Math.cos(wallDir),
-        tongueH/2 - scrollGapB - 2,
-        rTip * Math.sin(tTheta) + wallLen/2 * Math.sin(wallDir)
-      );
-      wallMesh.rotation.y = -wallDir;
-      grp.add(wallMesh);
 
-      // Tongue outer face — visible when diffuser has no inner wall
-      if (!diffInnerWall && diffLength > 0) {
-        const outerDir = tTheta - Math.PI / 2; // opposite to inner wall
-        const outerLen = diffLength * 0.7;
-        const nSeg = 8;
-        const outerVerts = [];
-        for (let i = 0; i <= nSeg; i++) {
-          const t = i / nSeg;
-          const along = t * outerLen;
-          const radShift = t * t * cutoffGap * 0.4; // gentle outward curve
-          const px = rTip * Math.cos(tTheta) + along * Math.cos(outerDir) + radShift * Math.cos(tTheta);
-          const pz = rTip * Math.sin(tTheta) + along * Math.sin(outerDir) + radShift * Math.sin(tTheta);
-          outerVerts.push(px, -scrollGapB - 2, pz);
-          outerVerts.push(px, tongueH - scrollGapB - 2, pz);
-        }
-        const outerIdx = [];
-        for (let i = 0; i < nSeg; i++) {
-          const a = i * 2, b = a + 1, c = (i + 1) * 2, d = c + 1;
-          outerIdx.push(a, c, d); outerIdx.push(a, d, b);
-        }
-        const ofGeo = new THREE.BufferGeometry();
-        ofGeo.setAttribute('position', new THREE.Float32BufferAttribute(outerVerts, 3));
-        ofGeo.setIndex(outerIdx); ofGeo.computeVertexNormals();
-        const ofMat = new THREE.MeshPhongMaterial({ color: 0xef4444, transparent: true, opacity: 0.3, side: THREE.DoubleSide });
-        grp.add(new THREE.Mesh(ofGeo, ofMat));
-      }
+      // Inner face (scroll side)
+      const inDir = tTheta + Math.PI / 2;
+      const inLen = 25, wallThick = 2;
+      const inGeo = new THREE.BoxGeometry(inLen, tongueH, wallThick);
+      const wallMat = new THREE.MeshPhongMaterial({ color: 0xef4444, transparent: true, opacity: 0.35, side: THREE.DoubleSide });
+      const inMesh = new THREE.Mesh(inGeo, wallMat);
+      inMesh.position.set(
+        rTip * Math.cos(tTheta) + inLen / 2 * Math.cos(inDir),
+        tY,
+        rTip * Math.sin(tTheta) + inLen / 2 * Math.sin(inDir)
+      );
+      inMesh.rotation.y = -inDir;
+      grp.add(inMesh);
+
+      // Outer face (diffuser side) — tongue metal continues past tip round
+      const outDir = tTheta - Math.PI / 2;
+      const outLen = diffInnerWall ? 12 : diffLength * 0.6; // short if full inner wall, longer if open
+      const outGeo = new THREE.BoxGeometry(outLen, tongueH, wallThick);
+      const outMesh = new THREE.Mesh(outGeo, wallMat.clone());
+      outMesh.material.opacity = 0.25;
+      outMesh.position.set(
+        rTip * Math.cos(tTheta) + outLen / 2 * Math.cos(outDir),
+        tY,
+        rTip * Math.sin(tTheta) + outLen / 2 * Math.sin(outDir)
+      );
+      outMesh.rotation.y = -outDir;
+      grp.add(outMesh);
 
       // Diffuser — extends from scroll exit
       if (diffLength > 0) {
