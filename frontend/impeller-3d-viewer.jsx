@@ -1079,13 +1079,13 @@ export default function ImpellerViewer() {
               <div style={{ color: C.red, fontFamily: "monospace", fontSize: 8, marginBottom: 2 }}>TONGUE</div>
               <div className="grid grid-cols-3 gap-x-2">
                 <S label="Gap" value={cutoffGap} min={2} max={30} step={0.5} onChange={setCutoffGap} unit="mm" color={C.red} />
-                <S label="θ" value={cutoffAngle} min={0} max={45} step={1} onChange={setCutoffAngle} unit="°" color={C.red} />
+                <S label="θ" value={cutoffAngle} min={-90} max={90} step={1} onChange={setCutoffAngle} unit="°" color={C.red} />
                 <S label="R" value={Rtongue} min={1} max={20} step={0.5} onChange={setRtongue} unit="mm" color={C.red} />
               </div>
               <div style={{ color: C.dim, fontFamily: "monospace", fontSize: 7, marginTop: 2, marginBottom: 1 }}>외면 (디퓨저 내벽 역할)</div>
               <div className="grid grid-cols-2 gap-x-2">
                 <S label="L_out" value={tongueOutLen} min={0} max={200} step={1} onChange={setTongueOutLen} unit="mm" color={C.red} />
-                <S label="α_out" value={tongueOutAngle} min={-30} max={30} step={0.5} onChange={setTongueOutAngle} unit="°" color={C.red} />
+                <S label="α_out" value={tongueOutAngle} min={-90} max={90} step={0.5} onChange={setTongueOutAngle} unit="°" color={C.red} />
               </div>
             </div>
             {/* Diffuser */}
@@ -1101,7 +1101,7 @@ export default function ImpellerViewer() {
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-x-2">
-                <S label="Angle" value={diffAngle} min={0} max={45} step={0.5} onChange={setDiffAngle} unit="°" color="#d4a44a" />
+                <S label="Angle" value={diffAngle} min={-90} max={90} step={0.5} onChange={setDiffAngle} unit="°" color="#d4a44a" />
                 <S label="Length" value={diffLength} min={0} max={300} step={1} onChange={setDiffLength} unit="mm" color="#d4a44a" />
               </div>
               <label className="flex items-center gap-1 mt-1" style={{ fontFamily:"monospace", fontSize:8, color:C.dim }}>
