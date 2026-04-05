@@ -352,11 +352,15 @@ function Tab({ active, onClick, children, color }) {
     borderBottom: active ? `2px solid ${color || C.blade}` : "2px solid transparent" }}>{children}</button>;
 }
 
-function FrontView({ Deye, D1, D2, Du, bladePts, Z, bladeType, bendPos, showScroll, scrollType, wrapAngle }) {
+function FrontView({ Deye, D1, D2, Du, bladePts, Z, bladeType, bendPos, showScroll, scrollType, wrapAngle, cutoffGap, cutoffAngle, Rtongue }) {
   const w = 340, h = 280, cx = w / 2, cy = h / 2 + 10;
   const sPts = showScroll ? scrollProfile(D2/2, wrapAngle, scrollType, 55) : [];
-  const maxR = showScroll && sPts.length > 0 ? Math.max(Du/2, ...sPts.map(p=>p.r)) : Math.max(D2, Du) / 2;
+  const maxR = showScroll && sPts.length > 0 ? Math.max(Du/2, ...sPts.map(p=>p.r)) + 10 : Math.max(D2, Du) / 2;
   const sc = (Math.min(w, h) / 2 - 25) / maxR;
+  const rBend = D1/2 + bendPos * (D2/2 - D1/2);
+  // Tongue position
+  const tongueTheta = cutoffAngle * Math.PI / 180;
+  const rTongue = D2/2 + cutoffGap; // tongue tip radial position
   const rBend = D1/2 + bendPos * (D2/2 - D1/2);
   return <svg width={w} height={h} style={{ display: "block", margin: "0 auto" }}>
     <text x={w/2} y={16} fill={C.dim} fontSize={9} fontFamily="monospace" textAnchor="middle">정면도 (Front — Eye 방향에서 본 모습)</text>
@@ -384,6 +388,38 @@ function FrontView({ Deye, D1, D2, Du, bladePts, Z, bladeType, bendPos, showScro
       const x = cx + p.r * Math.cos(p.theta) * sc, y = cy - p.r * Math.sin(p.theta) * sc;
       return `${i===0?'M':'L'} ${x} ${y}`;
     }).join(' ')} fill="none" stroke="#d4a44a" strokeWidth={1.5} opacity={0.6} />}
+    {/* Tongue */}
+    {showScroll && (() => {
+      const tipX = cx + rTongue * Math.cos(tongueTheta) * sc;
+      const tipY = cy - rTongue * Math.sin(tongueTheta) * sc;
+      const rTipSc = Rtongue * sc;
+      // Scroll end point (last point of spiral)
+      const endPt = sPts.length > 0 ? sPts[sPts.length - 1] : { r: rTongue, theta: 0 };
+      const endX = cx + endPt.r * Math.cos(endPt.theta) * sc;
+      const endY = cy - endPt.r * Math.sin(endPt.theta) * sc;
+      // Inner wall (from tongue back toward scroll at D₂+gap)
+      const innerLen = 20 * sc; // length of tongue inner wall
+      const tDir = tongueTheta + Math.PI / 2; // perpendicular to radial
+      const wallX1 = tipX + innerLen * Math.cos(tDir);
+      const wallY1 = tipY - innerLen * Math.sin(tDir);
+      // Cutoff gap indicator
+      const d2X = cx + (D2/2) * Math.cos(tongueTheta) * sc;
+      const d2Y = cy - (D2/2) * Math.sin(tongueTheta) * sc;
+      return <>
+        {/* Tongue tip circle */}
+        <circle cx={tipX} cy={tipY} r={Math.max(2, rTipSc)} fill="none" stroke={C.red} strokeWidth={1.5} opacity={0.8} />
+        {/* Tongue body - inner wall line */}
+        <line x1={tipX} y1={tipY} x2={wallX1} y2={wallY1} stroke={C.red} strokeWidth={1.2} opacity={0.6} />
+        {/* Cutoff gap line */}
+        <line x1={d2X} y1={d2Y} x2={tipX} y2={tipY} stroke={C.red} strokeWidth={0.5} strokeDasharray="2,2" opacity={0.4} />
+        {/* Gap dimension */}
+        <text x={(d2X+tipX)/2+6} y={(d2Y+tipY)/2-4} fill={C.red} fontSize={6} fontFamily="monospace" opacity={0.7}>δ={cutoffGap}mm</text>
+        {/* Tongue tip R label */}
+        <text x={tipX+8} y={tipY+4} fill={C.red} fontSize={6} fontFamily="monospace" opacity={0.6}>R={Rtongue}</text>
+        {/* Tongue marker dot */}
+        <circle cx={tipX} cy={tipY} r={1.5} fill={C.red} opacity={0.9} />
+      </>;
+    })()}
     <text x={cx} y={cy + D2/2*sc + 18} fill={C.blade} fontSize={8} fontFamily="monospace" textAnchor="middle">D₂={D2}mm</text>
     <text x={cx} y={cy + D2/2*sc + 30} fill={C.eye} fontSize={8} fontFamily="monospace" textAnchor="middle">D_eye={Deye}mm</text>
     {bladeType==='sfs' && <text x={cx} y={cy - rBend*sc - 4} fill={C.accent} fontSize={7} fontFamily="monospace" textAnchor="middle" opacity={0.6}>Bend D={rBend*2|0}mm</text>}
@@ -496,6 +532,10 @@ export default function ImpellerViewer() {
   const [scrollGapB, setScrollGapB] = useState(3); // back (backplate side) gap mm
   const [bScroll, setBScroll] = useState(55); // scroll internal width mm
   const [scrollCross, setScrollCross] = useState('rect'); // 'rect' or 'circular'
+  // Tongue
+  const [cutoffGap, setCutoffGap] = useState(8); // mm, gap between D₂ and tongue tip
+  const [cutoffAngle, setCutoffAngle] = useState(0); // degrees, tongue angular position (0=3 o'clock)
+  const [Rtongue, setRtongue] = useState(5); // mm, tongue tip radius
   const [matKey, setMatKey] = useState('SPCC');
   const [sweepVar, setSweepVar] = useState('beta2');
   const [sweepMin, setSweepMin] = useState(100);
@@ -594,12 +634,34 @@ export default function ImpellerViewer() {
       if (sGeo) {
         const sMat = new THREE.MeshPhongMaterial({ color: 0xd4a44a, transparent: true, opacity: 0.2, side: THREE.DoubleSide, shininess: 40 });
         const sMesh = new THREE.Mesh(sGeo, sMat);
-        sMesh.position.y = -scrollGapB; // align bottom of scroll with backplate
+        sMesh.position.y = -scrollGapB;
         grp.add(sMesh);
       }
+      // Tongue tip — cylinder at cutoff position
+      const tTheta = cutoffAngle * Math.PI / 180;
+      const rTip = D2/2 + cutoffGap;
+      const tongueH = bScroll + scrollGapF + scrollGapB + 4; // full scroll height
+      const tGeo = new THREE.CylinderGeometry(Rtongue, Rtongue, tongueH, 16);
+      const tMat = new THREE.MeshPhongMaterial({ color: 0xef4444, transparent: true, opacity: 0.6, shininess: 80 });
+      const tMesh = new THREE.Mesh(tGeo, tMat);
+      tMesh.position.set(rTip * Math.cos(tTheta), tongueH/2 - scrollGapB - 2, rTip * Math.sin(tTheta));
+      grp.add(tMesh);
+      // Tongue wall — thin box extending from tip along scroll tangent
+      const wallLen = 25, wallThick = 2;
+      const wallGeo = new THREE.BoxGeometry(wallLen, tongueH, wallThick);
+      const wallMat = new THREE.MeshPhongMaterial({ color: 0xef4444, transparent: true, opacity: 0.35, side: THREE.DoubleSide });
+      const wallMesh = new THREE.Mesh(wallGeo, wallMat);
+      const wallDir = tTheta + Math.PI / 2; // tangential direction
+      wallMesh.position.set(
+        rTip * Math.cos(tTheta) + wallLen/2 * Math.cos(wallDir),
+        tongueH/2 - scrollGapB - 2,
+        rTip * Math.sin(tTheta) + wallLen/2 * Math.sin(wallDir)
+      );
+      wallMesh.rotation.y = -wallDir;
+      grp.add(wallMesh);
     }
   }, [Deye,D1,D2,Du,b1,b2,bladePts,Z,tBlade,eyeRise,showShroud,showBackplate,showScroll,explode,viewTab,
-      scrollType,wrapAngle,scrollGapF,scrollGapB,bScroll,scrollCross]);
+      scrollType,wrapAngle,scrollGapF,scrollGapB,bScroll,scrollCross,cutoffGap,cutoffAngle,Rtongue]);
 
   const ratios = useMemo(() => ({ D1D2:(D1/D2).toFixed(3), DeyeD1:(Deye/D1).toFixed(3), DuD2:(Du/D2).toFixed(3), b2D2:(b2/D2).toFixed(3), b1b2:(b1/b2).toFixed(2) }), [D1,D2,Deye,Du,b1,b2]);
 
@@ -648,7 +710,7 @@ export default function ImpellerViewer() {
                 <input type="range" min={0} max={30} step={1} value={explode} onChange={e=>setExplode(+e.target.value)} className="w-16 h-1" style={{accentColor:C.accent}} /></div>
             </div>
           </>}
-          {viewTab===1 && <div className="py-2"><FrontView {...{Deye,D1,D2,Du,b1,b2,bladePts,Z,bladeType,bendPos,showScroll,scrollType,wrapAngle}} /></div>}
+          {viewTab===1 && <div className="py-2"><FrontView {...{Deye,D1,D2,Du,b1,b2,bladePts,Z,bladeType,bendPos,showScroll,scrollType,wrapAngle,cutoffGap,cutoffAngle,Rtongue}} /></div>}
           {viewTab===2 && <div className="py-2"><SectionView {...{Deye,D1,D2,Du,b1,b2,eyeRise,showScroll,scrollGapF,scrollGapB,bScroll}} /></div>}
           {viewTab===3 && <div className="py-2"><BottomView {...{D2,Du,Deye}} /></div>}
           {viewTab===4 && (() => {
@@ -796,9 +858,19 @@ export default function ImpellerViewer() {
                 <S label="δ_b" value={scrollGapB} min={1} max={15} step={0.5} onChange={setScrollGapB} unit="mm" color="#d4a44a" />
               </div>
             </div>
-            <div style={{ color: C.dim, fontFamily: "monospace", fontSize: 7 }}>
-              {scrollType==='cv'?'아르키메데스 나선: r(θ)=r₂+kθ (단면적 선형 증가)':'로그 나선: r(θ)=r₂·e^(θ·tanα) (각운동량 보존)'}
-              {' | '}{scrollCross==='rect'?'사각':'원형'} 단면 | Wrap {wrapAngle}° | 간극 F={scrollGapF}/B={scrollGapB}mm
+            {/* Tongue */}
+            <div className="mt-1 pt-1" style={{ borderTop: `1px solid ${C.border}33` }}>
+              <div style={{ color: C.red, fontFamily: "monospace", fontSize: 8, marginBottom: 2 }}>TONGUE</div>
+              <div className="grid grid-cols-3 gap-x-2">
+                <S label="Gap" value={cutoffGap} min={2} max={30} step={0.5} onChange={setCutoffGap} unit="mm" color={C.red} />
+                <S label="θ" value={cutoffAngle} min={0} max={45} step={1} onChange={setCutoffAngle} unit="°" color={C.red} />
+                <S label="R" value={Rtongue} min={1} max={20} step={0.5} onChange={setRtongue} unit="mm" color={C.red} />
+              </div>
+            </div>
+            <div style={{ color: C.dim, fontFamily: "monospace", fontSize: 7, marginTop: 2 }}>
+              {scrollType==='cv'?'아르키메데스 r(θ)=r₂+kθ':'로그 나선 r(θ)=r₂·e^(θtanα)'}
+              {' | '}{scrollCross==='rect'?'사각':'원형'} | Wrap {wrapAngle}° |
+              Tongue: δ={cutoffGap}mm θ={cutoffAngle}° R={Rtongue}mm
             </div>
           </div>
 
