@@ -99,7 +99,7 @@ function computeStructure(p, aero, mat) {
 const SWEEP_VARS = [
   {key:'D2',label:'D₂',unit:'mm',min:100,max:300,step:5},
   {key:'D1',label:'D₁',unit:'mm',min:60,max:200,step:5},
-  {key:'beta2',label:'β₂',unit:'°',min:90,max:180,step:5},
+  {key:'beta2',label:'β₂',unit:'°',min:20,max:180,step:5},
   {key:'beta1',label:'β₁',unit:'°',min:5,max:85,step:5},
   {key:'Z',label:'Z',unit:'',min:16,max:48,step:2},
   {key:'b2',label:'b₂',unit:'mm',min:20,max:100,step:5},
@@ -250,12 +250,19 @@ function buildDisc(outerR, innerR, t) {
   const g = new THREE.ExtrudeGeometry(s, { depth: t, bevelEnabled: false }); g.rotateX(Math.PI / 2); return g;
 }
 
-function buildBlade(pts, b1, b2, D1, D2, angle) {
+function buildBlade(pts, b1, b2, D1, D2, angle, leanDeg = 0) {
   const r1 = D1 / 2, r2 = D2 / 2, v = [], idx = [];
+  const leanRad = leanDeg * Math.PI / 180; // circumferential lean
   for (let i = 0; i < pts.length; i++) {
-    const th = pts[i].theta + angle, x = pts[i].r * Math.cos(th), z = pts[i].r * Math.sin(th);
-    const tf = Math.max(0, Math.min(1, (pts[i].r - r1) / (r2 - r1))), h = b1 + tf * (b2 - b1);
-    v.push(x, 0, z); v.push(x, h, z);
+    const r = pts[i].r;
+    const thBot = pts[i].theta + angle; // bottom edge (backplate)
+    const tf = Math.max(0, Math.min(1, (r - r1) / (r2 - r1)));
+    const h = b1 + tf * (b2 - b1);
+    const thTop = thBot + leanRad; // top edge (shroud) shifted by lean
+    const xBot = r * Math.cos(thBot), zBot = r * Math.sin(thBot);
+    const xTop = r * Math.cos(thTop), zTop = r * Math.sin(thTop);
+    v.push(xBot, 0, zBot); // bottom vertex
+    v.push(xTop, h, zTop); // top vertex (leaned)
   }
   for (let i = 0; i < pts.length - 1; i++) { const a = i * 2; idx.push(a, a + 2, a + 3); idx.push(a, a + 3, a + 1); }
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(v, 3)); g.setIndex(idx); g.computeVertexNormals(); return g;
@@ -576,6 +583,7 @@ export default function ImpellerViewer() {
   const [bladeType, setBladeType] = useState('sfs'); // 'arc', 'sfs', 'linear'
   const [Rfillet, setRfillet] = useState(15);
   const [bendPos, setBendPos] = useState(0.5);
+  const [bladeLean, setBladeLean] = useState(0); // blade axial lean angle degrees (+ = forward lean)
   const [eyeRise, setEyeRise] = useState(10); // shroud eye curve height mm
   const [showShroud, setShowShroud] = useState(true);
   const [showBackplate, setShowBackplate] = useState(true);
@@ -685,7 +693,7 @@ export default function ImpellerViewer() {
     }
     const hg=new THREE.CylinderGeometry(hubR,hubR,bpT+8,32); hg.translate(0,-(bpT+8)/2,0); grp.add(new THREE.Mesh(hg,new THREE.MeshPhongMaterial({color:0xf59e0b,shininess:100})));
     const bMat=new THREE.MeshPhongMaterial({color:0x60a5fa,side:THREE.DoubleSide,shininess:60,transparent:true,opacity:0.85});
-    for(let i=0;i<Z;i++) grp.add(new THREE.Mesh(buildBlade(bladePts,b1,b2,D1,D2,(2*Math.PI*i)/Z),bMat));
+    for(let i=0;i<Z;i++) grp.add(new THREE.Mesh(buildBlade(bladePts,b1,b2,D1,D2,(2*Math.PI*i)/Z,bladeLean),bMat));
     for(let i=0;i<8;i++){const a=(2*Math.PI*i)/8,r=Deye*0.3; const f=new THREE.Vector3(r*Math.cos(a),b2+50+ex,r*Math.sin(a)), t=new THREE.Vector3(r*Math.cos(a),b2+5+ex,r*Math.sin(a)); grp.add(new THREE.ArrowHelper(new THREE.Vector3().subVectors(t,f).normalize(),f,f.distanceTo(t),0x34d399,5,3));}
     grp.add(new THREE.ArrowHelper(new THREE.Vector3(0,-1,0),new THREE.Vector3(0,b2+65+ex,0),55,0x4ade80,7,4));
     const eyeR=new THREE.Mesh(new THREE.RingGeometry(Deye/2-1,Deye/2+0.5,64),new THREE.MeshBasicMaterial({color:0x34d399,transparent:true,opacity:0.5,side:THREE.DoubleSide})); eyeR.rotation.x=-Math.PI/2; eyeR.position.y=b2+3+ex; grp.add(eyeR);
@@ -766,7 +774,7 @@ export default function ImpellerViewer() {
         grp.add(dMesh);
       }
     }
-  }, [Deye,D1,D2,Du,b1,b2,bladePts,Z,tBlade,eyeRise,showShroud,showBackplate,showScroll,explode,viewTab,
+  }, [Deye,D1,D2,Du,b1,b2,bladePts,Z,tBlade,bladeLean,eyeRise,showShroud,showBackplate,showScroll,explode,viewTab,
       scrollType,wrapAngle,scrollGapF,scrollGapB,bScroll,scrollCross,cutoffGap,cutoffAngle,Rtongue,
       diffAngle,diffLength,diffType]);
 
@@ -905,11 +913,27 @@ export default function ImpellerViewer() {
               <S label="Eye R" value={eyeRise} min={0} max={25} step={1} onChange={setEyeRise} unit="mm" color={C.shroud} />
             </div>
             <div>
-              <div style={{ color: C.dim, fontFamily: "monospace", fontSize: 9, marginBottom: 2 }}>BLADE</div>
+              <div className="flex items-center gap-1 mb-1">
+                <span style={{ color: C.dim, fontFamily: "monospace", fontSize: 9 }}>BLADE</span>
+                <div className="flex gap-0.5 ml-auto">
+                  {[{k:'fc',l:'전곡',b2:145},{k:'rad',l:'방사',b2:90},{k:'bc',l:'후곡',b2:55}].map(m =>
+                    <button key={m.k} onClick={() => setBeta2(m.b2)} className="px-1.5 py-0.5 rounded"
+                      style={{ fontFamily:"monospace", fontSize:6,
+                        background: (m.k==='fc'&&beta2>90)||(m.k==='rad'&&beta2===90)||(m.k==='bc'&&beta2<90) ? C.card : "transparent",
+                        color: (m.k==='fc'&&beta2>90)||(m.k==='rad'&&beta2===90)||(m.k==='bc'&&beta2<90)
+                          ? (m.k==='fc'?C.red:m.k==='rad'?C.amber:C.cyan) : C.dim,
+                        border: `1px solid ${(m.k==='fc'&&beta2>90)||(m.k==='rad'&&beta2===90)||(m.k==='bc'&&beta2<90)
+                          ? (m.k==='fc'?C.red:m.k==='rad'?C.amber:C.cyan) : C.border}` }}>{m.l}</button>)}
+                </div>
+              </div>
               <S label="β₁" value={beta1} min={0} max={90} step={1} onChange={setBeta1} unit="°" color={C.green} />
-              <S label="β₂" value={beta2} min={90} max={180} step={1} onChange={setBeta2} unit="°" color={C.red} />
+              <S label="β₂" value={beta2} min={20} max={180} step={1} onChange={setBeta2} unit="°" color={beta2>90?C.red:beta2===90?C.amber:C.cyan} />
+              <div className="mb-1" style={{ color: C.dim, fontFamily: "monospace", fontSize: 7 }}>
+                {beta2 > 90 ? `전곡 (Forward-curved) β₂=${beta2}°` : beta2 === 90 ? '방사 (Radial) β₂=90°' : `후곡 (Backward-curved) β₂=${beta2}°`}
+              </div>
               <S label="Z" value={Z} min={16} max={48} step={1} onChange={setZ} unit="" color={C.purple} />
               <S label="t" value={tBlade} min={0.3} max={3} step={0.1} onChange={setTBlade} unit="mm" color={C.blade} />
+              <S label="Lean" value={bladeLean} min={-15} max={15} step={0.5} onChange={setBladeLean} unit="°" color={C.accent} />
               <div style={{ color: C.dim, fontFamily: "monospace", fontSize: 9, marginTop: 4, marginBottom: 2 }}>PROFILE</div>
               <div className="flex gap-1 mb-1">
                 {[{k:'sfs',l:'직선-필렛-직선'},{k:'arc',l:'단일 원호'},{k:'linear',l:'선형 β'}].map(m =>

@@ -908,7 +908,7 @@ export default function FanSimPro() {
               <div>
                 <div style={{ color: C.dim, fontFamily: "monospace", fontSize: 9, marginBottom: 2 }}>CONDITION</div>
                 <S label="β₁" value={beta1} min={0} max={90} step={1} onChange={setBeta1} unit="°" color={C.green} />
-                <S label="β₂" value={beta2} min={90} max={180} step={1} onChange={setBeta2} unit="°" color={C.red} />
+                <S label="β₂" value={beta2} min={20} max={180} step={1} onChange={setBeta2} unit="°" color={C.red} />
                 <S label="Z" value={Z} min={16} max={48} step={1} onChange={setZ} unit="" color={C.purple} />
                 <S label="RPM" value={RPM} min={400} max={3000} step={10} onChange={setRPM} unit="" color={C.green} />
                 <S label="T" value={T_in} min={10} max={80} step={1} onChange={setTin} unit="°C" color={C.orange} />
