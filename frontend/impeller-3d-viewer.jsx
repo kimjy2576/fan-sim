@@ -410,17 +410,29 @@ function Tab({ active, onClick, children, color }) {
     borderBottom: active ? `2px solid ${color || C.blade}` : "2px solid transparent" }}>{children}</button>;
 }
 
-function FrontView({ Deye, D1, D2, Du, bladePts, Z, bladeType, bendPos, showScroll, scrollType, wrapAngle, cutoffGap, cutoffAngle, Rtongue, tongueOutLen, tongueOutAngle, diffAngle, diffLength, diffType, diffInnerWall }) {
-  const w = 340, h = 280, cx = w / 2, cy = h / 2 + 10;
+function FrontView({ Deye, D1, D2, Du, bladePts, Z, bladeType, bendPos, showScroll, scrollType, wrapAngle, cutoffGap, cutoffAngle, Rtongue, tongueOutLen, tongueOutAngle, diffAngle, diffLength, diffType, diffInnerWall, showCasing, casingW, casingH, casingCX, casingCY }) {
+  const w = 340, h = 280;
   const sPts = showScroll ? scrollProfile(D2/2, wrapAngle, scrollType, 55, cutoffAngle, cutoffGap, Rtongue) : [];
-  const maxR = showScroll && sPts.length > 0 ? Math.max(Du/2, ...sPts.map(p=>p.r)) + 10 : Math.max(D2, Du) / 2;
+  const scrollMaxR = showScroll && sPts.length > 0 ? Math.max(Du/2, ...sPts.map(p=>p.r)) + 10 : Math.max(D2, Du) / 2;
+  const maxR = showCasing ? Math.max(scrollMaxR, casingW/2, casingH/2) : scrollMaxR;
   const sc = (Math.min(w, h) / 2 - 25) / maxR;
+  // Impeller center position (offset by casing center)
+  const cx = w / 2 + casingCX * sc * (showCasing ? 1 : 0);
+  const cy = h / 2 + 10 - casingCY * sc * (showCasing ? 1 : 0);
   const rBend = D1/2 + bendPos * (D2/2 - D1/2);
-  // Tongue position
   const tongueTheta = cutoffAngle * Math.PI / 180;
-  const rTongue = D2/2 + cutoffGap; // tongue tip radial position
+  const rTongue = D2/2 + cutoffGap;
   return <svg width={w} height={h} style={{ display: "block", margin: "0 auto" }}>
     <text x={w/2} y={16} fill={C.dim} fontSize={9} fontFamily="monospace" textAnchor="middle">정면도 (Front — Eye 방향에서 본 모습)</text>
+    {/* Casing box */}
+    {showCasing && <rect x={w/2 - casingW/2*sc} y={h/2+10 - casingH/2*sc} width={casingW*sc} height={casingH*sc}
+      fill="none" stroke="#4488aa" strokeWidth={1.5} opacity={0.5} rx={2} />}
+    {showCasing && <>
+      <text x={w/2} y={h/2+10 + casingH/2*sc + 12} fill="#4488aa" fontSize={7} fontFamily="monospace" textAnchor="middle">{casingW}×{casingH}mm</text>
+      {/* Center crosshair */}
+      <line x1={cx-4} y1={cy} x2={cx+4} y2={cy} stroke="#4488aa" strokeWidth={0.5} opacity={0.3} />
+      <line x1={cx} y1={cy-4} x2={cx} y2={cy+4} stroke="#4488aa" strokeWidth={0.5} opacity={0.3} />
+    </>}
     {Du > D2 && <circle cx={cx} cy={cy} r={Du/2*sc} fill="none" stroke={C.accent} strokeWidth={1} strokeDasharray="4,3" opacity={0.4} />}
     <circle cx={cx} cy={cy} r={D2/2*sc} fill="none" stroke={C.blade} strokeWidth={1.5} />
     <circle cx={cx} cy={cy} r={D1/2*sc} fill="none" stroke={C.cyan} strokeWidth={0.8} strokeDasharray="3,3" opacity={0.6} />
@@ -704,6 +716,14 @@ export default function ImpellerViewer() {
   const [diffLength, setDiffLength] = useState(40); // mm
   const [diffType, setDiffType] = useState('single'); // 'single', 'stepped', 'round'
   const [diffInnerWall, setDiffInnerWall] = useState(true); // inner wall on/off
+  // Casing box
+  const [showCasing, setShowCasing] = useState(false);
+  const [casingW, setCasingW] = useState(250); // width mm (plan view X)
+  const [casingH, setCasingH] = useState(250); // height mm (plan view Y)
+  const [casingD, setCasingD] = useState(80); // depth mm (axial)
+  const [casingCX, setCasingCX] = useState(0); // impeller center X offset from box center
+  const [casingCY, setCasingCY] = useState(0); // impeller center Y offset from box center
+  const [casingFace, setCasingFace] = useState('top'); // 'top'=XY plane, 'front'=XZ, 'side'=YZ
   const [matKey, setMatKey] = useState('SPCC');
   const [sweepVar, setSweepVar] = useState('beta2');
   const [sweepMin, setSweepMin] = useState(100);
@@ -714,6 +734,45 @@ export default function ImpellerViewer() {
   const mat = MATERIALS[matKey];
   const baseParams = { D1, D2, Deye, b1, b2, beta1, beta2, Z, RPM, tBlade,
     cutoffGap, Rtongue, tongueOutLen, tongueOutAngle, wrapAngle, diffAngle, diffLength };
+
+  // Auto-fit: calculate max scroll that fits within casing box
+  const autoFitScroll = () => {
+    if (!showCasing) return;
+    const halfW = casingW / 2, halfH = casingH / 2;
+    // Available space from impeller center to each wall
+    const rRight = halfW - casingCX;
+    const rLeft = halfW + casingCX;
+    const rTop = halfH - casingCY;
+    const rBot = halfH + casingCY;
+    const rMin = Math.min(rRight, rLeft, rTop, rBot);
+    // Max scroll radius that fits
+    const rMax = rMin - 5; // 5mm wall clearance
+    const r2 = D2 / 2;
+    const rTip = r2 + cutoffGap;
+    const rStart = rTip - Rtongue;
+    if (rMax <= rStart) return; // can't fit
+    // For Archimedes: r(θ) = rStart + k*θ, solve for wrap where r = rMax
+    const k = r2 * 0.12;
+    if (k > 0) {
+      const maxWrapRad = (rMax - rStart) / k;
+      const maxWrapDeg = Math.min(360, Math.max(180, Math.round(maxWrapRad * 180 / Math.PI)));
+      setWrapAngle(maxWrapDeg);
+    }
+    // Auto-set diffuser length to fill remaining space toward exit wall
+    const exitTheta = (cutoffAngle + wrapAngle) * Math.PI / 180;
+    const exitDir = exitTheta + Math.PI / 2;
+    const exitDx = Math.cos(exitDir), exitDy = Math.sin(exitDir);
+    // Distance from impeller center to wall in exit direction
+    const tWall = Math.min(
+      exitDx > 0 ? rRight / exitDx : (exitDx < 0 ? rLeft / (-exitDx) : 999),
+      exitDy > 0 ? rTop / exitDy : (exitDy < 0 ? rBot / (-exitDy) : 999)
+    );
+    const exitR = rMax; // scroll exit radius
+    const remainingLen = Math.max(0, tWall - exitR);
+    if (remainingLen > 0 && remainingLen < 300) {
+      setDiffLength(Math.round(remainingLen * 0.8));
+    }
+  };
 
   const mountRef = useRef(null);
   const sceneRef = useRef(null);
@@ -896,9 +955,26 @@ export default function ImpellerViewer() {
         grp.add(dMesh);
       }
     }
+
+    // Casing box
+    if (showCasing) {
+      const bH = casingD; // box height (axial = y direction)
+      const geo = new THREE.BoxGeometry(casingW, bH, casingH);
+      const mat = new THREE.MeshPhongMaterial({ color: 0x4488aa, transparent: true, opacity: 0.08, side: THREE.DoubleSide });
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.position.set(casingCX, bH / 2 - scrollGapB - 2, -casingCY);
+      grp.add(mesh);
+      // Wireframe
+      const wire = new THREE.LineSegments(
+        new THREE.EdgesGeometry(geo),
+        new THREE.LineBasicMaterial({ color: 0x4488aa, transparent: true, opacity: 0.3 })
+      );
+      wire.position.copy(mesh.position);
+      grp.add(wire);
+    }
   }, [Deye,D1,D2,Du,b1,b2,bladePts,Z,tBlade,bladeLean,eyeRise,showShroud,showBackplate,showScroll,explode,viewTab,
       scrollType,wrapAngle,scrollGapF,scrollGapB,bScroll,scrollCross,cutoffGap,cutoffAngle,Rtongue,tongueOutLen,tongueOutAngle,
-      diffAngle,diffLength,diffType,diffInnerWall]);
+      diffAngle,diffLength,diffType,diffInnerWall,showCasing,casingW,casingH,casingD,casingCX,casingCY]);
 
   const ratios = useMemo(() => ({ D1D2:(D1/D2).toFixed(3), DeyeD1:(Deye/D1).toFixed(3), DuD2:(Du/D2).toFixed(3), b2D2:(b2/D2).toFixed(3), b1b2:(b1/b2).toFixed(2) }), [D1,D2,Deye,Du,b1,b2]);
 
@@ -943,12 +1019,13 @@ export default function ImpellerViewer() {
               <label className="flex items-center gap-1 text-xs" style={{ fontFamily:"monospace",color:C.dim }}><input type="checkbox" checked={showShroud} onChange={e=>setShowShroud(e.target.checked)} /><span style={{color:C.shroud}}>측판</span></label>
               <label className="flex items-center gap-1 text-xs" style={{ fontFamily:"monospace",color:C.dim }}><input type="checkbox" checked={showBackplate} onChange={e=>setShowBackplate(e.target.checked)} /><span style={{color:C.backplate}}>주판</span></label>
               <label className="flex items-center gap-1 text-xs" style={{ fontFamily:"monospace",color:C.dim }}><input type="checkbox" checked={showScroll} onChange={e=>setShowScroll(e.target.checked)} /><span style={{color:"#d4a44a"}}>스크롤</span></label>
+              <label className="flex items-center gap-1 text-xs" style={{ fontFamily:"monospace",color:C.dim }}><input type="checkbox" checked={showCasing} onChange={e=>setShowCasing(e.target.checked)} /><span style={{color:"#4488aa"}}>케이싱</span></label>
               <label className="flex items-center gap-1 text-xs" style={{ fontFamily:"monospace",color:C.dim }}><input type="checkbox" checked={autoRotate} onChange={e=>setAutoRotate(e.target.checked)} />회전</label>
               <div className="flex items-center gap-1 ml-auto"><span style={{fontFamily:"monospace",fontSize:9,color:C.dim}}>분해</span>
                 <input type="range" min={0} max={30} step={1} value={explode} onChange={e=>setExplode(+e.target.value)} className="w-16 h-1" style={{accentColor:C.accent}} /></div>
             </div>
           </>}
-          {viewTab===1 && <div className="py-2"><FrontView {...{Deye,D1,D2,Du,b1,b2,bladePts,Z,bladeType,bendPos,showScroll,scrollType,wrapAngle,cutoffGap,cutoffAngle,Rtongue,tongueOutLen,tongueOutAngle,diffAngle,diffLength,diffType,diffInnerWall}} /></div>}
+          {viewTab===1 && <div className="py-2"><FrontView {...{Deye,D1,D2,Du,b1,b2,bladePts,Z,bladeType,bendPos,showScroll,scrollType,wrapAngle,cutoffGap,cutoffAngle,Rtongue,tongueOutLen,tongueOutAngle,diffAngle,diffLength,diffType,diffInnerWall,showCasing,casingW,casingH,casingCX,casingCY}} /></div>}
           {viewTab===2 && <div className="py-2"><SectionView {...{Deye,D1,D2,Du,b1,b2,eyeRise,showScroll,scrollGapF,scrollGapB,bScroll}} /></div>}
           {viewTab===3 && <div className="py-2"><BottomView {...{D2,Du,Deye}} /></div>}
           {viewTab===4 && (() => {
@@ -1152,6 +1229,35 @@ export default function ImpellerViewer() {
               Tongue δ={cutoffGap} R={Rtongue} 외면 L={tongueOutLen} α={tongueOutAngle}° |
               Diff {diffType} {diffAngle}° L={diffLength}mm {diffInnerWall?'':'(내벽 개방)'}
             </div>
+          </div>
+
+          {/* CASING */}
+          <div className="mt-2 pt-2" style={{ borderTop: `1px solid ${C.border}` }}>
+            <div className="flex items-center gap-2 mb-1">
+              <label className="flex items-center gap-1" style={{ fontFamily:"monospace", fontSize:9, color:"#4488aa" }}>
+                <input type="checkbox" checked={showCasing} onChange={e=>setShowCasing(e.target.checked)} />
+                CASING
+              </label>
+              {showCasing && <button onClick={autoFitScroll} className="px-2 py-0.5 rounded ml-auto"
+                style={{ fontFamily:"monospace", fontSize:7, background:C.card, color:C.green,
+                  border:`1px solid ${C.green}66` }}>🔧 Auto-Fit Scroll</button>}
+            </div>
+            {showCasing && <>
+              <div className="grid grid-cols-3 gap-x-2">
+                <S label="W" value={casingW} min={100} max={500} step={5} onChange={setCasingW} unit="mm" color="#4488aa" />
+                <S label="H" value={casingH} min={100} max={500} step={5} onChange={setCasingH} unit="mm" color="#4488aa" />
+                <S label="D" value={casingD} min={30} max={200} step={1} onChange={setCasingD} unit="mm" color="#4488aa" />
+              </div>
+              <div style={{ color: C.dim, fontFamily: "monospace", fontSize: 8, marginTop: 2, marginBottom: 1 }}>임펠러 중심 오프셋</div>
+              <div className="grid grid-cols-2 gap-x-2">
+                <S label="X" value={casingCX} min={-100} max={100} step={1} onChange={setCasingCX} unit="mm" color="#4488aa" />
+                <S label="Y" value={casingCY} min={-100} max={100} step={1} onChange={setCasingCY} unit="mm" color="#4488aa" />
+              </div>
+              <div style={{ color: C.dim, fontFamily: "monospace", fontSize: 7, marginTop: 2 }}>
+                케이싱 {casingW}×{casingH}×{casingD}mm | 중심 오프셋 ({casingCX},{casingCY})mm
+                {' | '}Auto-Fit: 케이싱 내부에 맞게 Wrap/디퓨저 자동 조정
+              </div>
+            </>}
           </div>
 
           <div className="mt-2 pt-2 grid grid-cols-5 gap-1" style={{ borderTop: `1px solid ${C.border}` }}>
