@@ -319,8 +319,8 @@ function buildBlade(pts, b1, b2, D1, D2, angle, leanDeg = 0) {
 
 // ═══ SCROLL GEOMETRY ═══
 function scrollProfile(r2, wrapDeg, type, bScroll, startDeg = 0, cutoffGap = 8, Rtongue = 5, nSeg = 72) {
-  // Spiral starts at tongue inner face start: r_start = r₂ + cutoffGap - R_tongue
-  const rStart = r2 + cutoffGap - Rtongue;
+  // Spiral starts at tongue outer face start: r_start = r₂ + cutoffGap + R_tongue
+  const rStart = r2 + cutoffGap + Rtongue;
   const wrapRad = wrapDeg * Math.PI / 180;
   const startRad = startDeg * Math.PI / 180;
   const pts = [];
