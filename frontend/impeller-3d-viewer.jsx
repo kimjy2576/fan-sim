@@ -500,90 +500,82 @@ function FrontView({ Deye, D1, D2, Du, bladePts, Z, bladeType, bendPos, showScro
         {!diffInnerWall && <text x={(innerX+outerX)/2-10} y={(innerY+outerY)/2} fill="#d4a44a" fontSize={5} fontFamily="monospace">개방</text>}
       </g>;
     })()}
-    {/* Tongue — continuous wall: inner face → tip round → outer face (→ diffuser) */}
+    {/* Tongue — inner face → tip round arc → outer face */}
     {showScroll && (() => {
+      // Tip center position
       const tipX = cx + rTongue * Math.cos(tongueTheta) * sc;
       const tipY = cy - rTongue * Math.sin(tongueTheta) * sc;
-      const rTipSc = Math.max(2, Rtongue * sc);
+      const R = Math.max(2, Rtongue * sc); // tip round radius in SVG
       const endPt = sPts.length > 0 ? sPts[sPts.length - 1] : null;
       const endX = endPt ? cx + endPt.r * Math.cos(endPt.theta) * sc : tipX;
       const endY = endPt ? cy - endPt.r * Math.sin(endPt.theta) * sc : tipY;
       const d2X = cx + (D2/2) * Math.cos(tongueTheta) * sc;
       const d2Y = cy - (D2/2) * Math.sin(tongueTheta) * sc;
 
-      // Inner face direction: tangential into scroll
-      const inDir = tongueTheta + Math.PI / 2;
-      const inLen = 22 * sc;
-      const inEndX = tipX + inLen * Math.cos(inDir);
-      const inEndY = tipY - inLen * Math.sin(inDir);
+      // Radial direction (outward from impeller center)
+      const radOut = tongueTheta; // toward outer
+      const radIn = tongueTheta + Math.PI; // toward impeller center
 
-      // Outer face direction: toward diffuser exit (tangent at scroll end)
-      // For 360° wrap, scroll end is near tongue but at larger radius
-      // Exit direction = tangent of spiral at exit point
+      // Inner face: on impeller-side of tip, going tangentially into scroll
+      const inDir = tongueTheta + Math.PI / 2;
+      const inStartX = tipX + R * Math.cos(radIn); // offset by R toward impeller
+      const inStartY = tipY - R * Math.sin(radIn);
+      const inLen = 22 * sc;
+      const inEndX = inStartX + inLen * Math.cos(inDir);
+      const inEndY = inStartY - inLen * Math.sin(inDir);
+
+      // Outer face direction
       let exitDir;
       if (sPts.length >= 2) {
         const p1 = sPts[sPts.length - 2], p2 = sPts[sPts.length - 1];
-        const x1 = p1.r * Math.cos(p1.theta), y1 = p1.r * Math.sin(p1.theta);
-        const x2 = p2.r * Math.cos(p2.theta), y2 = p2.r * Math.sin(p2.theta);
-        exitDir = Math.atan2(-(y2 - y1), x2 - x1); // SVG y is inverted
-      } else {
-        exitDir = tongueTheta + Math.PI / 2; // fallback
-      }
-      const outLen = tongueOutLen * sc;
-      // Outer face angle: exitDir + tongueOutAngle (diverges inward from diffuser)
-      const outAngleRad = tongueOutAngle * Math.PI / 180;
-      // Rotate exitDir by outAngle toward impeller center (inward divergence)
-      const outFaceDir = exitDir + outAngleRad;
-      const outEndX = tipX + outLen * Math.cos(outFaceDir);
-      const outEndY = tipY + outLen * Math.sin(outFaceDir);
+        exitDir = Math.atan2(-(p2.r*Math.sin(p2.theta) - p1.r*Math.sin(p1.theta)),
+                               p2.r*Math.cos(p2.theta) - p1.r*Math.cos(p1.theta));
+      } else { exitDir = tongueTheta + Math.PI / 2; }
+      const outFaceDir = exitDir + tongueOutAngle * Math.PI / 180;
 
-      // Tip round arc: from inner face end → outer face start
-      // Arc center offset from tip toward impeller center
-      const arcCx = tipX - rTipSc * Math.cos(tongueTheta);
-      const arcCy = tipY + rTipSc * Math.sin(tongueTheta);
-      // Arc from inDir side to exitDir side
-      const arcStartA = Math.atan2(-(inEndY - inLen * Math.cos(inDir) + inLen * Math.cos(inDir) - arcCy), (tipX + 0 - arcCx));
-      // Simpler: just draw arc points from inner to outer
-      const nArc = 12;
-      const aStart = Math.atan2(tipY - arcCy, tipX - arcCx) - 0.1; // start near inner side
-      const arcPts = [];
-      // Compute angles for inner and outer connection points
-      const innerConnA = Math.atan2(tipY - rTipSc * Math.sin(inDir - Math.PI/2) - arcCy,
-                                     tipX + rTipSc * Math.cos(inDir - Math.PI/2) - arcCx);
-      // Just do a clean semicircle from inner to outer around the tip
-      const tipR = rTipSc;
-      const angIn = inDir - Math.PI; // angle pointing from arc center toward inner face side
-      const angOut = exitDir + Math.PI; // angle pointing from arc center toward outer face side
-      let angSweep = angOut - angIn;
-      if (angSweep > Math.PI) angSweep -= 2 * Math.PI;
-      if (angSweep < -Math.PI) angSweep += 2 * Math.PI;
-      if (Math.abs(angSweep) < 0.3) angSweep = -Math.PI; // fallback to semicircle
-      for (let i = 0; i <= nArc; i++) {
-        const a = angIn + (i / nArc) * angSweep;
-        arcPts.push({ x: arcCx + tipR * Math.cos(a), y: arcCy + tipR * Math.sin(a) });
-      }
+      // Outer face: on outer-side of tip, going toward diffuser exit
+      const outStartX = tipX + R * Math.cos(radOut); // offset by R toward outside
+      const outStartY = tipY - R * Math.sin(radOut);
+      const outLen = tongueOutLen * sc;
+      const outEndX = outStartX + outLen * Math.cos(outFaceDir);
+      const outEndY = outStartY + outLen * Math.sin(outFaceDir);
+
+      // Arc from inner start → outer start (around tip center)
+      const arcAngIn = Math.atan2(inStartY - tipY, inStartX - tipX);
+      const arcAngOut = Math.atan2(outStartY - tipY, outStartX - tipX);
+      let arcSweep = arcAngOut - arcAngIn;
+      // Go the short way around (should be ~180° for typical geometry)
+      if (arcSweep > Math.PI) arcSweep -= 2 * Math.PI;
+      if (arcSweep < -Math.PI) arcSweep += 2 * Math.PI;
+      const nArc = 16;
+      const arcPath = Array.from({length: nArc + 1}, (_, i) => {
+        const a = arcAngIn + (i / nArc) * arcSweep;
+        return `${i === 0 ? 'M' : 'L'} ${tipX + R * Math.cos(a)} ${tipY + R * Math.sin(a)}`;
+      }).join(' ');
 
       return <>
-        {/* Closing wall: scroll end → tongue area */}
-        <line x1={endX} y1={endY} x2={tipX} y2={tipY} stroke="#d4a44a" strokeWidth={1} opacity={0.5} />
+        {/* Closing wall: scroll end → tongue */}
+        <line x1={endX} y1={endY} x2={outStartX} y2={outStartY} stroke="#d4a44a" strokeWidth={1} opacity={0.5} />
 
-        {/* Inner face (scroll side) */}
-        <line x1={tipX} y1={tipY} x2={inEndX} y2={inEndY}
+        {/* Inner face (scroll side) — starts R away from tip center */}
+        <line x1={inStartX} y1={inStartY} x2={inEndX} y2={inEndY}
           stroke={C.red} strokeWidth={1.5} opacity={0.7} />
 
-        {/* Tip round */}
-        <circle cx={tipX} cy={tipY} r={rTipSc} fill="none" stroke={C.red} strokeWidth={1.5} opacity={0.6} />
+        {/* Tip round arc — connects inner to outer */}
+        <path d={arcPath} fill="none" stroke={C.red} strokeWidth={1.5} opacity={0.8} />
 
-        {/* Outer face (diffuser inner wall direction) */}
-        <line x1={tipX} y1={tipY} x2={outEndX} y2={outEndY}
+        {/* Outer face (diffuser side) — starts R away from tip center */}
+        <line x1={outStartX} y1={outStartY} x2={outEndX} y2={outEndY}
           stroke={C.red} strokeWidth={1.5} opacity={0.7} />
 
         {/* Cutoff gap */}
         <line x1={d2X} y1={d2Y} x2={tipX} y2={tipY} stroke={C.red} strokeWidth={0.5} strokeDasharray="2,2" opacity={0.4} />
+        {/* Tip center dot */}
+        <circle cx={tipX} cy={tipY} r={1.5} fill={C.red} opacity={0.4} />
 
         {/* Labels */}
         <text x={(d2X+tipX)/2+6} y={(d2Y+tipY)/2-4} fill={C.red} fontSize={6} fontFamily="monospace" opacity={0.7}>δ={cutoffGap}</text>
-        <text x={tipX+rTipSc+3} y={tipY-rTipSc-2} fill={C.red} fontSize={5} fontFamily="monospace" opacity={0.5}>R={Rtongue}</text>
+        <text x={tipX+R+3} y={tipY-R-2} fill={C.red} fontSize={5} fontFamily="monospace" opacity={0.5}>R={Rtongue}</text>
         <text x={inEndX+4} y={inEndY} fill={C.red} fontSize={5} fontFamily="monospace" opacity={0.4}>내면</text>
         <text x={outEndX+4} y={outEndY} fill={C.red} fontSize={5} fontFamily="monospace" opacity={0.4}>외면</text>
       </>;
@@ -814,52 +806,47 @@ export default function ImpellerViewer() {
         sMesh.position.y = -scrollGapB;
         grp.add(sMesh);
       }
-      // Tongue — continuous wall: inner face → tip round → outer face
+      // Tongue — inner face → tip round → outer face (offset by R)
       const tTheta = cutoffAngle * Math.PI / 180;
       const rTip = D2/2 + cutoffGap;
       const tongueH = bScroll + scrollGapF + scrollGapB + 4;
       const tY = tongueH / 2 - scrollGapB - 2;
+      const tipCX = rTip * Math.cos(tTheta), tipCZ = rTip * Math.sin(tTheta);
 
       // Tip cylinder
       const tGeo = new THREE.CylinderGeometry(Rtongue, Rtongue, tongueH, 16);
       const tMat = new THREE.MeshPhongMaterial({ color: 0xef4444, transparent: true, opacity: 0.6, shininess: 80 });
       const tMesh = new THREE.Mesh(tGeo, tMat);
-      tMesh.position.set(rTip * Math.cos(tTheta), tY, rTip * Math.sin(tTheta));
+      tMesh.position.set(tipCX, tY, tipCZ);
       grp.add(tMesh);
 
-      // Inner face (scroll side)
+      // Inner face: offset R toward impeller center, then extend tangentially
       const inDir = tTheta + Math.PI / 2;
+      const inOffX = tipCX - Rtongue * Math.cos(tTheta); // R toward impeller
+      const inOffZ = tipCZ - Rtongue * Math.sin(tTheta);
       const inLen = 25, wallThick = 2;
       const inGeo = new THREE.BoxGeometry(inLen, tongueH, wallThick);
       const wallMat = new THREE.MeshPhongMaterial({ color: 0xef4444, transparent: true, opacity: 0.35, side: THREE.DoubleSide });
       const inMesh = new THREE.Mesh(inGeo, wallMat);
-      inMesh.position.set(
-        rTip * Math.cos(tTheta) + inLen / 2 * Math.cos(inDir),
-        tY,
-        rTip * Math.sin(tTheta) + inLen / 2 * Math.sin(inDir)
-      );
+      inMesh.position.set(inOffX + inLen / 2 * Math.cos(inDir), tY, inOffZ + inLen / 2 * Math.sin(inDir));
       inMesh.rotation.y = -inDir;
       grp.add(inMesh);
 
-      // Outer face (diffuser side) — configurable length and angle
+      // Outer face: offset R away from impeller center, then extend toward diffuser exit
       let outDirA;
       if (sPts.length >= 2) {
         const p1 = sPts[sPts.length - 2], p2 = sPts[sPts.length - 1];
         const dx = p2.r * Math.cos(p2.theta) - p1.r * Math.cos(p1.theta);
         const dz = p2.r * Math.sin(p2.theta) - p1.r * Math.sin(p1.theta);
         outDirA = Math.atan2(dz, dx) + tongueOutAngle * Math.PI / 180;
-      } else {
-        outDirA = tTheta + Math.PI / 2 + tongueOutAngle * Math.PI / 180;
-      }
+      } else { outDirA = tTheta + Math.PI / 2 + tongueOutAngle * Math.PI / 180; }
+      const outOffX = tipCX + Rtongue * Math.cos(tTheta); // R away from impeller
+      const outOffZ = tipCZ + Rtongue * Math.sin(tTheta);
       const outLen = tongueOutLen;
       const outGeo = new THREE.BoxGeometry(outLen, tongueH, wallThick);
       const outMesh = new THREE.Mesh(outGeo, wallMat.clone());
       outMesh.material.opacity = 0.25;
-      outMesh.position.set(
-        rTip * Math.cos(tTheta) + outLen / 2 * Math.cos(outDirA),
-        tY,
-        rTip * Math.sin(tTheta) + outLen / 2 * Math.sin(outDirA)
-      );
+      outMesh.position.set(outOffX + outLen / 2 * Math.cos(outDirA), tY, outOffZ + outLen / 2 * Math.sin(outDirA));
       outMesh.rotation.y = -outDirA;
       grp.add(outMesh);
 
