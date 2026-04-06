@@ -318,9 +318,9 @@ function buildBlade(pts, b1, b2, D1, D2, angle, leanDeg = 0) {
 }
 
 // ═══ SCROLL GEOMETRY ═══
-function scrollProfile(r2, wrapDeg, type, bScroll, startDeg = 0, cutoffGap = 8, nSeg = 72) {
-  // Spiral starts at tongue tip: r_start = r₂ + cutoffGap
-  const rStart = r2 + cutoffGap;
+function scrollProfile(r2, wrapDeg, type, bScroll, startDeg = 0, cutoffGap = 8, Rtongue = 5, nSeg = 72) {
+  // Spiral starts at tongue inner face start: r_start = r₂ + cutoffGap - R_tongue
+  const rStart = r2 + cutoffGap - Rtongue;
   const wrapRad = wrapDeg * Math.PI / 180;
   const startRad = startDeg * Math.PI / 180;
   const pts = [];
@@ -412,7 +412,7 @@ function Tab({ active, onClick, children, color }) {
 
 function FrontView({ Deye, D1, D2, Du, bladePts, Z, bladeType, bendPos, showScroll, scrollType, wrapAngle, cutoffGap, cutoffAngle, Rtongue, tongueOutLen, tongueOutAngle, diffAngle, diffLength, diffType, diffInnerWall }) {
   const w = 340, h = 280, cx = w / 2, cy = h / 2 + 10;
-  const sPts = showScroll ? scrollProfile(D2/2, wrapAngle, scrollType, 55, cutoffAngle, cutoffGap) : [];
+  const sPts = showScroll ? scrollProfile(D2/2, wrapAngle, scrollType, 55, cutoffAngle, cutoffGap, Rtongue) : [];
   const maxR = showScroll && sPts.length > 0 ? Math.max(Du/2, ...sPts.map(p=>p.r)) + 10 : Math.max(D2, Du) / 2;
   const sc = (Math.min(w, h) / 2 - 25) / maxR;
   const rBend = D1/2 + bendPos * (D2/2 - D1/2);
@@ -798,7 +798,7 @@ export default function ImpellerViewer() {
 
     // Scroll casing
     if (showScroll) {
-      const sPts = scrollProfile(D2/2, wrapAngle, scrollType, bScroll, cutoffAngle, cutoffGap);
+      const sPts = scrollProfile(D2/2, wrapAngle, scrollType, bScroll, cutoffAngle, cutoffGap, Rtongue);
       const sGeo = buildScrollMesh(sPts, bScroll, scrollGapF, scrollGapB, scrollCross);
       if (sGeo) {
         const sMat = new THREE.MeshPhongMaterial({ color: 0xd4a44a, transparent: true, opacity: 0.2, side: THREE.DoubleSide, shininess: 40 });
