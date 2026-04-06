@@ -7,17 +7,26 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    body { margin: 0; background: #0f1923; overflow-x: hidden; }
+    body { margin: 0; background: #0a0e17; overflow-x: hidden; }
     #loading { display: flex; align-items: center; justify-content: center; height: 100vh;
       color: #8899aa; font-family: monospace; font-size: 14px; flex-direction: column; gap: 8px; }
     .spinner { width: 24px; height: 24px; border: 2px solid #334455;
       border-top: 2px solid #66aaff; border-radius: 50%; animation: spin 0.8s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
+    .tool-switcher { position: fixed; top: 8px; right: 8px; z-index: 999; display: flex; gap: 4px; }
+    .tool-btn { padding: 4px 10px; border-radius: 4px; border: 1px solid #1e2d4a; background: #111827;
+      color: #718096; font-family: monospace; font-size: 10px; cursor: pointer; }
+    .tool-btn.active { color: #60a5fa; border-color: #60a5fa; }
   </style>
 </head>
 <body>
+  <div class="tool-switcher">
+    <button class="tool-btn active" onclick="loadTool('impeller-3d-viewer')">3D Design</button>
+    <button class="tool-btn" onclick="loadTool('fan-sim-pro')">PQ Analysis</button>
+  </div>
   <div id="root">
     <div id="loading">
       <div class="spinner"></div>
@@ -26,34 +35,45 @@
   </div>
 
   <script>
-    // Load JSX component via Babel transform
-    fetch('/static/fan-sim-pro.jsx')
-      .then(r => r.text())
-      .then(jsx => {
-        // Prepend React hooks destructuring
-        const prefix = `const { useState, useMemo, useCallback, useEffect, useRef } = React;\n`;
-        // Remove ES module export
-        const code = prefix + jsx
-          .replace(/^import\s+.*$/gm, '')
-          .replace(/^export\s+default\s+/m, 'const __FanSimPro__ = ');
+    const { useState, useMemo, useCallback, useEffect, useRef } = React;
 
-        // Transform JSX → JS
-        const transformed = Babel.transform(code, {
-          presets: ['react'],
-          filename: 'fan-sim-pro.jsx'
-        }).code;
-
-        // Execute and render
-        const fn = new Function('React', 'ReactDOM', transformed + '\nreturn __FanSimPro__;');
-        const Component = fn(React, ReactDOM);
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(React.createElement(Component));
-      })
-      .catch(err => {
-        document.getElementById('loading').innerHTML =
-          `<span style="color:#ff6666">로딩 실패: ${err.message}</span>`;
-        console.error(err);
+    function loadTool(name) {
+      // Update button states
+      document.querySelectorAll('.tool-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.textContent.includes(name === 'impeller-3d-viewer' ? '3D' : 'PQ'));
       });
+
+      document.getElementById('root').innerHTML = '<div id="loading"><div class="spinner"></div><span>로딩 중...</span></div>';
+
+      fetch('/static/' + name + '.jsx')
+        .then(r => r.text())
+        .then(jsx => {
+          const prefix = `const { useState, useMemo, useCallback, useEffect, useRef } = React;\n`;
+          const code = prefix + jsx
+            .replace(/^import\s+\{[^}]*\}\s+from\s+["']react["'];?\s*$/gm, '')
+            .replace(/^import\s+\*\s+as\s+THREE\s+from\s+["']three["'];?\s*$/gm, '')
+            .replace(/^import\s+.*$/gm, '')
+            .replace(/^export\s+default\s+/m, 'const __Component__ = ');
+
+          const transformed = Babel.transform(code, {
+            presets: ['react'],
+            filename: name + '.jsx'
+          }).code;
+
+          const fn = new Function('React', 'ReactDOM', 'THREE', transformed + '\nreturn __Component__;');
+          const Component = fn(React, ReactDOM, THREE);
+          const root = ReactDOM.createRoot(document.getElementById('root'));
+          root.render(React.createElement(Component));
+        })
+        .catch(err => {
+          document.getElementById('root').innerHTML =
+            '<div id="loading"><span style="color:#ff6666">로딩 실패: ' + err.message + '</span></div>';
+          console.error(err);
+        });
+    }
+
+    // Auto-load default tool
+    loadTool('impeller-3d-viewer');
   </script>
 </body>
 </html>
