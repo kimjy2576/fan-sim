@@ -70,9 +70,26 @@ function computeAero(p) {
       bep={Q,Qm3s,Pt,Ps,Pdyn,eta:Math.max(0,etaI),C2,W1:pts[bestIdx].W1,W2:pts[bestIdx].W2,Ct2};
     } else bep=pts[bestIdx];
   } else bep=pts[bestIdx]||pts[0];
+  // Scroll loss: proportional to wrap angle (less wrap = more uncaptured energy)
+  const wrapFrac = Math.min(1, (p.wrapAngle || 360) / 360);
+  const scrollLossFactor = 1 - 0.15 * (1 - wrapFrac); // 0~15% extra loss for partial wrap
+
+  // Diffuser pressure recovery
+  const dL = (p.diffLength || 0) / 1000; // m
+  const dHalfA = (p.diffAngle || 7) * Math.PI / 180;
+  const AR = dL > 0 ? 1 + 2 * dL * Math.tan(dHalfA) / Math.max(0.01, (D2/1000) * 0.1) : 1; // area ratio
+  const CpIdeal = AR > 1 ? 1 - 1 / (AR ** 2) : 0;
+  const etaDiff = dHalfA < 0.14 ? 0.8 : (dHalfA < 0.21 ? 0.6 : 0.35); // efficiency drops with angle
+  const dPsRecov = etaDiff * CpIdeal * bep.Pdyn;
+
+  // Apply scroll + diffuser corrections to BEP
+  bep.Ps = bep.Ps * scrollLossFactor + dPsRecov;
+  bep.eta = bep.eta * scrollLossFactor * (1 + dPsRecov / Math.max(1, bep.Pt));
+
   const BPF=Z*RPM/60, Ns=bep.Qm3s>0?RPM*Math.sqrt(bep.Qm3s)/Math.pow(Math.max(1,bep.Pt)/rho,0.75):0;
-  const dR=(p.tGap||8)/(D2/2);
-  const SPL=(bep.Qm3s>0&&bep.Pt>0?10*Math.log10(bep.Pt**2*bep.Qm3s/(rho*343**3))+56:30)-20*Math.log10(Math.max(0.03,dR)/0.10);
+  const dR=(p.cutoffGap||p.tGap||8)/(D2/2);
+  const Rt=p.Rtongue||5;
+  const SPL=(bep.Qm3s>0&&bep.Pt>0?10*Math.log10(bep.Pt**2*bep.Qm3s/(rho*343**3))+56:30)-20*Math.log10(Math.max(0.03,dR)/0.10)-5*Math.log10(1+Rt/Math.max(1,p.cutoffGap||8));
   return { bep,BPF,SPL,Ns,U1,U2,omega,Lb,rho };
 }
 
@@ -104,7 +121,14 @@ const SWEEP_VARS = [
   {key:'Z',label:'Z',unit:'',min:16,max:48,step:2},
   {key:'b2',label:'b₂',unit:'mm',min:20,max:100,step:5},
   {key:'RPM',label:'RPM',unit:'',min:600,max:2400,step:100},
-  {key:'tBlade',label:'t',unit:'mm',min:0.5,max:3.0,step:0.5},
+  {key:'tBlade',label:'t (두께)',unit:'mm',min:0.5,max:3.0,step:0.5},
+  {key:'cutoffGap',label:'Tongue δ',unit:'mm',min:2,max:30,step:1},
+  {key:'Rtongue',label:'Tongue R',unit:'mm',min:1,max:20,step:1},
+  {key:'tongueOutLen',label:'외면 L',unit:'mm',min:0,max:200,step:5},
+  {key:'tongueOutAngle',label:'외면 α',unit:'°',min:-90,max:90,step:5},
+  {key:'wrapAngle',label:'Wrap',unit:'°',min:180,max:360,step:10},
+  {key:'diffAngle',label:'Diff α',unit:'°',min:-90,max:90,step:5},
+  {key:'diffLength',label:'Diff L',unit:'mm',min:0,max:300,step:10},
 ];
 
 // ═══ MINI CHART ═══
@@ -671,7 +695,8 @@ export default function ImpellerViewer() {
   const [sweepOut, setSweepOut] = useState('eta'); // selected output chart
 
   const mat = MATERIALS[matKey];
-  const baseParams = { D1, D2, Deye, b1, b2, beta1, beta2, Z, RPM, tBlade };
+  const baseParams = { D1, D2, Deye, b1, b2, beta1, beta2, Z, RPM, tBlade,
+    cutoffGap, Rtongue, tongueOutLen, tongueOutAngle, wrapAngle, diffAngle, diffLength };
 
   const mountRef = useRef(null);
   const sceneRef = useRef(null);
@@ -866,7 +891,7 @@ export default function ImpellerViewer() {
   const ratios = useMemo(() => ({ D1D2:(D1/D2).toFixed(3), DeyeD1:(Deye/D1).toFixed(3), DuD2:(Du/D2).toFixed(3), b2D2:(b2/D2).toFixed(3), b1b2:(b1/b2).toFixed(2) }), [D1,D2,Deye,Du,b1,b2]);
 
   // Base case performance + structure
-  const baseAero = useMemo(() => computeAero(baseParams), [D1,D2,Deye,b1,b2,beta1,beta2,Z,RPM,tBlade]);
+  const baseAero = useMemo(() => computeAero(baseParams), [D1,D2,Deye,b1,b2,beta1,beta2,Z,RPM,tBlade,cutoffGap,Rtongue,wrapAngle,diffAngle,diffLength]);
   const baseStruc = useMemo(() => computeStructure(baseParams, baseAero, mat), [baseAero, matKey, tBlade, b1, b2, D1, D2, Z]);
 
   // Sweep results
@@ -885,7 +910,8 @@ export default function ImpellerViewer() {
       } catch {}
     }
     return results;
-  }, [D1,D2,Deye,b1,b2,beta1,beta2,Z,RPM,tBlade,matKey,sweepVar,sweepMin,sweepMax,sweepSteps]);
+  }, [D1,D2,Deye,b1,b2,beta1,beta2,Z,RPM,tBlade,matKey,sweepVar,sweepMin,sweepMax,sweepSteps,
+      cutoffGap,Rtongue,tongueOutLen,tongueOutAngle,wrapAngle,diffAngle,diffLength]);
 
   return (
     <div style={{ background: C.bg, minHeight: "100vh", color: C.text }} className="font-sans">
