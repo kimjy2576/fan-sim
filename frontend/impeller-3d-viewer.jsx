@@ -20,7 +20,9 @@ const MATERIALS = {
 
 // ═══ AERO COMPUTE (simplified) ═══
 function computeAero(p) {
-  const { D1,D2,b1,b2,beta1,beta2,Z,RPM,tBlade=1 } = p;
+  const { D1,D2,b1,b2,beta1,beta2,Z,RPM,tBlade=1,
+    cutoffGap=8, Rtongue=5, wrapAngle=360, diffAngle=7, diffLength=40,
+    tongueOutLen=35, tongueOutAngle=5 } = p;
   const T=298.15, rho=1.184, mu=1.85e-5;
   const omega=2*Math.PI*RPM/60, r1=D1/2000, r2=D2/2000, b1m=b1/1000, b2m=b2/1000;
   const b1R=beta1*Math.PI/180, b2R=beta2*Math.PI/180;
@@ -29,6 +31,8 @@ function computeAero(p) {
   const QmaxM3s=Math.PI*(D2/1000)*b2m*U2*1.2;
   const pitch2=Math.PI*(D2/1000)/Z, Dh=2*pitch2*b2m/(pitch2+b2m);
   const tBladeM=tBlade/1000, k_inc=1-(tBladeM/(Math.PI*(D1/1000)/Z))**2;
+  const gapM=cutoffGap/1000;
+  const wrapFrac=Math.min(1,wrapAngle/360);
   let Lb=0,px=r1,py=0,th=0;
   for(let i=1;i<=20;i++){const t=i/20,r=r1+t*(r2-r1),rP=r1+(i-1)/20*(r2-r1),rM=(r+rP)/2,tM=(t+(i-1)/20)/2,bM=b1R+tM*(b2R-b1R);if(Math.abs(Math.tan(bM))>0.001)th+=(-1/(rM*Math.tan(bM)))*(r-rP);const x=r*Math.cos(th),y=r*Math.sin(th);Lb+=Math.sqrt((x-px)**2+(y-py)**2);px=x;py=y;}
   let bestEta=0, bep=null, bestIdx=0;
@@ -39,6 +43,7 @@ function computeAero(p) {
     const Ct2=sigma*U2-Cr2/Math.tan(b2R),C2=Math.sqrt(Cr2**2+Ct2**2);
     const W1=Math.sqrt(Cr1**2+U1**2),W2=Math.sqrt(Cr2**2+(Ct2-U2)**2);
     const Pt_e=rho*U2*Ct2;
+    // Impeller losses
     const incA=Math.atan2(Cr1,U1)-b1R; const dPinc=k_inc*0.5*rho*(W1*Math.sin(incA))**2;
     const Wa=(W1+W2)/2,Re=rho*Wa*Dh/mu,f=Re>2300?1/Math.pow(-1.8*Math.log10(6.9/Re+(0.00005/Dh/3.7)**1.11),2):(Re>0?64/Re:0.02);
     const dPfric=f*(Lb/Dh)*0.5*rho*Wa**2;
@@ -47,11 +52,47 @@ function computeAero(p) {
     const ReDisk=rho*omega*r2**2/mu,Cm=ReDisk>0?0.0622/Math.pow(ReDisk,0.2):0.005;
     const Pdf=2*0.5*Cm*rho*omega**3*r2**5,dPdisk=Qm3s>1e-6?Pdf/Qm3s:Pdf/1e-6;
     const eps=0.12+0.5*tBladeM/pitch2,dPjw=0.5*rho*C2**2*eps**2;
-    const dPtot=dPinc+dPfric+dPrec+Math.min(dPdisk,Pt_e*0.5)+dPjw;
-    const Pt=Math.max(0,Pt_e-dPtot),Pdyn=0.5*rho*C2**2,Ps=Pt-Pdyn;
+    const dPtotImp=dPinc+dPfric+dPrec+Math.min(dPdisk,Pt_e*0.5)+dPjw;
+    const Pt_imp=Math.max(0,Pt_e-dPtotImp);
+    const Pdyn_imp=0.5*rho*C2**2;
+
+    // Scroll losses
+    const Pdyn_cap=Pdyn_imp*wrapFrac;
+    const L_scroll=2*Math.PI*r2*wrapFrac;
+    const bScrollM=b2m*1.1;
+    const A_sc=Qm3s>0?Qm3s/Math.max(1,C2*0.5):bScrollM*0.02;
+    const D_h_sc=2*A_sc/(Math.sqrt(A_sc/bScrollM)+bScrollM);
+    const C_sc=Qm3s>0?Qm3s/Math.max(0.0001,A_sc)*0.7:C2*0.5;
+    const Re_sc=rho*Math.abs(C_sc)*Math.max(0.005,D_h_sc)/mu;
+    const f_sc=Re_sc>2300?0.316/Math.pow(Re_sc,0.25):(Re_sc>0?64/Re_sc:0.02);
+    const dP_sc_fric=f_sc*(L_scroll/Math.max(0.005,D_h_sc))*0.5*rho*C_sc**2;
+    const dP_sc_mix=0.20*Pdyn_cap;
+    const dP_scroll=dP_sc_fric+dP_sc_mix;
+
+    // Tongue recirculation
+    const A_tgap=2*Math.PI*r2*gapM*0.1;
+    const Cd_t=0.5+0.1*Math.min(1,Rtongue/5);
+    const dP_across=Math.max(0,(Pdyn_cap-dP_scroll)*0.3);
+    const Q_recirc=Cd_t*A_tgap*Math.sqrt(2*Math.max(0.1,dP_across)/rho);
+    const dP_tongue=Qm3s>1e-6?dP_across*(Q_recirc/Qm3s):0;
+
+    // Diffuser recovery
+    const diffAR=diffLength>0?1+2*(diffLength/1000)*Math.tan(Math.abs(diffAngle)*Math.PI/180)/Math.max(0.01,Math.sqrt(A_sc)):1;
+    const CpIdeal=diffAR>1?1-1/(diffAR**2):0;
+    const etaDiff=Math.abs(diffAngle)<=7?0.75:(Math.abs(diffAngle)<=12?0.6:0.4);
+    const Pdyn_sc_exit=Math.max(0,Pdyn_cap-Math.max(0,Pdyn_cap-dP_scroll));
+    const dPs_diff=etaDiff*CpIdeal*Pdyn_sc_exit;
+
+    // Uncaptured (wrap < 360°)
+    const dP_uncap=0.5*rho*(C2*Math.sqrt(1-wrapFrac))**2*(1-wrapFrac);
+
+    // Fan totals
+    const Pt_fan=Math.max(0,Pt_imp-dPjw-dP_scroll-dP_tongue-dP_uncap);
+    const Pdyn_exit=Math.max(0,Pdyn_sc_exit-dPs_diff+Pdyn_imp*(1-wrapFrac)*0.15);
+    const Ps=Pt_fan-Pdyn_exit+dPs_diff;
     const Pshaft=Qm3s>1e-6?Pt_e*Qm3s+Pdf:Pdf;
     const eta=Pshaft>0?Math.max(0,Ps*Qm3s)/Pshaft:0;
-    pts.push({Q,Qm3s,Pt,Ps,Pdyn,eta,C2,W1,W2,Ct2});
+    pts.push({Q,Qm3s,Pt:Pt_fan,Ps,Pdyn:Pdyn_exit,eta,C2,W1,W2,Ct2});
     if(eta>bestEta){bestEta=eta;bestIdx=i;}
   }
   // Parabolic interpolation around peak for smooth BEP
@@ -70,26 +111,10 @@ function computeAero(p) {
       bep={Q,Qm3s,Pt,Ps,Pdyn,eta:Math.max(0,etaI),C2,W1:pts[bestIdx].W1,W2:pts[bestIdx].W2,Ct2};
     } else bep=pts[bestIdx];
   } else bep=pts[bestIdx]||pts[0];
-  // Scroll loss: proportional to wrap angle (less wrap = more uncaptured energy)
-  const wrapFrac = Math.min(1, (p.wrapAngle || 360) / 360);
-  const scrollLossFactor = 1 - 0.15 * (1 - wrapFrac); // 0~15% extra loss for partial wrap
-
-  // Diffuser pressure recovery
-  const dL = (p.diffLength || 0) / 1000; // m
-  const dHalfA = (p.diffAngle || 7) * Math.PI / 180;
-  const AR = dL > 0 ? 1 + 2 * dL * Math.tan(dHalfA) / Math.max(0.01, (D2/1000) * 0.1) : 1; // area ratio
-  const CpIdeal = AR > 1 ? 1 - 1 / (AR ** 2) : 0;
-  const etaDiff = dHalfA < 0.14 ? 0.8 : (dHalfA < 0.21 ? 0.6 : 0.35); // efficiency drops with angle
-  const dPsRecov = etaDiff * CpIdeal * bep.Pdyn;
-
-  // Apply scroll + diffuser corrections to BEP
-  bep.Ps = bep.Ps * scrollLossFactor + dPsRecov;
-  bep.eta = bep.eta * scrollLossFactor * (1 + dPsRecov / Math.max(1, bep.Pt));
 
   const BPF=Z*RPM/60, Ns=bep.Qm3s>0?RPM*Math.sqrt(bep.Qm3s)/Math.pow(Math.max(1,bep.Pt)/rho,0.75):0;
-  const dR=(p.cutoffGap||p.tGap||8)/(D2/2);
-  const Rt=p.Rtongue||5;
-  const SPL=(bep.Qm3s>0&&bep.Pt>0?10*Math.log10(bep.Pt**2*bep.Qm3s/(rho*343**3))+56:30)-20*Math.log10(Math.max(0.03,dR)/0.10)-5*Math.log10(1+Rt/Math.max(1,p.cutoffGap||8));
+  const dR=cutoffGap/(D2/2);
+  const SPL=(bep.Qm3s>0&&bep.Pt>0?10*Math.log10(bep.Pt**2*bep.Qm3s/(rho*343**3))+56:30)-20*Math.log10(Math.max(0.03,dR)/0.10)-5*Math.log10(1+Rtongue/Math.max(1,cutoffGap));
   return { bep,BPF,SPL,Ns,U1,U2,omega,Lb,rho };
 }
 
@@ -891,7 +916,7 @@ export default function ImpellerViewer() {
   const ratios = useMemo(() => ({ D1D2:(D1/D2).toFixed(3), DeyeD1:(Deye/D1).toFixed(3), DuD2:(Du/D2).toFixed(3), b2D2:(b2/D2).toFixed(3), b1b2:(b1/b2).toFixed(2) }), [D1,D2,Deye,Du,b1,b2]);
 
   // Base case performance + structure
-  const baseAero = useMemo(() => computeAero(baseParams), [D1,D2,Deye,b1,b2,beta1,beta2,Z,RPM,tBlade,cutoffGap,Rtongue,wrapAngle,diffAngle,diffLength]);
+  const baseAero = useMemo(() => computeAero(baseParams), [D1,D2,Deye,b1,b2,beta1,beta2,Z,RPM,tBlade,cutoffGap,Rtongue,wrapAngle,diffAngle,diffLength,tongueOutLen,tongueOutAngle]);
   const baseStruc = useMemo(() => computeStructure(baseParams, baseAero, mat), [baseAero, matKey, tBlade, b1, b2, D1, D2, Z]);
 
   // Sweep results
