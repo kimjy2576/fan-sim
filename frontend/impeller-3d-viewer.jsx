@@ -202,7 +202,7 @@ const SWEEP_VARS = [
   {key:'Rtongue',label:'Tongue R',unit:'mm',min:1,max:20,step:1},
   {key:'tongueOutLen',label:'외면 L',unit:'mm',min:0,max:200,step:5},
   {key:'tongueOutAngle',label:'외면 α',unit:'°',min:-90,max:90,step:5},
-  {key:'wrapAngle',label:'Wrap',unit:'°',min:180,max:360,step:10},
+  {key:'scrollEndAngle',label:'θ_end',unit:'°',min:0,max:720,step:5},
   {key:'diffAngle',label:'Diff α',unit:'°',min:-90,max:90,step:5},
   {key:'diffLength',label:'Diff L',unit:'mm',min:0,max:300,step:10},
 ];
@@ -501,6 +501,22 @@ function FrontView({ Deye, D1, D2, Du, bladePts, Z, bladeType, bendPos, showScro
     })}
     <defs><marker id="aF" viewBox="0 0 10 10" refX={8} refY={5} markerWidth={5} markerHeight={5} orient="auto"><path d="M0 0L10 5L0 10z" fill={C.green} opacity={0.5} /></marker></defs>
     <text x={cx} y={cy + 3} fill={C.green} fontSize={8} fontFamily="monospace" textAnchor="middle" opacity={0.5}>AIR IN ⊙</text>
+    {/* Axis lines: θ_cut and θ_exit */}
+    {showScroll && (() => {
+      const cutRad = cutoffAngle * Math.PI / 180;
+      const exitRad = exitAngle * Math.PI / 180;
+      const axLen = maxR * sc * 0.95;
+      return <>
+        {/* θ_exit axis */}
+        <line x1={cx} y1={cy} x2={cx + axLen * Math.cos(exitRad)} y2={cy - axLen * Math.sin(exitRad)}
+          stroke="#d4a44a" strokeWidth={1} strokeDasharray="6,3" opacity={0.4} />
+        <text x={cx + (axLen+8) * Math.cos(exitRad)} y={cy - (axLen+8) * Math.sin(exitRad)}
+          fill="#d4a44a" fontSize={6} fontFamily="monospace" textAnchor="middle" opacity={0.6}>θ_exit={exitAngle}°</text>
+        {/* θ_cut axis */}
+        <line x1={cx} y1={cy} x2={cx + axLen * 0.5 * Math.cos(cutRad)} y2={cy - axLen * 0.5 * Math.sin(cutRad)}
+          stroke={C.red} strokeWidth={0.8} strokeDasharray="4,3" opacity={0.3} />
+      </>;
+    })()}
     {/* Scroll spiral */}
     {showScroll && sPts.length > 1 && <path d={sPts.map((p,i) => {
       const x = cx + p.r * Math.cos(p.theta) * sc, y = cy - p.r * Math.sin(p.theta) * sc;
@@ -756,7 +772,8 @@ export default function ImpellerViewer() {
   // Scroll
   const [showScroll, setShowScroll] = useState(true);
   const [scrollType, setScrollType] = useState('cv'); // 'cv'=const velocity (Archimedes), 'fv'=free vortex (log spiral)
-  const [wrapAngle, setWrapAngle] = useState(360); // degrees
+  const [scrollEndAngle, setScrollEndAngle] = useState(360); // absolute angle where scroll ends
+  const wrapAngle = Math.max(30, ((scrollEndAngle - cutoffAngle) % 360 + 360) % 360 || 360); // auto-calculated
   const [scrollGapF, setScrollGapF] = useState(3); // front (shroud side) gap mm
   const [scrollGapB, setScrollGapB] = useState(3); // back (backplate side) gap mm
   const [bScroll, setBScroll] = useState(55); // scroll axial width (폭) mm
@@ -791,7 +808,7 @@ export default function ImpellerViewer() {
   const collectState = () => ({
     _v: '2.0', _t: new Date().toISOString(),
     Deye,D1,D2,Du,b1,b2,beta1,beta2,Z,tBlade,bladeType,Rfillet,bendPos,bladeLean,eyeRise,hubDepth,hubFillet,RPM,matKey,
-    scrollType,wrapAngle,scrollGapF,scrollGapB,bScroll,scrollExpRate,scrollCross,
+    scrollType,scrollEndAngle,scrollGapF,scrollGapB,bScroll,scrollExpRate,scrollCross,
     cutoffGap,cutoffAngle,Rtongue,exitAngle,tongueOutLen,tongueOutAngle,
     diffAngle,diffLength,diffType,diffInnerWall,
     showCasing,casingW,casingH,casingD,casingCX,casingCY,casingFace,
@@ -805,7 +822,7 @@ export default function ImpellerViewer() {
     s('Rfillet',setRfillet);s('bendPos',setBendPos);s('bladeLean',setBladeLean);
     s('eyeRise',setEyeRise);s('hubDepth',setHubDepth);s('hubFillet',setHubFillet);
     s('RPM',setRPM);s('matKey',setMatKey);
-    s('scrollType',setScrollType);s('wrapAngle',setWrapAngle);
+    s('scrollType',setScrollType);s('scrollEndAngle',setScrollEndAngle);
     s('scrollGapF',setScrollGapF);s('scrollGapB',setScrollGapB);
     s('bScroll',setBScroll);s('scrollExpRate',setScrollExpRate);s('scrollCross',setScrollCross);
     s('cutoffGap',setCutoffGap);s('cutoffAngle',setCutoffAngle);
@@ -845,7 +862,7 @@ export default function ImpellerViewer() {
     {key:'Rtongue',label:'Tongue R',unit:'mm',min:1,max:20,step:1,def:5},
     {key:'tongueOutLen',label:'외면 L',unit:'mm',min:0,max:200,step:5,def:35},
     {key:'tongueOutAngle',label:'외면 α',unit:'°',min:-90,max:90,step:5,def:5},
-    {key:'wrapAngle',label:'Wrap',unit:'°',min:180,max:360,step:10,def:360},
+    {key:'scrollEndAngle',label:'θ_end',unit:'°',min:0,max:720,step:5,def:360},
     {key:'scrollExpRate',label:'팽창률',unit:'',min:0.02,max:0.3,step:0.01,def:0.12},
     {key:'diffAngle',label:'Diff α',unit:'°',min:0,max:30,step:1,def:7},
     {key:'diffLength',label:'Diff L',unit:'mm',min:0,max:200,step:5,def:40},
@@ -878,7 +895,7 @@ export default function ImpellerViewer() {
     setTimeout(() => {
       const activeVars = OPT_VARS.filter(v => optEnabled[v.key]);
       if (activeVars.length === 0) { setOptRunning(false); alert('최적화 변수를 선택하세요'); return; }
-      const base = { D1,D2,Deye,b1,b2,beta1,beta2,Z,RPM,tBlade,cutoffGap,Rtongue,tongueOutLen,tongueOutAngle,wrapAngle,diffAngle,diffLength };
+      const base = { D1,D2,Deye,b1,b2,beta1,beta2,Z,RPM,tBlade,cutoffGap,Rtongue,tongueOutLen,tongueOutAngle,wrapAngle,scrollEndAngle,diffAngle,diffLength };
       const mat = MATERIALS[matKey];
 
       // Latin Hypercube Sampling
@@ -893,6 +910,11 @@ export default function ImpellerViewer() {
           const st = r.step || v.step || 1;
           params[v.key] = Math.round(params[v.key] / st) * st;
         });
+        // If scrollEndAngle was optimized, recompute wrapAngle
+        if (params.scrollEndAngle !== undefined) {
+          const ca = params.cutoffAngle !== undefined ? params.cutoffAngle : cutoffAngle;
+          params.wrapAngle = Math.max(30, ((params.scrollEndAngle - ca) % 360 + 360) % 360 || 360);
+        }
         try {
           const aero = computeAero(params);
           const struc = computeStructure(params, aero, mat);
@@ -944,7 +966,7 @@ export default function ImpellerViewer() {
     if(p.RPM!=null)setRPM(p.RPM);if(p.tBlade!=null)setTBlade(p.tBlade);
     if(p.cutoffGap!=null)setCutoffGap(p.cutoffGap);if(p.Rtongue!=null)setRtongue(p.Rtongue);
     if(p.tongueOutLen!=null)setTongueOutLen(p.tongueOutLen);if(p.tongueOutAngle!=null)setTongueOutAngle(p.tongueOutAngle);
-    if(p.wrapAngle!=null)setWrapAngle(p.wrapAngle);if(p.scrollExpRate!=null)setScrollExpRate(p.scrollExpRate);
+    if(p.scrollEndAngle!=null)setScrollEndAngle(p.scrollEndAngle);if(p.scrollExpRate!=null)setScrollExpRate(p.scrollExpRate);
     if(p.diffAngle!=null)setDiffAngle(p.diffAngle);if(p.diffLength!=null)setDiffLength(p.diffLength);
   };
   const [sweepVar, setSweepVar] = useState('beta2');
@@ -978,7 +1000,7 @@ export default function ImpellerViewer() {
     if (k > 0) {
       const maxWrapRad = (rMax - rStart) / k;
       const maxWrapDeg = Math.min(360, Math.max(180, Math.round(maxWrapRad * 180 / Math.PI)));
-      setWrapAngle(maxWrapDeg);
+      setScrollEndAngle((cutoffAngle + maxWrapDeg) % 360);
     }
     // Auto-set diffuser length to fill remaining space toward exit wall
     const exitDir = exitAngle * Math.PI / 180;
@@ -1205,13 +1227,13 @@ export default function ImpellerViewer() {
       grp.add(wire);
     }
   }, [Deye,D1,D2,Du,b1,b2,bladePts,Z,tBlade,bladeLean,eyeRise,hubDepth,hubFillet,showShroud,showBackplate,showScroll,explode,viewTab,
-      scrollType,wrapAngle,scrollGapF,scrollGapB,bScroll,scrollCross,scrollExpRate,cutoffGap,cutoffAngle,Rtongue,tongueOutLen,tongueOutAngle,exitAngle,
+      scrollType,wrapAngle,scrollGapF,scrollGapB,bScroll,scrollCross,scrollExpRate,cutoffGap,cutoffAngle,scrollEndAngle,Rtongue,tongueOutLen,tongueOutAngle,exitAngle,
       diffAngle,diffLength,diffType,diffInnerWall,showCasing,casingW,casingH,casingD,casingCX,casingCY]);
 
   const ratios = useMemo(() => ({ D1D2:(D1/D2).toFixed(3), DeyeD1:(Deye/D1).toFixed(3), DuD2:(Du/D2).toFixed(3), b2D2:(b2/D2).toFixed(3), b1b2:(b1/b2).toFixed(2) }), [D1,D2,Deye,Du,b1,b2]);
 
   // Base case performance + structure
-  const baseAero = useMemo(() => computeAero(baseParams), [D1,D2,Deye,b1,b2,beta1,beta2,Z,RPM,tBlade,cutoffGap,Rtongue,wrapAngle,scrollExpRate,diffAngle,diffLength,tongueOutLen,tongueOutAngle]);
+  const baseAero = useMemo(() => computeAero(baseParams), [D1,D2,Deye,b1,b2,beta1,beta2,Z,RPM,tBlade,cutoffGap,Rtongue,scrollEndAngle,cutoffAngle,scrollExpRate,diffAngle,diffLength,tongueOutLen,tongueOutAngle]);
   const baseStruc = useMemo(() => computeStructure(baseParams, baseAero, mat), [baseAero, matKey, tBlade, b1, b2, D1, D2, Z]);
 
   // Sweep results
@@ -1222,6 +1244,10 @@ export default function ImpellerViewer() {
     for (let i = 0; i <= sweepSteps; i++) {
       const val = sweepMin + i * step;
       const params = { ...baseParams, [sweepVar]: val };
+      // If sweeping scrollEndAngle, recompute wrapAngle
+      if (sweepVar === 'scrollEndAngle') {
+        params.wrapAngle = Math.max(30, ((val - cutoffAngle) % 360 + 360) % 360 || 360);
+      }
       try {
         const aero = computeAero(params);
         const struc = computeStructure(params, aero, mat);
@@ -1231,7 +1257,7 @@ export default function ImpellerViewer() {
     }
     return results;
   }, [D1,D2,Deye,b1,b2,beta1,beta2,Z,RPM,tBlade,matKey,sweepVar,sweepMin,sweepMax,sweepSteps,
-      cutoffGap,Rtongue,tongueOutLen,tongueOutAngle,wrapAngle,scrollExpRate,exitAngle,diffAngle,diffLength]);
+      cutoffGap,Rtongue,tongueOutLen,tongueOutAngle,scrollEndAngle,cutoffAngle,scrollExpRate,exitAngle,diffAngle,diffLength]);
 
   return (
     <div style={{ background: C.bg, minHeight: "100vh", color: C.text }} className="font-sans">
@@ -1777,7 +1803,7 @@ export default function ImpellerViewer() {
             </div>
             <div className="grid grid-cols-2 gap-x-3">
               <div>
-                <S label="Wrap" value={wrapAngle} min={180} max={360} step={5} onChange={setWrapAngle} unit="°" color="#d4a44a" />
+                <S label="θ_end" value={scrollEndAngle} min={0} max={720} step={5} onChange={setScrollEndAngle} unit="°" color="#d4a44a" />
                 <S label="폭" value={bScroll} min={30} max={120} step={1} onChange={setBScroll} unit="mm" color="#d4a44a" />
                 <S label="팽창률" value={scrollExpRate} min={0.02} max={0.3} step={0.01} onChange={setScrollExpRate} unit="" color="#d4a44a" />
               </div>
@@ -1826,7 +1852,7 @@ export default function ImpellerViewer() {
               </label>
             </div>
             <div style={{ color: C.dim, fontFamily: "monospace", fontSize: 7, marginTop: 2 }}>
-              {scrollType==='cv'?'아르키메데스':'로그나선'} | {scrollCross==='rect'?'사각':'원형'} | Wrap {wrapAngle}° |
+              {scrollType==='cv'?'아르키메데스':'로그나선'} | {scrollCross==='rect'?'사각':'원형'} | θ_cut={cutoffAngle}° → θ_end={scrollEndAngle}° (Wrap {wrapAngle}°) |
               Tongue δ={cutoffGap} R={Rtongue} 외면 L={tongueOutLen} α={tongueOutAngle}° |
               Diff {diffType} {diffAngle}° L={diffLength}mm {diffInnerWall?'':'(내벽 개방)'}
             </div>
