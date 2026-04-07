@@ -725,6 +725,50 @@ export default function ImpellerViewer() {
   const [casingCY, setCasingCY] = useState(0); // impeller center Y offset from box center
   const [casingFace, setCasingFace] = useState('top'); // 'top'=XY plane, 'front'=XZ, 'side'=YZ
   const [matKey, setMatKey] = useState('SPCC');
+  // Save/Load
+  const [saveOpen, setSaveOpen] = useState(false);
+  const [saves, setSaves] = useState(() => { try { return JSON.parse(localStorage.getItem('fansim3d_saves') || '{}'); } catch { return {}; } });
+  const fileRef = useRef(null);
+
+  const collectState = () => ({
+    _v: '2.0', _t: new Date().toISOString(),
+    Deye,D1,D2,Du,b1,b2,beta1,beta2,Z,tBlade,bladeType,Rfillet,bendPos,bladeLean,eyeRise,RPM,matKey,
+    scrollType,wrapAngle,scrollGapF,scrollGapB,bScroll,scrollCross,
+    cutoffGap,cutoffAngle,Rtongue,tongueOutLen,tongueOutAngle,
+    diffAngle,diffLength,diffType,diffInnerWall,
+    showCasing,casingW,casingH,casingD,casingCX,casingCY,casingFace,
+  });
+  const restore = (d) => {
+    if (!d || typeof d !== 'object') return false;
+    const s = (k,fn) => { if (d[k] != null) fn(d[k]); };
+    s('Deye',setDeye);s('D1',setD1);s('D2',setD2);s('Du',setDu);
+    s('b1',setB1);s('b2',setB2);s('beta1',setBeta1);s('beta2',setBeta2);
+    s('Z',setZ);s('tBlade',setTBlade);s('bladeType',setBladeType);
+    s('Rfillet',setRfillet);s('bendPos',setBendPos);s('bladeLean',setBladeLean);
+    s('eyeRise',setEyeRise);s('RPM',setRPM);s('matKey',setMatKey);
+    s('scrollType',setScrollType);s('wrapAngle',setWrapAngle);
+    s('scrollGapF',setScrollGapF);s('scrollGapB',setScrollGapB);
+    s('bScroll',setBScroll);s('scrollCross',setScrollCross);
+    s('cutoffGap',setCutoffGap);s('cutoffAngle',setCutoffAngle);
+    s('Rtongue',setRtongue);s('tongueOutLen',setTongueOutLen);s('tongueOutAngle',setTongueOutAngle);
+    s('diffAngle',setDiffAngle);s('diffLength',setDiffLength);s('diffType',setDiffType);s('diffInnerWall',setDiffInnerWall);
+    s('showCasing',setShowCasing);s('casingW',setCasingW);s('casingH',setCasingH);s('casingD',setCasingD);
+    s('casingCX',setCasingCX);s('casingCY',setCasingCY);s('casingFace',setCasingFace);
+    return true;
+  };
+  const exportJSON = () => {
+    const d = collectState(); const blob = new Blob([JSON.stringify(d,null,2)],{type:'application/json'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = `fansim3d_D${D2}_Z${Z}_${new Date().toISOString().slice(0,10)}.json`; a.click();
+  };
+  const importJSON = (e) => {
+    const f = e.target.files?.[0]; if (!f) return;
+    const r = new FileReader(); r.onload = (ev) => { try { if(restore(JSON.parse(ev.target.result))) alert('로드 완료'); else alert('형식 오류'); } catch { alert('JSON 파싱 실패'); } };
+    r.readAsText(f); e.target.value = '';
+  };
+  const saveSlot = (n) => { const d = collectState(); d._name = `Slot${n} D₂=${D2} β₂=${beta2}° Z=${Z}`; const nxt = {...saves,[n]:d}; setSaves(nxt); try{localStorage.setItem('fansim3d_saves',JSON.stringify(nxt));}catch{} };
+  const loadSlot = (n) => { if(saves[n]) restore(saves[n]); };
+  const delSlot = (n) => { const nxt = {...saves}; delete nxt[n]; setSaves(nxt); try{localStorage.setItem('fansim3d_saves',JSON.stringify(nxt));}catch{} };
   const [sweepVar, setSweepVar] = useState('beta2');
   const [sweepMin, setSweepMin] = useState(100);
   const [sweepMax, setSweepMax] = useState(170);
@@ -1004,9 +1048,49 @@ export default function ImpellerViewer() {
   return (
     <div style={{ background: C.bg, minHeight: "100vh", color: C.text }} className="font-sans">
       <div className="px-3 pt-3 pb-1">
-        <h1 className="text-sm font-bold" style={{ fontFamily: "monospace" }}><span style={{ color: C.accent }}>◆</span> Impeller Design & Parametric Study</h1>
-        <p style={{ color: C.dim, fontFamily: "monospace", fontSize: 9 }}>17개 설계변수 | 3D + 2D + 성능·소음·구조 sweep</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-sm font-bold" style={{ fontFamily: "monospace" }}><span style={{ color: C.accent }}>◆</span> Impeller Design & Parametric Study</h1>
+            <p style={{ color: C.dim, fontFamily: "monospace", fontSize: 9 }}>3D + 2D + 성능·소음·구조 sweep</p>
+          </div>
+          <button onClick={() => setSaveOpen(!saveOpen)} className="px-2 py-1 rounded"
+            style={{ fontFamily:"monospace", fontSize:10, background:C.card, color:C.cyan, border:`1px solid ${C.border}` }}>
+            {saveOpen ? "✕" : "💾"}
+          </button>
+        </div>
       </div>
+      {/* Save/Load Panel */}
+      {saveOpen && <div className="px-3 pb-1">
+        <div className="rounded-lg p-2" style={{ background:C.card, border:`1px solid ${C.cyan}44` }}>
+          <div style={{ color:C.cyan, fontFamily:"monospace", fontSize:9, fontWeight:700, marginBottom:4 }}>SAVE / LOAD</div>
+          <div className="flex gap-1 mb-2">
+            <button onClick={exportJSON} className="flex-1 py-1 rounded text-xs"
+              style={{ background:C.bg, color:C.green, border:`1px solid ${C.green}44`, fontFamily:"monospace", fontSize:9 }}>📥 JSON 내보내기</button>
+            <button onClick={() => fileRef.current?.click()} className="flex-1 py-1 rounded text-xs"
+              style={{ background:C.bg, color:C.orange, border:`1px solid ${C.orange}44`, fontFamily:"monospace", fontSize:9 }}>📤 JSON 불러오기</button>
+            <input ref={fileRef} type="file" accept=".json" onChange={importJSON} style={{display:'none'}} />
+          </div>
+          <div style={{ color:C.dim, fontFamily:"monospace", fontSize:8, marginBottom:3 }}>SAVE SLOTS</div>
+          <div className="flex flex-col gap-1">
+            {[1,2,3,4,5].map(n => {
+              const sv = saves[n], empty = !sv;
+              return <div key={n} className="flex items-center gap-1" style={{fontFamily:"monospace",fontSize:9}}>
+                <span className="w-4" style={{color:C.dim}}>{n}.</span>
+                <div className="flex-1 py-0.5 px-1.5 rounded truncate" style={{ background:C.bg, color:empty?C.dim:C.text, fontSize:8,
+                  border:`1px solid ${empty?C.border:C.cyan}33` }}>
+                  {empty ? "— 비어 있음 —" : <span>{sv._name} <span style={{color:C.dim}}>{sv._t?.slice(5,16)}</span></span>}
+                </div>
+                <button onClick={() => saveSlot(n)} className="px-1.5 py-0.5 rounded" style={{background:C.bg,color:C.green,border:`1px solid ${C.green}33`,fontSize:8}}>저장</button>
+                <button onClick={() => loadSlot(n)} disabled={empty} className="px-1.5 py-0.5 rounded" style={{background:C.bg,color:empty?C.dim:C.cyan,border:`1px solid ${empty?C.border:C.cyan}33`,fontSize:8,opacity:empty?0.4:1}}>로드</button>
+                {!empty && <button onClick={() => delSlot(n)} className="px-1 py-0.5 rounded" style={{background:C.bg,color:C.red,border:`1px solid ${C.red}33`,fontSize:8}}>✕</button>}
+              </div>;
+            })}
+          </div>
+          <div className="mt-1" style={{color:C.dim,fontFamily:"monospace",fontSize:7}}>
+            전체 설계변수 저장 (임펠러+스크롤+Tongue+디퓨저+케이싱+재질)
+          </div>
+        </div>
+      </div>}
       <div className="px-3 flex gap-0.5">
         {[{l:"3D",c:C.blade},{l:"정면도",c:C.eye},{l:"단면도",c:C.shroud},{l:"저면도",c:C.backplate},{l:"파라메트릭",c:C.pink}].map((t,i)=>
           <Tab key={i} active={viewTab===i} onClick={()=>setViewTab(i)} color={t.c}>{t.l}</Tab>)}
