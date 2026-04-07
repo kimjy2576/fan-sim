@@ -368,7 +368,8 @@ function buildBlade(pts, b1, b2, D1, D2, angle, leanDeg = 0) {
 
 // ═══ SCROLL GEOMETRY ═══
 function scrollProfile(r2, wrapDeg, type, bScroll, startDeg = 0, cutoffGap = 8, Rtongue = 5, expRate = 0.12, nSeg = 72) {
-  const rStart = r2 + cutoffGap - Rtongue;
+  // Spiral starts at scroll inner wall = r₂ + δ (independent of R_tongue)
+  const rStart = r2 + cutoffGap;
   const wrapRad = wrapDeg * Math.PI / 180;
   const startRad = startDeg * Math.PI / 180;
   const pts = [];
@@ -467,7 +468,7 @@ function FrontView({ Deye, D1, D2, Du, bladePts, Z, bladeType, bendPos, showScro
   const cy = h / 2 + 10 - casingCY * sc * (showCasing ? 1 : 0);
   const rBend = D1/2 + bendPos * (D2/2 - D1/2);
   const tongueTheta = cutoffAngle * Math.PI / 180;
-  const rTongue = D2/2 + cutoffGap;
+  const rTongue = D2/2 + cutoffGap + Rtongue; // tip center = r₂ + δ + R
   return <svg width={w} height={h} style={{ display: "block", margin: "0 auto" }}>
     <text x={w/2} y={16} fill={C.dim} fontSize={9} fontFamily="monospace" textAnchor="middle">정면도 (Front — Eye 방향에서 본 모습)</text>
     {/* Casing box */}
@@ -1102,7 +1103,7 @@ export default function ImpellerViewer() {
       }
       // Tongue — inner face → tip round → outer face (offset by R)
       const tTheta = cutoffAngle * Math.PI / 180;
-      const rTip = D2/2 + cutoffGap;
+      const rTip = D2/2 + cutoffGap + Rtongue; // tip center = r₂ + δ + R
       const tongueH = bScroll + scrollGapF + scrollGapB + 4;
       const tY = tongueH / 2 - scrollGapB - 2;
       const tipCX = rTip * Math.cos(tTheta), tipCZ = rTip * Math.sin(tTheta);
