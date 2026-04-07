@@ -769,6 +769,117 @@ export default function ImpellerViewer() {
   const saveSlot = (n) => { const d = collectState(); d._name = `Slot${n} D₂=${D2} β₂=${beta2}° Z=${Z}`; const nxt = {...saves,[n]:d}; setSaves(nxt); try{localStorage.setItem('fansim3d_saves',JSON.stringify(nxt));}catch{} };
   const loadSlot = (n) => { if(saves[n]) restore(saves[n]); };
   const delSlot = (n) => { const nxt = {...saves}; delete nxt[n]; setSaves(nxt); try{localStorage.setItem('fansim3d_saves',JSON.stringify(nxt));}catch{} };
+
+  // ═══ OPTIMIZATION ═══
+  const OPT_VARS = [
+    {key:'D2',label:'D₂',unit:'mm',min:100,max:300,step:5,def:175},
+    {key:'D1',label:'D₁',unit:'mm',min:60,max:200,step:5,def:120},
+    {key:'beta2',label:'β₂',unit:'°',min:20,max:180,step:2,def:145},
+    {key:'beta1',label:'β₁',unit:'°',min:5,max:85,step:2,def:30},
+    {key:'Z',label:'Z',unit:'',min:16,max:48,step:2,def:36},
+    {key:'b2',label:'b₂',unit:'mm',min:20,max:100,step:5,def:50},
+    {key:'RPM',label:'RPM',unit:'',min:400,max:3000,step:50,def:1400},
+    {key:'tBlade',label:'t',unit:'mm',min:0.3,max:3,step:0.1,def:1},
+    {key:'cutoffGap',label:'Tongue δ',unit:'mm',min:2,max:30,step:1,def:8},
+    {key:'Rtongue',label:'Tongue R',unit:'mm',min:1,max:20,step:1,def:5},
+    {key:'wrapAngle',label:'Wrap',unit:'°',min:180,max:360,step:10,def:360},
+    {key:'diffAngle',label:'Diff α',unit:'°',min:0,max:30,step:1,def:7},
+    {key:'diffLength',label:'Diff L',unit:'mm',min:0,max:200,step:5,def:40},
+  ];
+  const OBJ_LIST = [
+    {key:'eta',label:'η 효율 ↑',dir:1,color:C.green},
+    {key:'Ps',label:'Ps 정압 ↑',dir:1,color:C.cyan},
+    {key:'Q',label:'Q 유량 ↑',dir:1,color:C.amber},
+    {key:'SPL',label:'SPL 소음 ↓',dir:-1,color:C.purple},
+    {key:'SF',label:'SF 안전율 ↑',dir:1,color:C.orange},
+    {key:'power',label:'소비전력 ↓',dir:-1,color:C.red},
+    {key:'f_n',label:'f_n 고유진동수 ↑',dir:1,color:C.cyan},
+  ];
+
+  const [optEnabled, setOptEnabled] = useState(() => {
+    const m = {}; OPT_VARS.forEach(v => { m[v.key] = false; }); m.beta2 = true; m.Z = true; return m;
+  });
+  const [optRange, setOptRange] = useState(() => {
+    const m = {}; OPT_VARS.forEach(v => { m[v.key] = { min: v.min, max: v.max }; }); return m;
+  });
+  const [optMode, setOptMode] = useState('single'); // 'single' or 'multi'
+  const [optObj1, setOptObj1] = useState('eta');
+  const [optObj2, setOptObj2] = useState('SPL');
+  const [optSamples, setOptSamples] = useState(200);
+  const [optResults, setOptResults] = useState(null);
+  const [optRunning, setOptRunning] = useState(false);
+
+  const runOptimization = () => {
+    setOptRunning(true);
+    setTimeout(() => {
+      const activeVars = OPT_VARS.filter(v => optEnabled[v.key]);
+      if (activeVars.length === 0) { setOptRunning(false); alert('최적화 변수를 선택하세요'); return; }
+      const base = { D1,D2,Deye,b1,b2,beta1,beta2,Z,RPM,tBlade,cutoffGap,Rtongue,tongueOutLen,tongueOutAngle,wrapAngle,diffAngle,diffLength };
+      const mat = MATERIALS[matKey];
+
+      // Latin Hypercube Sampling
+      const N = optSamples;
+      const samples = [];
+      for (let i = 0; i < N; i++) {
+        const params = { ...base };
+        activeVars.forEach(v => {
+          const r = optRange[v.key];
+          const t = (i + Math.random()) / N; // stratified random
+          params[v.key] = r.min + t * (r.max - r.min);
+          // Snap to step
+          params[v.key] = Math.round(params[v.key] / v.step) * v.step;
+        });
+        try {
+          const aero = computeAero(params);
+          const struc = computeStructure(params, aero, mat);
+          const Pshaft = aero.bep.Qm3s > 0 ? aero.bep.Pt * aero.bep.Qm3s / Math.max(0.01, aero.bep.eta) : 0;
+          samples.push({
+            params: { ...params },
+            eta: aero.bep.eta, Ps: aero.bep.Ps, Q: aero.bep.Q,
+            SPL: aero.SPL, SF: struc.SF, f_n: struc.f_n,
+            power: Pshaft, sigma: struc.sigma_total,
+          });
+        } catch {}
+      }
+
+      if (optMode === 'single') {
+        // Sort by objective
+        const obj = OBJ_LIST.find(o => o.key === optObj1);
+        samples.sort((a, b) => (b[obj.key] - a[obj.key]) * obj.dir);
+        setOptResults({ mode: 'single', obj: obj, best: samples[0], top10: samples.slice(0, 10), all: samples });
+      } else {
+        // Multi-objective: Pareto front
+        const obj1 = OBJ_LIST.find(o => o.key === optObj1);
+        const obj2 = OBJ_LIST.find(o => o.key === optObj2);
+        // Find non-dominated solutions
+        const pareto = [];
+        for (const s of samples) {
+          let dominated = false;
+          for (const p of samples) {
+            if (p === s) continue;
+            const b1 = (p[obj1.key] - s[obj1.key]) * obj1.dir >= 0;
+            const b2 = (p[obj2.key] - s[obj2.key]) * obj2.dir >= 0;
+            const s1 = (p[obj1.key] - s[obj1.key]) * obj1.dir > 0;
+            const s2 = (p[obj2.key] - s[obj2.key]) * obj2.dir > 0;
+            if (b1 && b2 && (s1 || s2)) { dominated = true; break; }
+          }
+          if (!dominated) pareto.push(s);
+        }
+        pareto.sort((a, b) => a[obj1.key] - b[obj1.key]);
+        setOptResults({ mode: 'multi', obj1, obj2, pareto, all: samples });
+      }
+      setOptRunning(false);
+    }, 50);
+  };
+
+  const applyOptResult = (r) => {
+    const p = r.params;
+    if(p.D1!=null)setD1(p.D1);if(p.D2!=null)setD2(p.D2);if(p.b1!=null)setB1(p.b1);if(p.b2!=null)setB2(p.b2);
+    if(p.beta1!=null)setBeta1(p.beta1);if(p.beta2!=null)setBeta2(p.beta2);if(p.Z!=null)setZ(p.Z);
+    if(p.RPM!=null)setRPM(p.RPM);if(p.tBlade!=null)setTBlade(p.tBlade);
+    if(p.cutoffGap!=null)setCutoffGap(p.cutoffGap);if(p.Rtongue!=null)setRtongue(p.Rtongue);
+    if(p.wrapAngle!=null)setWrapAngle(p.wrapAngle);if(p.diffAngle!=null)setDiffAngle(p.diffAngle);if(p.diffLength!=null)setDiffLength(p.diffLength);
+  };
   const [sweepVar, setSweepVar] = useState('beta2');
   const [sweepMin, setSweepMin] = useState(100);
   const [sweepMax, setSweepMax] = useState(170);
@@ -1092,7 +1203,7 @@ export default function ImpellerViewer() {
         </div>
       </div>}
       <div className="px-3 flex gap-0.5">
-        {[{l:"3D",c:C.blade},{l:"정면도",c:C.eye},{l:"단면도",c:C.shroud},{l:"저면도",c:C.backplate},{l:"파라메트릭",c:C.pink}].map((t,i)=>
+        {[{l:"3D",c:C.blade},{l:"정면도",c:C.eye},{l:"단면도",c:C.shroud},{l:"저면도",c:C.backplate},{l:"파라메트릭",c:C.pink},{l:"최적화",c:C.green}].map((t,i)=>
           <Tab key={i} active={viewTab===i} onClick={()=>setViewTab(i)} color={t.c}>{t.l}</Tab>)}
       </div>
       <div className="px-3 py-1">
@@ -1169,6 +1280,136 @@ export default function ImpellerViewer() {
               </>}
             </div>;
           })()}
+          {viewTab===5 && <div className="p-2">
+            <div className="flex items-center gap-2 mb-2">
+              <span style={{ color:C.green, fontFamily:"monospace", fontSize:10, fontWeight:700 }}>OPTIMIZER</span>
+              <div className="flex gap-1 ml-auto">
+                {[{k:'single',l:'단일 목적'},{k:'multi',l:'다목적 (Pareto)'}].map(m =>
+                  <button key={m.k} onClick={() => setOptMode(m.k)} className="px-2 py-0.5 rounded"
+                    style={{ fontFamily:"monospace", fontSize:7, background:optMode===m.k?C.card:"transparent",
+                      color:optMode===m.k?C.green:C.dim, border:`1px solid ${optMode===m.k?C.green:C.border}` }}>{m.l}</button>)}
+              </div>
+            </div>
+            {/* Objectives */}
+            <div className="mb-2 p-1.5 rounded" style={{ background:C.bg }}>
+              <div style={{ color:C.dim, fontFamily:"monospace", fontSize:8, marginBottom:3 }}>①목표함수</div>
+              <div className="flex gap-1 flex-wrap">
+                {OBJ_LIST.map(o => <button key={o.key} onClick={() => setOptObj1(o.key)} className="px-2 py-0.5 rounded"
+                  style={{ fontFamily:"monospace", fontSize:7, background:optObj1===o.key?C.card:"transparent",
+                    color:optObj1===o.key?o.color:C.dim, border:`1px solid ${optObj1===o.key?o.color:C.border}` }}>{o.label}</button>)}
+              </div>
+              {optMode==='multi' && <><div className="mt-1" style={{ color:C.dim, fontFamily:"monospace", fontSize:8 }}>②목표함수</div>
+                <div className="flex gap-1 flex-wrap mt-1">
+                  {OBJ_LIST.filter(o=>o.key!==optObj1).map(o => <button key={o.key} onClick={() => setOptObj2(o.key)} className="px-2 py-0.5 rounded"
+                    style={{ fontFamily:"monospace", fontSize:7, background:optObj2===o.key?C.card:"transparent",
+                      color:optObj2===o.key?o.color:C.dim, border:`1px solid ${optObj2===o.key?o.color:C.border}` }}>{o.label}</button>)}
+                </div></>}
+            </div>
+            {/* Variables */}
+            <div className="mb-2 p-1.5 rounded" style={{ background:C.bg }}>
+              <div style={{ color:C.dim, fontFamily:"monospace", fontSize:8, marginBottom:3 }}>설계변수 (☑최적화 / ☐고정)</div>
+              {OPT_VARS.map(v => <div key={v.key} className="flex items-center gap-1 py-px" style={{ fontFamily:"monospace", fontSize:8 }}>
+                <label className="flex items-center gap-1 w-20">
+                  <input type="checkbox" checked={optEnabled[v.key]} onChange={e => setOptEnabled({...optEnabled,[v.key]:e.target.checked})} />
+                  <span style={{ color:optEnabled[v.key]?C.green:C.dim }}>{v.label}</span>
+                </label>
+                {optEnabled[v.key] ? <>
+                  <input type="number" value={optRange[v.key].min} onChange={e => setOptRange({...optRange,[v.key]:{...optRange[v.key],min:+e.target.value}})}
+                    className="w-12 px-0.5 rounded text-right" style={{ background:C.card,color:C.text,fontSize:8,border:`1px solid ${C.border}`,fontFamily:"monospace" }} />
+                  <span style={{color:C.dim}}>~</span>
+                  <input type="number" value={optRange[v.key].max} onChange={e => setOptRange({...optRange,[v.key]:{...optRange[v.key],max:+e.target.value}})}
+                    className="w-12 px-0.5 rounded text-right" style={{ background:C.card,color:C.text,fontSize:8,border:`1px solid ${C.border}`,fontFamily:"monospace" }} />
+                  <span style={{color:C.dim,fontSize:7}}>{v.unit}</span>
+                </> : <span style={{color:C.dim,fontSize:7}}>고정</span>}
+              </div>)}
+            </div>
+            {/* Run */}
+            <div className="flex items-center gap-2 mb-2">
+              <div className="flex-1"><S label="샘플" value={optSamples} min={50} max={1000} step={50} onChange={setOptSamples} unit="" color={C.green} /></div>
+              <button onClick={runOptimization} disabled={optRunning} className="px-4 py-1.5 rounded font-bold"
+                style={{ fontFamily:"monospace", fontSize:10, background:optRunning?C.dim:C.green, color:C.bg }}>
+                {optRunning?"계산 중...":"▶ 실행"}</button>
+            </div>
+            {/* Single result */}
+            {optResults?.mode==='single' && <div className="p-1.5 rounded" style={{ background:C.bg }}>
+              <div style={{ color:C.green, fontFamily:"monospace", fontSize:9, marginBottom:4 }}>최적 결과 — {optResults.obj.label}</div>
+              <div className="p-2 rounded mb-2" style={{ background:C.card, border:`1px solid ${C.green}44` }}>
+                <div className="grid grid-cols-4 gap-1 mb-1">
+                  {[{l:'η',v:(optResults.best.eta*100).toFixed(1)+'%',c:C.green},{l:'Ps',v:optResults.best.Ps.toFixed(0)+'Pa',c:C.cyan},
+                    {l:'SPL',v:optResults.best.SPL.toFixed(1)+'dB',c:C.purple},{l:'SF',v:optResults.best.SF.toFixed(1),c:C.orange},
+                    {l:'Q',v:optResults.best.Q.toFixed(1),c:C.amber},{l:'W',v:optResults.best.power.toFixed(1)+'W',c:C.red},
+                    {l:'f_n',v:optResults.best.f_n.toFixed(0)+'Hz',c:C.cyan},{l:'σ',v:optResults.best.sigma.toFixed(1),c:C.orange},
+                  ].map(m => <div key={m.l} className="text-center" style={{fontSize:8,fontFamily:"monospace"}}>
+                    <div style={{color:C.dim,fontSize:6}}>{m.l}</div><div style={{color:m.c}}>{m.v}</div></div>)}
+                </div>
+                <div style={{ fontSize:7, fontFamily:"monospace", color:C.muted }}>
+                  {OPT_VARS.filter(v=>optEnabled[v.key]).map(v=>`${v.label}=${optResults.best.params[v.key]}`).join(' | ')}</div>
+                <button onClick={() => applyOptResult(optResults.best)} className="mt-1 px-3 py-0.5 rounded w-full"
+                  style={{ fontFamily:"monospace", fontSize:8, background:C.green+'22', color:C.green, border:`1px solid ${C.green}44` }}>🔧 적용</button>
+              </div>
+              <div style={{ overflowX:"auto", maxHeight:140 }}>
+                <table style={{ fontFamily:"monospace", fontSize:7, borderCollapse:"collapse", width:"100%" }}>
+                  <thead><tr style={{ borderBottom:`1px solid ${C.border}` }}>
+                    <th className="px-1" style={{color:C.dim}}>#</th>
+                    {OPT_VARS.filter(v=>optEnabled[v.key]).map(v=><th key={v.key} className="px-1 text-right" style={{color:C.dim}}>{v.label}</th>)}
+                    <th className="px-1 text-right" style={{color:C.dim}}>η%</th><th className="px-1 text-right" style={{color:C.dim}}>SPL</th>
+                    <th className="px-1 text-right" style={{color:C.dim}}>SF</th><th className="px-1" style={{color:C.dim}}></th>
+                  </tr></thead>
+                  <tbody>{optResults.top10.map((r,i)=><tr key={i} style={{borderBottom:`1px solid ${C.border}11`,background:i===0?`${C.green}11`:'transparent'}}>
+                    <td className="px-1" style={{color:C.dim}}>{i+1}</td>
+                    {OPT_VARS.filter(v=>optEnabled[v.key]).map(v=><td key={v.key} className="px-1 text-right" style={{color:C.text}}>{typeof r.params[v.key]==='number'&&r.params[v.key]%1!==0?r.params[v.key].toFixed(1):r.params[v.key]}</td>)}
+                    <td className="px-1 text-right" style={{color:C.green}}>{(r.eta*100).toFixed(1)}</td>
+                    <td className="px-1 text-right" style={{color:C.purple}}>{r.SPL.toFixed(1)}</td>
+                    <td className="px-1 text-right" style={{color:r.SF>2?C.green:C.red}}>{r.SF.toFixed(1)}</td>
+                    <td><button onClick={()=>applyOptResult(r)} style={{color:C.cyan,fontSize:7}}>적용</button></td>
+                  </tr>)}</tbody>
+                </table>
+              </div>
+            </div>}
+            {/* Multi-objective Pareto */}
+            {optResults?.mode==='multi' && <div className="p-1.5 rounded" style={{ background:C.bg }}>
+              <div style={{ color:C.green, fontFamily:"monospace", fontSize:9, marginBottom:4 }}>
+                Pareto Front — {optResults.obj1.label} vs {optResults.obj2.label} ({optResults.pareto.length}개)
+              </div>
+              {(() => {
+                const pts=optResults.pareto,all=optResults.all;
+                if(!pts.length) return <div style={{color:C.dim,fontSize:8}}>비지배해 없음</div>;
+                const k1=optResults.obj1.key,k2=optResults.obj2.key;
+                const v1=all.map(s=>s[k1]).filter(isFinite),v2=all.map(s=>s[k2]).filter(isFinite);
+                const x1=Math.min(...v1),x2=Math.max(...v1),y1=Math.min(...v2),y2=Math.max(...v2);
+                const W=320,H=180,p={l:40,r:10,t:10,b:22},pw=W-p.l-p.r,ph=H-p.t-p.b;
+                const sx=v=>p.l+(v-x1)/((x2-x1)||1)*pw, sy=v=>p.t+ph-(v-y1)/((y2-y1)||1)*ph;
+                return <svg width={W} height={H} style={{display:"block",margin:"0 auto"}}>
+                  <line x1={p.l} y1={p.t} x2={p.l} y2={p.t+ph} stroke={C.border} strokeWidth={0.5}/>
+                  <line x1={p.l} y1={p.t+ph} x2={p.l+pw} y2={p.t+ph} stroke={C.border} strokeWidth={0.5}/>
+                  {all.map((s,i)=><circle key={i} cx={sx(s[k1])} cy={sy(s[k2])} r={1.5} fill={C.dim} opacity={0.15}/>)}
+                  {pts.map((s,i)=><circle key={'p'+i} cx={sx(s[k1])} cy={sy(s[k2])} r={3.5} fill={C.green} opacity={0.8}
+                    style={{cursor:'pointer'}} onClick={()=>applyOptResult(s)}/>)}
+                  <text x={p.l+pw/2} y={H-3} fill={C.dim} fontSize={8} fontFamily="monospace" textAnchor="middle">{optResults.obj1.label}</text>
+                  <text x={8} y={p.t+ph/2} fill={C.dim} fontSize={7} fontFamily="monospace" textAnchor="middle" transform={`rotate(-90,8,${p.t+ph/2})`}>{optResults.obj2.label}</text>
+                </svg>;
+              })()}
+              <div style={{color:C.dim,fontFamily:"monospace",fontSize:7,marginTop:2}}>● Pareto 최적해 (클릭→적용) | ● 전체 샘플</div>
+              <div style={{ overflowX:"auto", maxHeight:110, marginTop:4 }}>
+                <table style={{ fontFamily:"monospace", fontSize:7, borderCollapse:"collapse", width:"100%" }}>
+                  <thead><tr style={{borderBottom:`1px solid ${C.border}`}}>
+                    <th className="px-1" style={{color:C.dim}}>#</th>
+                    <th className="px-1 text-right" style={{color:optResults.obj1.color}}>{optResults.obj1.label.split(' ')[0]}</th>
+                    <th className="px-1 text-right" style={{color:optResults.obj2.color}}>{optResults.obj2.label.split(' ')[0]}</th>
+                    {OPT_VARS.filter(v=>optEnabled[v.key]).map(v=><th key={v.key} className="px-1 text-right" style={{color:C.dim}}>{v.label}</th>)}
+                    <th className="px-1" style={{color:C.dim}}></th>
+                  </tr></thead>
+                  <tbody>{optResults.pareto.slice(0,15).map((r,i)=><tr key={i} style={{borderBottom:`1px solid ${C.border}11`}}>
+                    <td className="px-1" style={{color:C.dim}}>{i+1}</td>
+                    <td className="px-1 text-right" style={{color:optResults.obj1.color}}>{(optResults.obj1.key==='eta'?r[optResults.obj1.key]*100:r[optResults.obj1.key]).toFixed(1)}</td>
+                    <td className="px-1 text-right" style={{color:optResults.obj2.color}}>{(optResults.obj2.key==='eta'?r[optResults.obj2.key]*100:r[optResults.obj2.key]).toFixed(1)}</td>
+                    {OPT_VARS.filter(v=>optEnabled[v.key]).map(v=><td key={v.key} className="px-1 text-right" style={{color:C.text}}>{typeof r.params[v.key]==='number'&&r.params[v.key]%1!==0?r.params[v.key].toFixed(1):r.params[v.key]}</td>)}
+                    <td><button onClick={()=>applyOptResult(r)} style={{color:C.cyan,fontSize:7}}>적용</button></td>
+                  </tr>)}</tbody>
+                </table>
+              </div>
+            </div>}
+          </div>}
         </div>
       </div>
       <div className="px-3 pb-2">
