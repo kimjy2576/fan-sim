@@ -453,7 +453,7 @@ function Tab({ active, onClick, children, color }) {
     borderBottom: active ? `2px solid ${color || C.blade}` : "2px solid transparent" }}>{children}</button>;
 }
 
-function FrontView({ Deye, D1, D2, Du, bladePts, Z, bladeType, bendPos, showScroll, scrollType, wrapAngle, cutoffGap, cutoffAngle, Rtongue, tongueOutLen, tongueOutAngle, diffAngle, diffLength, diffType, diffInnerWall, showCasing, casingW, casingH, casingCX, casingCY, scrollExpRate }) {
+function FrontView({ Deye, D1, D2, Du, bladePts, Z, bladeType, bendPos, showScroll, scrollType, wrapAngle, cutoffGap, cutoffAngle, Rtongue, tongueOutLen, tongueOutAngle, diffAngle, diffLength, diffType, diffInnerWall, showCasing, casingW, casingH, casingCX, casingCY, scrollExpRate, exitAngle }) {
   const w = 340, h = 280;
   const sPts = showScroll ? scrollProfile(D2/2, wrapAngle, scrollType, 55, cutoffAngle, cutoffGap, Rtongue, scrollExpRate) : [];
   const scrollMaxR = showScroll && sPts.length > 0 ? Math.max(Du/2, ...sPts.map(p=>p.r)) + 10 : Math.max(D2, Du) / 2;
@@ -503,23 +503,22 @@ function FrontView({ Deye, D1, D2, Du, bladePts, Z, bladeType, bendPos, showScro
     {/* Diffuser */}
     {showScroll && sPts.length > 1 && (() => {
       const endPt = sPts[sPts.length - 1];
-      const startPt = sPts[0]; // tongue/cutoff start
-      // Diffuser exit direction: tangent at scroll end
-      const exitTheta = endPt.theta;
-      const exitDir = exitTheta + Math.PI / 2;
+      // Diffuser direction = user-defined exitAngle (absolute axis)
+      const exitDir = exitAngle * Math.PI / 180;
+      const exitTheta = endPt.theta; // scroll endpoint angle (for positioning)
       // Scroll exit opening: inner wall (tongue) to outer wall (spiral end)
-      const rInner = rTongue; // tongue side
-      const rOuter = endPt.r; // spiral end side
+      const rInner = rTongue;
+      const rOuter = endPt.r;
       const innerX = cx + rInner * Math.cos(exitTheta) * sc;
       const innerY = cy - rInner * Math.sin(exitTheta) * sc;
       const outerX = cx + rOuter * Math.cos(exitTheta) * sc;
       const outerY = cy - rOuter * Math.sin(exitTheta) * sc;
-      const exitW = (rOuter - rInner) * sc; // exit width in SVG
-      const dL = diffLength * sc; // diffuser length in SVG
+      const exitW = (rOuter - rInner) * sc;
+      const dL = diffLength * sc;
       const halfA = diffAngle * Math.PI / 180;
-      // Diffuser walls
+      // Diffuser walls along exitDir
       const dx = Math.cos(exitDir), dy = -Math.sin(exitDir);
-      const nx = Math.cos(exitTheta), ny = -Math.sin(exitTheta); // normal (expansion direction)
+      const nx = Math.cos(exitDir - Math.PI/2), ny = -Math.sin(exitDir - Math.PI/2); // perpendicular
       // Inner wall end
       const iEndX = innerX + dL * dx - (diffType !== 'single' ? 0 : dL * Math.tan(halfA) * nx * 0.5);
       const iEndY = innerY + dL * dy - (diffType !== 'single' ? 0 : dL * Math.tan(halfA) * ny * 0.5);
@@ -579,14 +578,8 @@ function FrontView({ Deye, D1, D2, Du, bladePts, Z, bladeType, bendPos, showScro
       const inEndX = inStartX + inLen * Math.cos(inDir);
       const inEndY = inStartY - inLen * Math.sin(inDir);
 
-      // Outer face direction
-      let exitDir;
-      if (sPts.length >= 2) {
-        const p1 = sPts[sPts.length - 2], p2 = sPts[sPts.length - 1];
-        exitDir = Math.atan2(-(p2.r*Math.sin(p2.theta) - p1.r*Math.sin(p1.theta)),
-                               p2.r*Math.cos(p2.theta) - p1.r*Math.cos(p1.theta));
-      } else { exitDir = tongueTheta + Math.PI / 2; }
-      const outFaceDir = exitDir + tongueOutAngle * Math.PI / 180;
+      // Outer face direction = exitAngle + tongueOutAngle (relative to exit axis)
+      const outFaceDir = (exitAngle + tongueOutAngle) * Math.PI / 180;
 
       // Outer face: on outer-side of tip, going toward diffuser exit
       const outStartX = tipX + R * Math.cos(radOut); // offset by R toward outside
@@ -765,8 +758,9 @@ export default function ImpellerViewer() {
   const [scrollCross, setScrollCross] = useState('rect'); // 'rect' or 'circular'
   // Tongue
   const [cutoffGap, setCutoffGap] = useState(8); // mm, gap between D₂ and tongue tip
-  const [cutoffAngle, setCutoffAngle] = useState(0); // degrees, tongue angular position (0=3 o'clock)
+  const [cutoffAngle, setCutoffAngle] = useState(0); // degrees, tongue position (absolute: 0=right, 90=up, 180=left, 270=down)
   const [Rtongue, setRtongue] = useState(5); // mm, tongue tip radius
+  const [exitAngle, setExitAngle] = useState(90); // degrees, duct exit direction (absolute: 0=right, 90=up)
   const [tongueOutLen, setTongueOutLen] = useState(35); // mm, tongue outer face length
   const [tongueOutAngle, setTongueOutAngle] = useState(5); // degrees, tongue outer face divergence angle
   // Diffuser
@@ -792,7 +786,7 @@ export default function ImpellerViewer() {
     _v: '2.0', _t: new Date().toISOString(),
     Deye,D1,D2,Du,b1,b2,beta1,beta2,Z,tBlade,bladeType,Rfillet,bendPos,bladeLean,eyeRise,hubDepth,hubFillet,RPM,matKey,
     scrollType,wrapAngle,scrollGapF,scrollGapB,bScroll,scrollExpRate,scrollCross,
-    cutoffGap,cutoffAngle,Rtongue,tongueOutLen,tongueOutAngle,
+    cutoffGap,cutoffAngle,Rtongue,exitAngle,tongueOutLen,tongueOutAngle,
     diffAngle,diffLength,diffType,diffInnerWall,
     showCasing,casingW,casingH,casingD,casingCX,casingCY,casingFace,
   });
@@ -809,7 +803,7 @@ export default function ImpellerViewer() {
     s('scrollGapF',setScrollGapF);s('scrollGapB',setScrollGapB);
     s('bScroll',setBScroll);s('scrollExpRate',setScrollExpRate);s('scrollCross',setScrollCross);
     s('cutoffGap',setCutoffGap);s('cutoffAngle',setCutoffAngle);
-    s('Rtongue',setRtongue);s('tongueOutLen',setTongueOutLen);s('tongueOutAngle',setTongueOutAngle);
+    s('Rtongue',setRtongue);s('exitAngle',setExitAngle);s('tongueOutLen',setTongueOutLen);s('tongueOutAngle',setTongueOutAngle);
     s('diffAngle',setDiffAngle);s('diffLength',setDiffLength);s('diffType',setDiffType);s('diffInnerWall',setDiffInnerWall);
     s('showCasing',setShowCasing);s('casingW',setCasingW);s('casingH',setCasingH);s('casingD',setCasingD);
     s('casingCX',setCasingCX);s('casingCY',setCasingCY);s('casingFace',setCasingFace);
@@ -981,8 +975,7 @@ export default function ImpellerViewer() {
       setWrapAngle(maxWrapDeg);
     }
     // Auto-set diffuser length to fill remaining space toward exit wall
-    const exitTheta = (cutoffAngle + wrapAngle) * Math.PI / 180;
-    const exitDir = exitTheta + Math.PI / 2;
+    const exitDir = exitAngle * Math.PI / 180;
     const exitDx = Math.cos(exitDir), exitDy = Math.sin(exitDir);
     // Distance from impeller center to wall in exit direction
     const tWall = Math.min(
@@ -1131,13 +1124,7 @@ export default function ImpellerViewer() {
       grp.add(inMesh);
 
       // Outer face: offset R away from impeller center, then extend toward diffuser exit
-      let outDirA;
-      if (sPts.length >= 2) {
-        const p1 = sPts[sPts.length - 2], p2 = sPts[sPts.length - 1];
-        const dx = p2.r * Math.cos(p2.theta) - p1.r * Math.cos(p1.theta);
-        const dz = p2.r * Math.sin(p2.theta) - p1.r * Math.sin(p1.theta);
-        outDirA = Math.atan2(dz, dx) + tongueOutAngle * Math.PI / 180;
-      } else { outDirA = tTheta + Math.PI / 2 + tongueOutAngle * Math.PI / 180; }
+      let outDirA = (exitAngle + tongueOutAngle) * Math.PI / 180;
       const outOffX = tipCX + Rtongue * Math.cos(tTheta); // R away from impeller
       const outOffZ = tipCZ + Rtongue * Math.sin(tTheta);
       const outLen = tongueOutLen;
@@ -1148,10 +1135,10 @@ export default function ImpellerViewer() {
       outMesh.rotation.y = -outDirA;
       grp.add(outMesh);
 
-      // Diffuser — extends from scroll exit
+      // Diffuser — extends from scroll exit toward exitAngle
       if (diffLength > 0) {
-        const exitTheta = tTheta + wrapAngle * Math.PI / 180;
-        const exitDir = exitTheta + Math.PI / 2;
+        const exitTheta = tTheta + wrapAngle * Math.PI / 180; // scroll end position
+        const exitDir = exitAngle * Math.PI / 180; // user-defined exit direction
         const rInner = rTip;
         const rOuter = sPts.length > 0 ? sPts[sPts.length - 1].r : rTip + 20;
         const exitW = rOuter - rInner;
@@ -1212,7 +1199,7 @@ export default function ImpellerViewer() {
       grp.add(wire);
     }
   }, [Deye,D1,D2,Du,b1,b2,bladePts,Z,tBlade,bladeLean,eyeRise,hubDepth,hubFillet,showShroud,showBackplate,showScroll,explode,viewTab,
-      scrollType,wrapAngle,scrollGapF,scrollGapB,bScroll,scrollCross,scrollExpRate,cutoffGap,cutoffAngle,Rtongue,tongueOutLen,tongueOutAngle,
+      scrollType,wrapAngle,scrollGapF,scrollGapB,bScroll,scrollCross,scrollExpRate,cutoffGap,cutoffAngle,Rtongue,tongueOutLen,tongueOutAngle,exitAngle,
       diffAngle,diffLength,diffType,diffInnerWall,showCasing,casingW,casingH,casingD,casingCX,casingCY]);
 
   const ratios = useMemo(() => ({ D1D2:(D1/D2).toFixed(3), DeyeD1:(Deye/D1).toFixed(3), DuD2:(Du/D2).toFixed(3), b2D2:(b2/D2).toFixed(3), b1b2:(b1/b2).toFixed(2) }), [D1,D2,Deye,Du,b1,b2]);
@@ -1304,7 +1291,7 @@ export default function ImpellerViewer() {
                 <input type="range" min={0} max={30} step={1} value={explode} onChange={e=>setExplode(+e.target.value)} className="w-16 h-1" style={{accentColor:C.accent}} /></div>
             </div>
           </>}
-          {viewTab===1 && <div className="py-2"><FrontView {...{Deye,D1,D2,Du,b1,b2,bladePts,Z,bladeType,bendPos,showScroll,scrollType,wrapAngle,cutoffGap,cutoffAngle,Rtongue,tongueOutLen,tongueOutAngle,diffAngle,diffLength,diffType,diffInnerWall,showCasing,casingW,casingH,casingCX,casingCY,scrollExpRate}} /></div>}
+          {viewTab===1 && <div className="py-2"><FrontView {...{Deye,D1,D2,Du,b1,b2,bladePts,Z,bladeType,bendPos,showScroll,scrollType,wrapAngle,cutoffGap,cutoffAngle,Rtongue,tongueOutLen,tongueOutAngle,diffAngle,diffLength,diffType,diffInnerWall,showCasing,casingW,casingH,casingCX,casingCY,scrollExpRate,exitAngle}} /></div>}
           {viewTab===2 && <div className="py-2"><SectionView {...{Deye,D1,D2,Du,b1,b2,eyeRise,showScroll,scrollGapF,scrollGapB,bScroll,hubDepth,hubFillet}} /></div>}
           {viewTab===3 && <div className="py-2"><BottomView {...{D2,Du,Deye}} /></div>}
           {viewTab===4 && (() => {
@@ -1741,10 +1728,14 @@ export default function ImpellerViewer() {
               <div style={{ color: C.red, fontFamily: "monospace", fontSize: 8, marginBottom: 2 }}>TONGUE</div>
               <div className="grid grid-cols-3 gap-x-2">
                 <S label="Gap" value={cutoffGap} min={2} max={30} step={0.5} onChange={setCutoffGap} unit="mm" color={C.red} />
-                <S label="θ" value={cutoffAngle} min={-90} max={90} step={1} onChange={setCutoffAngle} unit="°" color={C.red} />
+                <S label="θ_cut" value={cutoffAngle} min={0} max={360} step={1} onChange={setCutoffAngle} unit="°" color={C.red} />
                 <S label="R" value={Rtongue} min={1} max={20} step={0.5} onChange={setRtongue} unit="mm" color={C.red} />
               </div>
-              <div style={{ color: C.dim, fontFamily: "monospace", fontSize: 7, marginTop: 2, marginBottom: 1 }}>외면 (디퓨저 내벽 역할)</div>
+              <div style={{ color: C.dim, fontFamily: "monospace", fontSize: 7, marginTop: 2 }}>θ_cut: 0°=→ 90°=↑ 180°=← 270°=↓</div>
+              <div style={{ color: "#d4a44a", fontFamily: "monospace", fontSize: 8, marginTop: 4, marginBottom: 1 }}>출구 방향 (절대축)</div>
+              <S label="θ_exit" value={exitAngle} min={0} max={360} step={1} onChange={setExitAngle} unit="°" color="#d4a44a" />
+              <div style={{ color: C.dim, fontFamily: "monospace", fontSize: 7 }}>θ_exit: 출구 덕트 방향. α_out, Diff α는 이 축 기준</div>
+              <div style={{ color: C.dim, fontFamily: "monospace", fontSize: 7, marginTop: 2, marginBottom: 1 }}>외면 (θ_exit 기준 상대각)</div>
               <div className="grid grid-cols-2 gap-x-2">
                 <S label="L_out" value={tongueOutLen} min={0} max={200} step={1} onChange={setTongueOutLen} unit="mm" color={C.red} />
                 <S label="α_out" value={tongueOutAngle} min={-90} max={90} step={0.5} onChange={setTongueOutAngle} unit="°" color={C.red} />
