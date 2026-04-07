@@ -1225,7 +1225,7 @@ export default function ImpellerViewer() {
     }
     return results;
   }, [D1,D2,Deye,b1,b2,beta1,beta2,Z,RPM,tBlade,matKey,sweepVar,sweepMin,sweepMax,sweepSteps,
-      cutoffGap,Rtongue,tongueOutLen,tongueOutAngle,wrapAngle,diffAngle,diffLength]);
+      cutoffGap,Rtongue,tongueOutLen,tongueOutAngle,wrapAngle,scrollExpRate,exitAngle,diffAngle,diffLength]);
 
   return (
     <div style={{ background: C.bg, minHeight: "100vh", color: C.text }} className="font-sans">
@@ -1294,7 +1294,8 @@ export default function ImpellerViewer() {
           {viewTab===1 && <div className="py-2"><FrontView {...{Deye,D1,D2,Du,b1,b2,bladePts,Z,bladeType,bendPos,showScroll,scrollType,wrapAngle,cutoffGap,cutoffAngle,Rtongue,tongueOutLen,tongueOutAngle,diffAngle,diffLength,diffType,diffInnerWall,showCasing,casingW,casingH,casingCX,casingCY,scrollExpRate,exitAngle}} /></div>}
           {viewTab===2 && <div className="py-2"><SectionView {...{Deye,D1,D2,Du,b1,b2,eyeRise,showScroll,scrollGapF,scrollGapB,bScroll,hubDepth,hubFillet}} /></div>}
           {viewTab===3 && <div className="py-2"><BottomView {...{D2,Du,Deye}} /></div>}
-          {viewTab===4 && (() => {
+          <div style={{display:viewTab===4?'block':'none'}}>
+          {(() => {
             const sv = SWEEP_VARS.find(v => v.key === sweepVar);
             return <div className="p-2">
               <div style={{ color: C.pink, fontFamily: "monospace", fontSize: 9, marginBottom: 3 }}>SWEEP 변수 선택</div>
@@ -1351,7 +1352,8 @@ export default function ImpellerViewer() {
               </>}
             </div>;
           })()}
-          {viewTab===5 && <div className="p-2">
+          </div>
+          <div style={{display:viewTab===5?'block':'none'}}><div className="p-2">
             <div className="flex items-center gap-2 mb-2">
               <span style={{ color:C.green, fontFamily:"monospace", fontSize:10, fontWeight:700 }}>OPTIMIZER</span>
               <div className="flex gap-1 ml-auto">
@@ -1480,8 +1482,8 @@ export default function ImpellerViewer() {
                 </table>
               </div>
             </div>}
-          </div>}
-          {viewTab===6 && <div className="p-2">
+          </div></div>
+          <div style={{display:viewTab===6?'block':'none'}}><div className="p-2">
             <div style={{ color:C.cyan, fontFamily:"monospace", fontSize:10, fontWeight:700, marginBottom:4 }}>PQ ANALYSIS</div>
             {(() => {
               const aero = baseAero;
@@ -1613,7 +1615,7 @@ export default function ImpellerViewer() {
                 </div>
               </>;
             })()}
-          </div>}
+          </div></div>
         </div>
       </div>
       <div className="px-3 pb-2">
