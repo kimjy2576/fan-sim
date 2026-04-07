@@ -27,7 +27,7 @@ async def root():
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "version": "4.0"}
+    return {"status": "ok", "version": "4.1"}
 
 
 @app.post("/api/generate-step")
