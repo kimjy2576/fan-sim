@@ -61,7 +61,7 @@ function VArrow({ x1,y1,x2,y2,color,label,dashed,sw=2 }) {
 // ═══ AERO COMPUTE ═══
 function computeAero(p) {
   const { D1,D2,b1,b2,beta1,beta2,Z,RPM,tBlade=1,
-    cutoffGap=8, Rtongue=5, wrapAngle=360, diffAngle=7, diffLength=40,
+    cutoffGap=8, Rtongue=5, wrapAngle=360, scrollExpRate=0.12, diffAngle=7, diffLength=40,
     tongueOutLen=35, tongueOutAngle=5 } = p;
   const T=298.15, rho=1.184, mu=1.85e-5;
   const omega=2*Math.PI*RPM/60, r1=D1/2000, r2=D2/2000, b1m=b1/1000, b2m=b2/1000;
@@ -96,11 +96,13 @@ function computeAero(p) {
     const Pt_imp=Math.max(0,Pt_e-dPtotImp);
     const Pdyn_imp=0.5*rho*C2**2;
 
-    // Scroll losses
+    // Scroll losses (scrollExpRate affects exit area)
     const Pdyn_cap=Pdyn_imp*wrapFrac;
     const L_scroll=2*Math.PI*r2*wrapFrac;
     const bScrollM=b2m*1.1;
-    const A_sc=Qm3s>0?Qm3s/Math.max(1,C2*0.5):bScrollM*0.02;
+    const rExit = r2 + r2 * scrollExpRate * wrapFrac * 2 * Math.PI; // scroll exit radius
+    const A_sc_exit = bScrollM * (rExit - r2); // exit cross-section area
+    const A_sc=Math.max(A_sc_exit, Qm3s>0?Qm3s/Math.max(1,C2*0.5):bScrollM*0.02);
     const D_h_sc=2*A_sc/(Math.sqrt(A_sc/bScrollM)+bScrollM);
     const C_sc=Qm3s>0?Qm3s/Math.max(0.0001,A_sc)*0.7:C2*0.5;
     const Re_sc=rho*Math.abs(C_sc)*Math.max(0.005,D_h_sc)/mu;
@@ -831,15 +833,20 @@ export default function ImpellerViewer() {
   const OPT_VARS = [
     {key:'D2',label:'D₂',unit:'mm',min:100,max:300,step:5,def:175},
     {key:'D1',label:'D₁',unit:'mm',min:60,max:200,step:5,def:120},
+    {key:'Deye',label:'D_eye',unit:'mm',min:60,max:180,step:5,def:110},
+    {key:'b1',label:'b₁',unit:'mm',min:15,max:120,step:5,def:60},
+    {key:'b2',label:'b₂',unit:'mm',min:20,max:100,step:5,def:50},
     {key:'beta2',label:'β₂',unit:'°',min:20,max:180,step:2,def:145},
     {key:'beta1',label:'β₁',unit:'°',min:5,max:85,step:2,def:30},
     {key:'Z',label:'Z',unit:'',min:16,max:48,step:2,def:36},
-    {key:'b2',label:'b₂',unit:'mm',min:20,max:100,step:5,def:50},
     {key:'RPM',label:'RPM',unit:'',min:400,max:3000,step:50,def:1400},
     {key:'tBlade',label:'t',unit:'mm',min:0.3,max:3,step:0.1,def:1},
     {key:'cutoffGap',label:'Tongue δ',unit:'mm',min:2,max:30,step:1,def:8},
     {key:'Rtongue',label:'Tongue R',unit:'mm',min:1,max:20,step:1,def:5},
+    {key:'tongueOutLen',label:'외면 L',unit:'mm',min:0,max:200,step:5,def:35},
+    {key:'tongueOutAngle',label:'외면 α',unit:'°',min:-90,max:90,step:5,def:5},
     {key:'wrapAngle',label:'Wrap',unit:'°',min:180,max:360,step:10,def:360},
+    {key:'scrollExpRate',label:'팽창률',unit:'',min:0.02,max:0.3,step:0.01,def:0.12},
     {key:'diffAngle',label:'Diff α',unit:'°',min:0,max:30,step:1,def:7},
     {key:'diffLength',label:'Diff L',unit:'mm',min:0,max:200,step:5,def:40},
   ];
@@ -931,11 +938,14 @@ export default function ImpellerViewer() {
 
   const applyOptResult = (r) => {
     const p = r.params;
-    if(p.D1!=null)setD1(p.D1);if(p.D2!=null)setD2(p.D2);if(p.b1!=null)setB1(p.b1);if(p.b2!=null)setB2(p.b2);
+    if(p.D1!=null)setD1(p.D1);if(p.D2!=null)setD2(p.D2);if(p.Deye!=null)setDeye(p.Deye);
+    if(p.b1!=null)setB1(p.b1);if(p.b2!=null)setB2(p.b2);
     if(p.beta1!=null)setBeta1(p.beta1);if(p.beta2!=null)setBeta2(p.beta2);if(p.Z!=null)setZ(p.Z);
     if(p.RPM!=null)setRPM(p.RPM);if(p.tBlade!=null)setTBlade(p.tBlade);
     if(p.cutoffGap!=null)setCutoffGap(p.cutoffGap);if(p.Rtongue!=null)setRtongue(p.Rtongue);
-    if(p.wrapAngle!=null)setWrapAngle(p.wrapAngle);if(p.diffAngle!=null)setDiffAngle(p.diffAngle);if(p.diffLength!=null)setDiffLength(p.diffLength);
+    if(p.tongueOutLen!=null)setTongueOutLen(p.tongueOutLen);if(p.tongueOutAngle!=null)setTongueOutAngle(p.tongueOutAngle);
+    if(p.wrapAngle!=null)setWrapAngle(p.wrapAngle);if(p.scrollExpRate!=null)setScrollExpRate(p.scrollExpRate);
+    if(p.diffAngle!=null)setDiffAngle(p.diffAngle);if(p.diffLength!=null)setDiffLength(p.diffLength);
   };
   const [sweepVar, setSweepVar] = useState('beta2');
   const [sweepMin, setSweepMin] = useState(100);
@@ -945,7 +955,7 @@ export default function ImpellerViewer() {
 
   const mat = MATERIALS[matKey];
   const baseParams = { D1, D2, Deye, b1, b2, beta1, beta2, Z, RPM, tBlade,
-    cutoffGap, Rtongue, tongueOutLen, tongueOutAngle, wrapAngle, diffAngle, diffLength };
+    cutoffGap, Rtongue, tongueOutLen, tongueOutAngle, wrapAngle, scrollExpRate, diffAngle, diffLength };
 
   // Auto-fit: calculate max scroll that fits within casing box
   const autoFitScroll = () => {
@@ -1208,7 +1218,7 @@ export default function ImpellerViewer() {
   const ratios = useMemo(() => ({ D1D2:(D1/D2).toFixed(3), DeyeD1:(Deye/D1).toFixed(3), DuD2:(Du/D2).toFixed(3), b2D2:(b2/D2).toFixed(3), b1b2:(b1/b2).toFixed(2) }), [D1,D2,Deye,Du,b1,b2]);
 
   // Base case performance + structure
-  const baseAero = useMemo(() => computeAero(baseParams), [D1,D2,Deye,b1,b2,beta1,beta2,Z,RPM,tBlade,cutoffGap,Rtongue,wrapAngle,diffAngle,diffLength,tongueOutLen,tongueOutAngle]);
+  const baseAero = useMemo(() => computeAero(baseParams), [D1,D2,Deye,b1,b2,beta1,beta2,Z,RPM,tBlade,cutoffGap,Rtongue,wrapAngle,scrollExpRate,diffAngle,diffLength,tongueOutLen,tongueOutAngle]);
   const baseStruc = useMemo(() => computeStructure(baseParams, baseAero, mat), [baseAero, matKey, tBlade, b1, b2, D1, D2, Z]);
 
   // Sweep results
