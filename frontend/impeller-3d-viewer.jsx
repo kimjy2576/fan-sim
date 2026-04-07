@@ -111,12 +111,14 @@ function computeAero(p) {
     const dP_sc_mix=0.20*Pdyn_cap;
     const dP_scroll=dP_sc_fric+dP_sc_mix;
 
-    // Tongue recirculation
-    const A_tgap=2*Math.PI*r2*gapM*0.1;
+    // Tongue recirculation — gap flow reduces delivered Q
+    const A_tgap=bScrollM * gapM; // gap area = scroll width × gap
     const Cd_t=0.5+0.1*Math.min(1,Rtongue/5);
     const dP_across=Math.max(0,(Pdyn_cap-dP_scroll)*0.3);
     const Q_recirc=Cd_t*A_tgap*Math.sqrt(2*Math.max(0.1,dP_across)/rho);
     const dP_tongue=Qm3s>1e-6?dP_across*(Q_recirc/Qm3s):0;
+    const Q_delivered=Math.max(0, Qm3s - Q_recirc); // actual output flow
+    const Q_del_m3min = Q_delivered * 60;
 
     // Diffuser recovery
     const diffAR=diffLength>0?1+2*(diffLength/1000)*Math.tan(Math.abs(diffAngle)*Math.PI/180)/Math.max(0.01,Math.sqrt(A_sc)):1;
@@ -128,14 +130,14 @@ function computeAero(p) {
     // Uncaptured (wrap < 360°)
     const dP_uncap=0.5*rho*(C2*Math.sqrt(1-wrapFrac))**2*(1-wrapFrac);
 
-    // Fan totals
+    // Fan totals — pressure based on impeller, flow based on delivered
     const Pt_fan=Math.max(0,Pt_imp-dPjw-dP_scroll-dP_tongue-dP_uncap);
     const Pdyn_exit=Math.max(0,Pdyn_sc_exit-dPs_diff+Pdyn_imp*(1-wrapFrac)*0.15);
     const Ps=Pt_fan-Pdyn_exit+dPs_diff;
-    const Pshaft=Qm3s>1e-6?Pt_e*Qm3s+Pdf:Pdf;
-    const eta=Pshaft>0?Math.max(0,Ps*Qm3s)/Pshaft:0;
-    pts.push({Q,Qm3s,Pt:Pt_fan,Ps,Pdyn:Pdyn_exit,eta,C2,W1,W2,Ct2,Pt_e,
-      dPinc,dPfric,dPrec,dPdisk:Math.min(dPdisk,Pt_e*0.5),dPjw,dP_scroll,dP_tongue,dPs_diff,dP_uncap,
+    const Pshaft=Qm3s>1e-6?Pt_e*Qm3s+Pdf:Pdf; // shaft sees full Q_impeller
+    const eta=Pshaft>0?Math.max(0,Ps*Q_delivered)/Pshaft:0; // η based on Q_delivered
+    pts.push({Q:Q_del_m3min,Qm3s:Q_delivered,Pt:Pt_fan,Ps,Pdyn:Pdyn_exit,eta,C2,W1,W2,Ct2,Pt_e,
+      dPinc,dPfric,dPrec,dPdisk:Math.min(dPdisk,Pt_e*0.5),dPjw,dP_scroll,dP_tongue,dPs_diff,dP_uncap,Q_recirc,
       Pt_imp, deH:W1>0?W2/W1:1, C2U2:U2>0?C2/U2:0});
     if(eta>bestEta){bestEta=eta;bestIdx=i;}
   }
@@ -1593,6 +1595,9 @@ export default function ImpellerViewer() {
                   </div>
                   {diffRecov > 0.1 && <div style={{fontFamily:"monospace",fontSize:7,color:C.green,marginTop:2}}>
                     + 디퓨저 회복: +{diffRecov.toFixed(1)} Pa
+                  </div>}
+                  {bepPt.Q_recirc > 0.0001 && <div style={{fontFamily:"monospace",fontSize:7,color:C.red,marginTop:1}}>
+                    ↻ Tongue 재순환: {(bepPt.Q_recirc*60).toFixed(2)} m³/min ({(bepPt.Q_recirc/(bepPt.Qm3s+bepPt.Q_recirc)*100).toFixed(1)}%)
                   </div>}
                   <div style={{fontFamily:"monospace",fontSize:7,color:C.dim,marginTop:2}}>
                     Euler Pt_e={bepPt.Pt_e?.toFixed(0)||'—'}Pa → 손실 {totalLoss.toFixed(0)}Pa → Pt_fan={bep.Pt.toFixed(0)}Pa
