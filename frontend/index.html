@@ -45,7 +45,7 @@
 
       document.getElementById('root').innerHTML = '<div id="loading"><div class="spinner"></div><span>로딩 중...</span></div>';
 
-      fetch('/static/' + name + '.jsx')
+      fetch('/static/' + name + '.jsx?v=' + Date.now())
         .then(r => r.text())
         .then(jsx => {
           const prefix = `const { useState, useMemo, useCallback, useEffect, useRef } = React;\n`;

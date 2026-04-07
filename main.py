@@ -5,6 +5,7 @@ Serves React frontend + STEP generation API
 from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
+from starlette.middleware.base import BaseHTTPMiddleware
 import json
 import os
 import tempfile
@@ -12,6 +13,19 @@ import subprocess
 import sys
 
 app = FastAPI(title="Fan-Sim Pro", description="시로코 팬 임펠러-스크롤 1D 시뮬레이터")
+
+# No-cache for JSX/HTML
+class NoCacheMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        response = await call_next(request)
+        path = request.url.path
+        if path.endswith('.jsx') or path.endswith('.html') or path == '/':
+            response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+            response.headers['Pragma'] = 'no-cache'
+            response.headers['Expires'] = '0'
+        return response
+
+app.add_middleware(NoCacheMiddleware)
 
 # Serve frontend
 FRONTEND_DIR = os.path.join(os.path.dirname(__file__), "frontend")
