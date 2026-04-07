@@ -18,7 +18,47 @@ const MATERIALS = {
   ABS: { name:"ABS", E:2.3e9, rho:1050, sigma_y:45e6, color:"#fbbf24" },
 };
 
-// ═══ AERO COMPUTE (simplified) ═══
+// ═══ CHART COMPONENT ═══
+function PQChart({ data, xKey, lines, w = 320, h = 150, xLabel = "", yLabel = "", yRange, markers = [] }) {
+  if (!data || data.length < 2) return null;
+  const pad = { t: 10, r: 10, b: 26, l: 40 };
+  const cw = w - pad.l - pad.r, ch = h - pad.t - pad.b;
+  const xs = data.map(d => d[xKey]);
+  const allY = lines.flatMap(l => data.map(d => d[l.key]).filter(v => isFinite(v)));
+  const xMin = Math.min(...xs), xMax = Math.max(...xs);
+  const yMin = yRange ? yRange[0] : Math.min(0, Math.min(...allY));
+  const yMax = yRange ? yRange[1] : Math.max(...allY) * 1.1 || 1;
+  const sx = v => pad.l + ((v - xMin) / (xMax - xMin || 1)) * cw;
+  const sy = v => pad.t + ch - ((v - yMin) / (yMax - yMin || 1)) * ch;
+  return <svg width={w} height={h}>
+    {[0,1,2,3,4].map(i => {const v=yMin+(yMax-yMin)*i/4; return <g key={i}>
+      <line x1={pad.l} y1={sy(v)} x2={w-pad.r} y2={sy(v)} stroke={C.border} strokeWidth={0.5}/>
+      <text x={pad.l-3} y={sy(v)+3} fill={C.dim} fontSize={7} textAnchor="end" fontFamily="monospace">{v<10?v.toFixed(2):v.toFixed(0)}</text></g>;})}
+    {lines.map(l => <polyline key={l.key} points={data.map(d=>`${sx(d[xKey])},${sy(d[l.key])}`).join(" ")}
+      fill="none" stroke={l.color} strokeWidth={l.w||1.5} strokeDasharray={l.dash||"none"}/>)}
+    {markers.map((m,i) => <g key={i}><line x1={sx(m.x)} y1={pad.t} x2={sx(m.x)} y2={pad.t+ch} stroke={m.color||C.amber} strokeWidth={1} strokeDasharray="4,3" opacity={0.6}/>
+      <circle cx={sx(m.x)} cy={sy(m.y)} r={3} fill={m.color||C.amber}/>
+      {m.label && <text x={sx(m.x)+4} y={sy(m.y)-5} fill={m.color||C.amber} fontSize={7} fontFamily="monospace">{m.label}</text>}</g>)}
+    <text x={pad.l+cw/2} y={h-3} fill={C.dim} fontSize={8} textAnchor="middle" fontFamily="monospace">{xLabel}</text>
+    <text x={3} y={pad.t+ch/2} fill={C.dim} fontSize={8} textAnchor="middle" fontFamily="monospace" transform={`rotate(-90,3,${pad.t+ch/2})`}>{yLabel}</text>
+  </svg>;
+}
+
+function VArrow({ x1,y1,x2,y2,color,label,dashed,sw=2 }) {
+  const dx=x2-x1,dy=y2-y1,len=Math.sqrt(dx*dx+dy*dy);
+  if(len<2) return null;
+  const a=Math.atan2(dy,dx),hl=Math.min(7,len*0.18);
+  const lx=x2-hl*Math.cos(a-0.4),ly=y2-hl*Math.sin(a-0.4);
+  const rx=x2-hl*Math.cos(a+0.4),ry=y2-hl*Math.sin(a+0.4);
+  const mx=(x1+x2)/2-dy/len*10,my=(y1+y2)/2+dx/len*10;
+  return <g>
+    <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={color} strokeWidth={sw} strokeDasharray={dashed?"5,3":"none"} opacity={dashed?0.6:1}/>
+    <polygon points={`${x2},${y2} ${lx},${ly} ${rx},${ry}`} fill={color} opacity={dashed?0.5:0.85}/>
+    {label && <text x={mx} y={my} fill={color} fontSize={10} fontWeight="700" textAnchor="middle" fontFamily="monospace">{label}</text>}
+  </g>;
+}
+
+// ═══ AERO COMPUTE ═══
 function computeAero(p) {
   const { D1,D2,b1,b2,beta1,beta2,Z,RPM,tBlade=1,
     cutoffGap=8, Rtongue=5, wrapAngle=360, diffAngle=7, diffLength=40,
@@ -92,7 +132,9 @@ function computeAero(p) {
     const Ps=Pt_fan-Pdyn_exit+dPs_diff;
     const Pshaft=Qm3s>1e-6?Pt_e*Qm3s+Pdf:Pdf;
     const eta=Pshaft>0?Math.max(0,Ps*Qm3s)/Pshaft:0;
-    pts.push({Q,Qm3s,Pt:Pt_fan,Ps,Pdyn:Pdyn_exit,eta,C2,W1,W2,Ct2});
+    pts.push({Q,Qm3s,Pt:Pt_fan,Ps,Pdyn:Pdyn_exit,eta,C2,W1,W2,Ct2,Pt_e,
+      dPinc,dPfric,dPrec,dPdisk:Math.min(dPdisk,Pt_e*0.5),dPjw,dP_scroll,dP_tongue,dPs_diff,dP_uncap,
+      Pt_imp, deH:W1>0?W2/W1:1, C2U2:U2>0?C2/U2:0});
     if(eta>bestEta){bestEta=eta;bestIdx=i;}
   }
   // Parabolic interpolation around peak for smooth BEP
@@ -100,7 +142,7 @@ function computeAero(p) {
     const a=pts[bestIdx-1].eta, b=pts[bestIdx].eta, c=pts[bestIdx+1].eta;
     const denom=2*(a-2*b+c);
     if(Math.abs(denom)>1e-12){
-      const shift=(a-c)/denom; // -1 to +1
+      const shift=(a-c)/denom;
       const t=Math.max(0,Math.min(1,(bestIdx+shift)/N));
       const Qm3s=t*QmaxM3s, Q=Qm3s*60;
       const Cr2=Qm3s/(Math.PI*(D2/1000)*b2m);
@@ -108,14 +150,16 @@ function computeAero(p) {
       const Pt=pts[bestIdx].Pt+(shift>0?(pts[bestIdx+1].Pt-pts[bestIdx].Pt)*shift:(pts[bestIdx].Pt-pts[bestIdx-1].Pt)*shift);
       const Pdyn=0.5*rho*C2**2, Ps=Pt-Pdyn;
       const etaI=b-denom*shift*shift/4;
-      bep={Q,Qm3s,Pt,Ps,Pdyn,eta:Math.max(0,etaI),C2,W1:pts[bestIdx].W1,W2:pts[bestIdx].W2,Ct2};
+      bep={...pts[bestIdx], Q,Qm3s,Pt,Ps,Pdyn,eta:Math.max(0,etaI),C2,W1:pts[bestIdx].W1,W2:pts[bestIdx].W2,Ct2};
     } else bep=pts[bestIdx];
   } else bep=pts[bestIdx]||pts[0];
 
+  const sigma_val=sigma;
+  const Cr1_bep=bep.Qm3s/(Math.PI*(D1/1000)*b1m), Cr2_bep=bep.Qm3s/(Math.PI*(D2/1000)*b2m);
   const BPF=Z*RPM/60, Ns=bep.Qm3s>0?RPM*Math.sqrt(bep.Qm3s)/Math.pow(Math.max(1,bep.Pt)/rho,0.75):0;
   const dR=cutoffGap/(D2/2);
   const SPL=(bep.Qm3s>0&&bep.Pt>0?10*Math.log10(bep.Pt**2*bep.Qm3s/(rho*343**3))+56:30)-20*Math.log10(Math.max(0.03,dR)/0.10)-5*Math.log10(1+Rtongue/Math.max(1,cutoffGap));
-  return { bep,BPF,SPL,Ns,U1,U2,omega,Lb,rho };
+  return { bep,pts,BPF,SPL,Ns,U1,U2,omega,Lb,rho,sigma:sigma_val,Cr1_bep,Cr2_bep };
 }
 
 // ═══ STRUCTURAL MODEL ═══
@@ -157,7 +201,7 @@ const SWEEP_VARS = [
 ];
 
 // ═══ MINI CHART ═══
-function MiniChart({data,xKey,yKey,w=160,h=100,color=C.blue,label,yUnit=''}){
+function MiniChart({data,xKey,yKey,w=160,h=100,color=C.blade,label,yUnit=''}){
   if(!data||data.length<2) return null;
   const xs=data.map(d=>d[xKey]),ys=data.map(d=>d[yKey]).filter(isFinite);
   const xMin=Math.min(...xs),xMax=Math.max(...xs),yMin=Math.min(...ys),yMax=Math.max(...ys);
@@ -739,7 +783,7 @@ export default function ImpellerViewer() {
   const [matKey, setMatKey] = useState('SPCC');
   // Save/Load
   const [saveOpen, setSaveOpen] = useState(false);
-  const [saves, setSaves] = useState(() => { try { return JSON.parse(localStorage.getItem('fansim3d_saves') || '{}'); } catch { return {}; } });
+  const [saves, setSaves] = useState(() => { try { if(typeof localStorage!=='undefined') return JSON.parse(localStorage.getItem('fansim3d_saves') || '{}'); } catch {} return {}; });
   const fileRef = useRef(null);
 
   const collectState = () => ({
