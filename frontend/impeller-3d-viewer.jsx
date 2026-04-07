@@ -862,7 +862,7 @@ export default function ImpellerViewer() {
     const m = {}; OPT_VARS.forEach(v => { m[v.key] = false; }); m.beta2 = true; m.Z = true; return m;
   });
   const [optRange, setOptRange] = useState(() => {
-    const m = {}; OPT_VARS.forEach(v => { m[v.key] = { min: v.min, max: v.max }; }); return m;
+    const m = {}; OPT_VARS.forEach(v => { m[v.key] = { min: v.min, max: v.max, step: v.step }; }); return m;
   });
   const [optMode, setOptMode] = useState('single'); // 'single' or 'multi'
   const [optObj1, setOptObj1] = useState('eta');
@@ -888,8 +888,8 @@ export default function ImpellerViewer() {
           const r = optRange[v.key];
           const t = (i + Math.random()) / N; // stratified random
           params[v.key] = r.min + t * (r.max - r.min);
-          // Snap to step
-          params[v.key] = Math.round(params[v.key] / v.step) * v.step;
+          const st = r.step || v.step || 1;
+          params[v.key] = Math.round(params[v.key] / st) * st;
         });
         try {
           const aero = computeAero(params);
@@ -1386,17 +1386,20 @@ export default function ImpellerViewer() {
             <div className="mb-2 p-1.5 rounded" style={{ background:C.bg }}>
               <div style={{ color:C.dim, fontFamily:"monospace", fontSize:8, marginBottom:3 }}>설계변수 (☑최적화 / ☐고정)</div>
               {OPT_VARS.map(v => <div key={v.key} className="flex items-center gap-1 py-px" style={{ fontFamily:"monospace", fontSize:8 }}>
-                <label className="flex items-center gap-1 w-20">
+                <label className="flex items-center gap-1 w-16">
                   <input type="checkbox" checked={optEnabled[v.key]} onChange={e => setOptEnabled({...optEnabled,[v.key]:e.target.checked})} />
                   <span style={{ color:optEnabled[v.key]?C.green:C.dim }}>{v.label}</span>
                 </label>
                 {optEnabled[v.key] ? <>
                   <input type="number" value={optRange[v.key].min} onChange={e => setOptRange({...optRange,[v.key]:{...optRange[v.key],min:+e.target.value}})}
-                    className="w-12 px-0.5 rounded text-right" style={{ background:C.card,color:C.text,fontSize:8,border:`1px solid ${C.border}`,fontFamily:"monospace" }} />
+                    className="w-11 px-0.5 rounded text-right" style={{ background:C.card,color:C.text,fontSize:8,border:`1px solid ${C.border}`,fontFamily:"monospace" }} />
                   <span style={{color:C.dim}}>~</span>
                   <input type="number" value={optRange[v.key].max} onChange={e => setOptRange({...optRange,[v.key]:{...optRange[v.key],max:+e.target.value}})}
-                    className="w-12 px-0.5 rounded text-right" style={{ background:C.card,color:C.text,fontSize:8,border:`1px solid ${C.border}`,fontFamily:"monospace" }} />
-                  <span style={{color:C.dim,fontSize:7}}>{v.unit}</span>
+                    className="w-11 px-0.5 rounded text-right" style={{ background:C.card,color:C.text,fontSize:8,border:`1px solid ${C.border}`,fontFamily:"monospace" }} />
+                  <span style={{color:C.dim,fontSize:6}}>Δ</span>
+                  <input type="number" value={optRange[v.key].step} onChange={e => setOptRange({...optRange,[v.key]:{...optRange[v.key],step:+e.target.value}})}
+                    className="w-9 px-0.5 rounded text-right" style={{ background:C.card,color:C.amber,fontSize:8,border:`1px solid ${C.border}33`,fontFamily:"monospace" }} />
+                  <span style={{color:C.dim,fontSize:6}}>{v.unit}</span>
                 </> : <span style={{color:C.dim,fontSize:7}}>고정</span>}
               </div>)}
             </div>
@@ -1409,7 +1412,56 @@ export default function ImpellerViewer() {
             </div>
             {/* Single result */}
             {optResults?.mode==='single' && <div className="p-1.5 rounded" style={{ background:C.bg }}>
-              <div style={{ color:C.green, fontFamily:"monospace", fontSize:9, marginBottom:4 }}>최적 결과 — {optResults.obj.label}</div>
+              <div style={{ color:C.green, fontFamily:"monospace", fontSize:9, marginBottom:4 }}>최적 결과 — {optResults.obj.label} ({optResults.all.length}샘플)</div>
+              {/* Chart: objective vs first active variable */}
+              {(() => {
+                const activeVars = OPT_VARS.filter(v=>optEnabled[v.key]);
+                const xVar = activeVars[0];
+                if (!xVar || !optResults.all.length) return null;
+                const all = optResults.all, top = optResults.top10, best = optResults.best;
+                const objKey = optResults.obj.key;
+                const xKey = xVar.key;
+                const xVals = all.map(s=>s.params[xKey]).filter(isFinite);
+                const yVals = all.map(s=>objKey==='eta'?s[objKey]*100:s[objKey]).filter(isFinite);
+                if (!xVals.length) return null;
+                const x1=Math.min(...xVals),x2=Math.max(...xVals),y1=Math.min(...yVals),y2=Math.max(...yVals);
+                const W=320,H=160,p={l:36,r:10,t:8,b:20},pw=W-p.l-p.r,ph=H-p.t-p.b;
+                const sx=v=>p.l+(v-x1)/((x2-x1)||1)*pw, sy=v=>p.t+ph-(v-y1)/((y2-y1)||1)*ph;
+                return <svg width={W} height={H} style={{display:"block",margin:"0 auto 4px",background:C.card,borderRadius:4}}>
+                  <line x1={p.l} y1={p.t} x2={p.l} y2={p.t+ph} stroke={C.border} strokeWidth={0.5}/>
+                  <line x1={p.l} y1={p.t+ph} x2={p.l+pw} y2={p.t+ph} stroke={C.border} strokeWidth={0.5}/>
+                  {all.map((s,i)=>{const yv=objKey==='eta'?s[objKey]*100:s[objKey]; return <circle key={i} cx={sx(s.params[xKey])} cy={sy(yv)} r={1.5} fill={C.dim} opacity={0.15}/>;})}
+                  {top.map((s,i)=>{const yv=objKey==='eta'?s[objKey]*100:s[objKey]; return <circle key={'t'+i} cx={sx(s.params[xKey])} cy={sy(yv)} r={3} fill={i===0?C.green:C.cyan} opacity={0.8}
+                    style={{cursor:'pointer'}} onClick={()=>applyOptResult(s)}/>;})}
+                  <text x={p.l+pw/2} y={H-2} fill={C.dim} fontSize={7} fontFamily="monospace" textAnchor="middle">{xVar.label} ({xVar.unit})</text>
+                  <text x={4} y={p.t+ph/2} fill={C.dim} fontSize={6} fontFamily="monospace" textAnchor="middle" transform={`rotate(-90,4,${p.t+ph/2})`}>{optResults.obj.label.split(' ')[0]}</text>
+                  <text x={p.l-2} y={p.t+6} fill={C.dim} fontSize={6} fontFamily="monospace" textAnchor="end">{y2.toFixed(1)}</text>
+                  <text x={p.l-2} y={p.t+ph} fill={C.dim} fontSize={6} fontFamily="monospace" textAnchor="end">{y1.toFixed(1)}</text>
+                  <text x={p.l} y={p.t+ph+10} fill={C.dim} fontSize={6} fontFamily="monospace">{x1.toFixed(0)}</text>
+                  <text x={p.l+pw} y={p.t+ph+10} fill={C.dim} fontSize={6} fontFamily="monospace" textAnchor="end">{x2.toFixed(0)}</text>
+                </svg>;
+              })()}
+              {/* Multi-variable: show small charts for each active var */}
+              {(() => {
+                const activeVars = OPT_VARS.filter(v=>optEnabled[v.key]);
+                if (activeVars.length <= 1) return null;
+                const all = optResults.all, objKey = optResults.obj.key;
+                return <div className="flex gap-1 flex-wrap mb-2">
+                  {activeVars.slice(1).map(xVar => {
+                    const xVals=all.map(s=>s.params[xVar.key]).filter(isFinite);
+                    const yVals=all.map(s=>objKey==='eta'?s[objKey]*100:s[objKey]).filter(isFinite);
+                    if(!xVals.length) return null;
+                    const x1=Math.min(...xVals),x2=Math.max(...xVals),y1=Math.min(...yVals),y2=Math.max(...yVals);
+                    const W=150,H=90,p={l:24,r:4,t:4,b:14},pw=W-p.l-p.r,ph=H-p.t-p.b;
+                    const sx=v=>p.l+(v-x1)/((x2-x1)||1)*pw, sy=v=>p.t+ph-(v-y1)/((y2-y1)||1)*ph;
+                    return <svg key={xVar.key} width={W} height={H} style={{background:C.card,borderRadius:3}}>
+                      {all.map((s,i)=>{const yv=objKey==='eta'?s[objKey]*100:s[objKey]; return <circle key={i} cx={sx(s.params[xVar.key])} cy={sy(yv)} r={1} fill={C.dim} opacity={0.15}/>;})}
+                      {optResults.top10.slice(0,3).map((s,i)=>{const yv=objKey==='eta'?s[objKey]*100:s[objKey]; return <circle key={'t'+i} cx={sx(s.params[xVar.key])} cy={sy(yv)} r={2.5} fill={i===0?C.green:C.cyan} opacity={0.8}/>;})}
+                      <text x={p.l+pw/2} y={H-2} fill={C.dim} fontSize={6} fontFamily="monospace" textAnchor="middle">{xVar.label}</text>
+                    </svg>;
+                  })}
+                </div>;
+              })()}
               <div className="p-2 rounded mb-2" style={{ background:C.card, border:`1px solid ${C.green}44` }}>
                 <div className="grid grid-cols-4 gap-1 mb-1">
                   {[{l:'η',v:(optResults.best.eta*100).toFixed(1)+'%',c:C.green},{l:'Ps',v:optResults.best.Ps.toFixed(0)+'Pa',c:C.cyan},
