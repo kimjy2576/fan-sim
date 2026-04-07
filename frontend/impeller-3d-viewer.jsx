@@ -1287,7 +1287,7 @@ export default function ImpellerViewer() {
         </div>
       </div>}
       <div className="px-3 flex gap-0.5">
-        {[{l:"3D",c:C.blade},{l:"정면도",c:C.eye},{l:"단면도",c:C.shroud},{l:"저면도",c:C.backplate},{l:"파라메트릭",c:C.pink},{l:"최적화",c:C.green}].map((t,i)=>
+        {[{l:"3D",c:C.blade},{l:"정면도",c:C.eye},{l:"단면도",c:C.shroud},{l:"저면도",c:C.backplate},{l:"파라메트릭",c:C.pink},{l:"최적화",c:C.green},{l:"PQ",c:C.cyan}].map((t,i)=>
           <Tab key={i} active={viewTab===i} onClick={()=>setViewTab(i)} color={t.c}>{t.l}</Tab>)}
       </div>
       <div className="px-3 py-1">
@@ -1493,6 +1493,94 @@ export default function ImpellerViewer() {
                 </table>
               </div>
             </div>}
+          </div>}
+          {viewTab===6 && <div className="p-2">
+            <div style={{ color:C.cyan, fontFamily:"monospace", fontSize:10, fontWeight:700, marginBottom:4 }}>PQ ANALYSIS</div>
+            {(() => {
+              const aero = baseAero;
+              if (!aero?.pts?.length) return <div style={{color:C.dim}}>데이터 없음</div>;
+              const pts = aero.pts.filter(p => p.Q > 0);
+              const bep = aero.bep;
+              const W = 320, H = 200, pad = {l:38,r:15,t:12,b:24};
+              const pw = W-pad.l-pad.r, ph = H-pad.t-pad.b;
+              const maxQ = Math.max(...pts.map(p=>p.Q));
+              const maxP = Math.max(...pts.map(p=>Math.max(p.Pt,p.Ps)));
+              const maxEta = Math.max(...pts.map(p=>p.eta));
+              const sx = q => pad.l + (q/maxQ)*pw;
+              const syP = p => pad.t + ph - (p/maxP)*ph;
+              const syE = e => pad.t + ph - (e/maxEta)*ph;
+              const pathPt = pts.map((p,i) => `${i===0?'M':'L'}${sx(p.Q)} ${syP(p.Pt)}`).join(' ');
+              const pathPs = pts.map((p,i) => `${i===0?'M':'L'}${sx(p.Q)} ${syP(p.Ps)}`).join(' ');
+              const pathEta = pts.map((p,i) => `${i===0?'M':'L'}${sx(p.Q)} ${syE(p.eta)}`).join(' ');
+              return <>
+                <svg width={W} height={H} style={{display:"block",margin:"0 auto",background:C.bg,borderRadius:4}}>
+                  {[0.25,0.5,0.75,1].map(f => <line key={f} x1={pad.l} y1={syP(maxP*f)} x2={pad.l+pw} y2={syP(maxP*f)} stroke={C.border} strokeWidth={0.3}/>)}
+                  {[0.25,0.5,0.75,1].map(f => <line key={f+'q'} x1={sx(maxQ*f)} y1={pad.t} x2={sx(maxQ*f)} y2={pad.t+ph} stroke={C.border} strokeWidth={0.3}/>)}
+                  <line x1={pad.l} y1={pad.t} x2={pad.l} y2={pad.t+ph} stroke={C.dim} strokeWidth={0.5}/>
+                  <line x1={pad.l} y1={pad.t+ph} x2={pad.l+pw} y2={pad.t+ph} stroke={C.dim} strokeWidth={0.5}/>
+                  <path d={pathPt} fill="none" stroke={C.blade} strokeWidth={1.5} opacity={0.7}/>
+                  <path d={pathPs} fill="none" stroke={C.cyan} strokeWidth={2}/>
+                  <path d={pathEta} fill="none" stroke={C.green} strokeWidth={1.5} strokeDasharray="4,2"/>
+                  <circle cx={sx(bep.Q)} cy={syP(bep.Ps)} r={4} fill="none" stroke={C.green} strokeWidth={2}/>
+                  <circle cx={sx(bep.Q)} cy={syE(bep.eta)} r={3} fill={C.green} opacity={0.7}/>
+                  <line x1={sx(bep.Q)} y1={pad.t} x2={sx(bep.Q)} y2={pad.t+ph} stroke={C.green} strokeWidth={0.5} strokeDasharray="3,3" opacity={0.4}/>
+                  <text x={pad.l+pw/2} y={H-3} fill={C.dim} fontSize={8} fontFamily="monospace" textAnchor="middle">Q (m³/min)</text>
+                  <text x={4} y={pad.t+ph/2} fill={C.dim} fontSize={7} fontFamily="monospace" textAnchor="middle" transform={`rotate(-90,4,${pad.t+ph/2})`}>P (Pa)</text>
+                  <text x={pad.l-2} y={pad.t+6} fill={C.dim} fontSize={6} fontFamily="monospace" textAnchor="end">{maxP.toFixed(0)}</text>
+                  <text x={pad.l-2} y={pad.t+ph} fill={C.dim} fontSize={6} fontFamily="monospace" textAnchor="end">0</text>
+                  <text x={pad.l} y={pad.t+ph+10} fill={C.dim} fontSize={6} fontFamily="monospace">0</text>
+                  <text x={pad.l+pw} y={pad.t+ph+10} fill={C.dim} fontSize={6} fontFamily="monospace" textAnchor="end">{maxQ.toFixed(1)}</text>
+                  <line x1={pad.l+5} y1={pad.t+4} x2={pad.l+18} y2={pad.t+4} stroke={C.cyan} strokeWidth={2}/>
+                  <text x={pad.l+20} y={pad.t+7} fill={C.cyan} fontSize={6} fontFamily="monospace">Ps</text>
+                  <line x1={pad.l+40} y1={pad.t+4} x2={pad.l+53} y2={pad.t+4} stroke={C.blade} strokeWidth={1.5} opacity={0.7}/>
+                  <text x={pad.l+55} y={pad.t+7} fill={C.blade} fontSize={6} fontFamily="monospace">Pt</text>
+                  <line x1={pad.l+75} y1={pad.t+4} x2={pad.l+88} y2={pad.t+4} stroke={C.green} strokeWidth={1.5} strokeDasharray="3,2"/>
+                  <text x={pad.l+90} y={pad.t+7} fill={C.green} fontSize={6} fontFamily="monospace">η</text>
+                  <text x={sx(bep.Q)+6} y={syP(bep.Ps)-4} fill={C.green} fontSize={7} fontFamily="monospace" fontWeight="bold">BEP</text>
+                </svg>
+                <div className="grid grid-cols-4 gap-1 mt-2">
+                  {[
+                    {l:'Q_BEP',v:bep.Q.toFixed(1),u:'m³/min',c:C.amber},
+                    {l:'Ps',v:bep.Ps.toFixed(0),u:'Pa',c:C.cyan},
+                    {l:'Pt',v:bep.Pt.toFixed(0),u:'Pa',c:C.blade},
+                    {l:'η',v:(bep.eta*100).toFixed(1),u:'%',c:C.green},
+                    {l:'SPL',v:aero.SPL.toFixed(1),u:'dB(A)',c:C.purple},
+                    {l:'BPF',v:aero.BPF.toFixed(0),u:'Hz',c:C.pink},
+                    {l:'Ns',v:aero.Ns.toFixed(0),u:'',c:C.dim},
+                    {l:'W',v:(bep.Qm3s>0?bep.Pt*bep.Qm3s/Math.max(0.01,bep.eta):0).toFixed(1),u:'W',c:C.red},
+                  ].map(m => <div key={m.l} className="text-center py-1 rounded" style={{background:C.card}}>
+                    <div style={{color:C.dim,fontFamily:"monospace",fontSize:6}}>{m.l}</div>
+                    <div style={{color:m.c,fontFamily:"monospace",fontSize:11,fontWeight:700}}>{m.v}</div>
+                    <div style={{color:C.dim,fontFamily:"monospace",fontSize:5}}>{m.u}</div>
+                  </div>)}
+                </div>
+                <div className="mt-2 p-1.5 rounded" style={{background:C.bg}}>
+                  <div style={{color:C.dim,fontFamily:"monospace",fontSize:8,marginBottom:2}}>속도 삼각형 (BEP)</div>
+                  <div className="grid grid-cols-4 gap-1" style={{fontFamily:"monospace",fontSize:8}}>
+                    <div><span style={{color:C.dim}}>U₂=</span><span style={{color:C.text}}>{aero.U2.toFixed(1)}</span></div>
+                    <div><span style={{color:C.dim}}>C₂=</span><span style={{color:C.text}}>{bep.C2.toFixed(1)}</span></div>
+                    <div><span style={{color:C.dim}}>W₁=</span><span style={{color:C.text}}>{bep.W1.toFixed(1)}</span></div>
+                    <div><span style={{color:C.dim}}>W₂=</span><span style={{color:C.text}}>{bep.W2.toFixed(1)}</span></div>
+                    <div><span style={{color:C.dim}}>Ct₂=</span><span style={{color:C.text}}>{bep.Ct2.toFixed(1)}</span></div>
+                    <div><span style={{color:C.dim}}>Cr₂=</span><span style={{color:C.text}}>{aero.Cr2_bep?.toFixed(1)||'—'}</span></div>
+                    <div><span style={{color:C.dim}}>Slip=</span><span style={{color:C.text}}>{(1-Math.PI*Math.sin(beta2*Math.PI/180)/Z).toFixed(3)}</span></div>
+                    <div><span style={{color:C.dim}}>W₂/W₁=</span><span style={{color:bep.W2/bep.W1<0.7?C.green:C.red}}>{(bep.W2/bep.W1).toFixed(2)}</span></div>
+                  </div>
+                </div>
+                <div className="mt-2 p-1.5 rounded" style={{background:C.bg}}>
+                  <div style={{color:C.dim,fontFamily:"monospace",fontSize:8,marginBottom:2}}>구조</div>
+                  <div className="grid grid-cols-4 gap-1" style={{fontFamily:"monospace",fontSize:8}}>
+                    <div><span style={{color:C.dim}}>σ_c=</span><span style={{color:C.text}}>{baseStruc.sigma_c.toFixed(1)}</span></div>
+                    <div><span style={{color:C.dim}}>σ_b=</span><span style={{color:C.text}}>{baseStruc.sigma_b.toFixed(1)}</span></div>
+                    <div><span style={{color:C.dim}}>SF=</span><span style={{color:baseStruc.SF>2?C.green:C.red,fontWeight:700}}>{baseStruc.SF.toFixed(1)}</span></div>
+                    <div><span style={{color:C.dim}}>f_n=</span><span style={{color:baseStruc.res_ok?C.cyan:C.red}}>{baseStruc.f_n.toFixed(0)}Hz</span></div>
+                  </div>
+                  <div style={{color:C.dim,fontFamily:"monospace",fontSize:7,marginTop:2}}>
+                    f_n/BPF={(aero.BPF>0?(baseStruc.f_n/aero.BPF).toFixed(2):'—')} {baseStruc.res_ok?'✓':'⚠ 공진'} | {mat.name}
+                  </div>
+                </div>
+              </>;
+            })()}
           </div>}
         </div>
       </div>
