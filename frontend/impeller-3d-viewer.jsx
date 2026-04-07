@@ -77,6 +77,7 @@ function computeAero(p) {
   for(let i=1;i<=20;i++){const t=i/20,r=r1+t*(r2-r1),rP=r1+(i-1)/20*(r2-r1),rM=(r+rP)/2,tM=(t+(i-1)/20)/2,bM=b1R+tM*(b2R-b1R);if(Math.abs(Math.tan(bM))>0.001)th+=(-1/(rM*Math.tan(bM)))*(r-rP);const x=r*Math.cos(th),y=r*Math.sin(th);Lb+=Math.sqrt((x-px)**2+(y-py)**2);px=x;py=y;}
   let bestEta=0, bep=null, bestIdx=0;
   const N=200, pts=[];
+  const minBepIdx = Math.floor(N * 0.1); // skip first 10% (shutoff region)
   for(let i=0;i<=N;i++){
     const Qm3s=(i/N)*QmaxM3s,Q=Qm3s*60;
     const Cr1=Qm3s/(Math.PI*(D1/1000)*b1m),Cr2=Qm3s/(Math.PI*(D2/1000)*b2m);
@@ -125,22 +126,25 @@ function computeAero(p) {
     const diffAR=diffLength>0?1+2*(diffLength/1000)*Math.tan(Math.abs(diffAngle)*Math.PI/180)/Math.max(0.01,Math.sqrt(A_sc)):1;
     const CpIdeal=diffAR>1?1-1/(diffAR**2):0;
     const etaDiff=Math.abs(diffAngle)<=7?0.75:(Math.abs(diffAngle)<=12?0.6:0.4);
-    const Pdyn_sc_exit=Math.max(0,Pdyn_cap-Math.max(0,Pdyn_cap-dP_scroll));
-    const dPs_diff=etaDiff*CpIdeal*Pdyn_sc_exit;
+    const dPs_diff=etaDiff*CpIdeal*0.5*rho*C_sc**2;
 
     // Uncaptured (wrap < 360°)
     const dP_uncap=0.5*rho*(C2*Math.sqrt(1-wrapFrac))**2*(1-wrapFrac);
 
-    // Fan totals — pressure based on impeller, flow based on delivered
+    // Fan totals
     const Pt_fan=Math.max(0,Pt_imp-dPjw-dP_scroll-dP_tongue-dP_uncap);
-    const Pdyn_exit=Math.max(0,Pdyn_sc_exit-dPs_diff+Pdyn_imp*(1-wrapFrac)*0.15);
-    const Ps=Pt_fan-Pdyn_exit+dPs_diff;
+    // Exit dynamic pressure: V_exit = Q / A_exit (actual duct velocity)
+    // Diffuser increases A_exit → reduces V_exit → reduces Pdyn → increases Ps
+    const A_exit = Math.max(0.001, A_sc * Math.max(1, diffAR));
+    const V_exit = Q_delivered > 0 ? Q_delivered / A_exit : 0;
+    const Pdyn_exit = 0.5 * rho * V_exit**2;
+    const Ps = Pt_fan - Pdyn_exit; // Pt = Ps + Pdyn always
     const Pshaft=Qm3s>1e-6?Pt_e*Qm3s+Pdf:Pdf; // shaft sees full Q_impeller
     const eta=Pshaft>0?Math.max(0,Ps*Q_delivered)/Pshaft:0; // η based on Q_delivered
     pts.push({Q:Q_del_m3min,Qm3s:Q_delivered,Pt:Pt_fan,Ps,Pdyn:Pdyn_exit,eta,C2,W1,W2,Ct2,Pt_e,
       dPinc,dPfric,dPrec,dPdisk:Math.min(dPdisk,Pt_e*0.5),dPjw,dP_scroll,dP_tongue,dPs_diff,dP_uncap,Q_recirc,
       Pt_imp, deH:W1>0?W2/W1:1, C2U2:U2>0?C2/U2:0});
-    if(eta>bestEta){bestEta=eta;bestIdx=i;}
+    if(i >= minBepIdx && eta>bestEta){bestEta=eta;bestIdx=i;}
   }
   // Parabolic interpolation around peak for smooth BEP
   if(bestIdx>0 && bestIdx<N){
@@ -148,13 +152,11 @@ function computeAero(p) {
     const denom=2*(a-2*b+c);
     if(Math.abs(denom)>1e-12){
       const shift=(a-c)/denom;
-      const t=Math.max(0,Math.min(1,(bestIdx+shift)/N));
-      const Qm3s=t*QmaxM3s, Q=Qm3s*60;
-      const Cr2=Qm3s/(Math.PI*(D2/1000)*b2m);
-      const Ct2=sigma*U2-Cr2/Math.tan(b2R),C2=Math.sqrt(Cr2**2+Ct2**2);
-      const Pt=pts[bestIdx].Pt+(shift>0?(pts[bestIdx+1].Pt-pts[bestIdx].Pt)*shift:(pts[bestIdx].Pt-pts[bestIdx-1].Pt)*shift);
-      const Pdyn=0.5*rho*C2**2, Ps=Pt-Pdyn;
-      const etaI=b-denom*shift*shift/4;
+      // Interpolate from pts
+      const lerp = (k) => pts[bestIdx][k] + (shift>0 ? (pts[bestIdx+1][k]-pts[bestIdx][k])*shift : (pts[bestIdx][k]-pts[bestIdx-1][k])*shift);
+      const Q = lerp('Q'), Qm3s = lerp('Qm3s'), Pt = lerp('Pt'), Ps = lerp('Ps'), Pdyn = lerp('Pdyn');
+      const C2 = lerp('C2'), Ct2 = lerp('Ct2');
+      const etaI = b - denom*shift*shift/4;
       bep={...pts[bestIdx], Q,Qm3s,Pt,Ps,Pdyn,eta:Math.max(0,etaI),C2,W1:pts[bestIdx].W1,W2:pts[bestIdx].W2,Ct2};
     } else bep=pts[bestIdx];
   } else bep=pts[bestIdx]||pts[0];
