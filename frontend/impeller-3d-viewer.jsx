@@ -773,7 +773,6 @@ export default function ImpellerViewer() {
   const [showScroll, setShowScroll] = useState(true);
   const [scrollType, setScrollType] = useState('cv'); // 'cv'=const velocity (Archimedes), 'fv'=free vortex (log spiral)
   const [scrollEndAngle, setScrollEndAngle] = useState(360); // absolute angle where scroll ends
-  const wrapAngle = Math.max(30, ((scrollEndAngle - cutoffAngle) % 360 + 360) % 360 || 360); // auto-calculated
   const [scrollGapF, setScrollGapF] = useState(3); // front (shroud side) gap mm
   const [scrollGapB, setScrollGapB] = useState(3); // back (backplate side) gap mm
   const [bScroll, setBScroll] = useState(55); // scroll axial width (폭) mm
@@ -782,6 +781,7 @@ export default function ImpellerViewer() {
   // Tongue
   const [cutoffGap, setCutoffGap] = useState(8); // mm, gap between D₂ and tongue tip
   const [cutoffAngle, setCutoffAngle] = useState(0); // degrees, tongue position (absolute: 0=right, 90=up, 180=left, 270=down)
+  const wrapAngle = Math.max(30, ((scrollEndAngle - cutoffAngle) % 360 + 360) % 360 || 360); // auto from θ_end - θ_cut
   const [Rtongue, setRtongue] = useState(5); // mm, tongue tip radius
   const [exitAngle, setExitAngle] = useState(90); // degrees, duct exit direction (absolute: 0=right, 90=up)
   const [tongueOutLen, setTongueOutLen] = useState(35); // mm, tongue outer face length
