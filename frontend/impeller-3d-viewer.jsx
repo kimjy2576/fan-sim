@@ -374,7 +374,7 @@ function scrollProfile(r2, wrapDeg, type, bScroll, startDeg = 0, cutoffGap = 8, 
     const k = r2 * expRate;
     for (let i = 0; i <= nSeg; i++) {
       const dTheta = (i / nSeg) * wrapRad;
-      const theta = startRad - dTheta; // negative = CW (fan convention: eye방향에서 볼 때 CW)
+      const theta = startRad + dTheta;
       const r = rStart + k * dTheta;
       pts.push({ theta, r });
     }
@@ -382,7 +382,7 @@ function scrollProfile(r2, wrapDeg, type, bScroll, startDeg = 0, cutoffGap = 8, 
     const alpha = expRate * 50 * Math.PI / 180;
     for (let i = 0; i <= nSeg; i++) {
       const dTheta = (i / nSeg) * wrapRad;
-      const theta = startRad - dTheta; // CW
+      const theta = startRad + dTheta;
       const r = rStart * Math.exp(dTheta * Math.tan(alpha));
       pts.push({ theta, r });
     }
@@ -506,7 +506,7 @@ function FrontView({ Deye, D1, D2, Du, bladePts, Z, bladeType, bendPos, showScro
       const startPt = sPts[0]; // tongue/cutoff start
       // Diffuser exit direction: tangent at scroll end
       const exitTheta = endPt.theta;
-      const exitDir = exitTheta - Math.PI / 2; // tangential direction (CW flow)
+      const exitDir = exitTheta + Math.PI / 2;
       // Scroll exit opening: inner wall (tongue) to outer wall (spiral end)
       const rInner = rTongue; // tongue side
       const rOuter = endPt.r; // spiral end side
@@ -981,8 +981,8 @@ export default function ImpellerViewer() {
       setWrapAngle(maxWrapDeg);
     }
     // Auto-set diffuser length to fill remaining space toward exit wall
-    const exitTheta = (cutoffAngle - wrapAngle) * Math.PI / 180; // CW direction
-    const exitDir = exitTheta - Math.PI / 2; // CW tangent
+    const exitTheta = (cutoffAngle + wrapAngle) * Math.PI / 180;
+    const exitDir = exitTheta + Math.PI / 2;
     const exitDx = Math.cos(exitDir), exitDy = Math.sin(exitDir);
     // Distance from impeller center to wall in exit direction
     const tWall = Math.min(
@@ -1150,8 +1150,8 @@ export default function ImpellerViewer() {
 
       // Diffuser — extends from scroll exit
       if (diffLength > 0) {
-        const exitTheta = tTheta - wrapAngle * Math.PI / 180; // CW
-        const exitDir = exitTheta - Math.PI / 2; // CW tangent
+        const exitTheta = tTheta + wrapAngle * Math.PI / 180;
+        const exitDir = exitTheta + Math.PI / 2;
         const rInner = rTip;
         const rOuter = sPts.length > 0 ? sPts[sPts.length - 1].r : rTip + 20;
         const exitW = rOuter - rInner;
@@ -1248,10 +1248,6 @@ export default function ImpellerViewer() {
             <h1 className="text-sm font-bold" style={{ fontFamily: "monospace" }}><span style={{ color: C.accent }}>◆</span> Impeller Design & Parametric Study</h1>
             <p style={{ color: C.dim, fontFamily: "monospace", fontSize: 9 }}>3D + 2D + 성능·소음·구조 sweep</p>
           </div>
-          <button onClick={() => setSaveOpen(!saveOpen)} className="px-2 py-1 rounded"
-            style={{ fontFamily:"monospace", fontSize:10, background:C.card, color:C.cyan, border:`1px solid ${C.border}` }}>
-            {saveOpen ? "✕" : "💾"}
-          </button>
         </div>
       </div>
       {/* Save/Load Panel */}
@@ -1286,9 +1282,13 @@ export default function ImpellerViewer() {
           </div>
         </div>
       </div>}
-      <div className="px-3 flex gap-0.5">
-        {[{l:"3D",c:C.blade},{l:"정면도",c:C.eye},{l:"단면도",c:C.shroud},{l:"저면도",c:C.backplate},{l:"파라메트릭",c:C.pink},{l:"최적화",c:C.green},{l:"PQ",c:C.cyan}].map((t,i)=>
+      <div className="px-3 flex items-center gap-0.5" style={{overflowX:"auto",WebkitOverflowScrolling:"touch"}}>
+        {[{l:"3D",c:C.blade},{l:"정면",c:C.eye},{l:"단면",c:C.shroud},{l:"저면",c:C.backplate},{l:"Sweep",c:C.pink},{l:"최적화",c:C.green},{l:"PQ",c:C.cyan}].map((t,i)=>
           <Tab key={i} active={viewTab===i} onClick={()=>setViewTab(i)} color={t.c}>{t.l}</Tab>)}
+        <button onClick={() => setSaveOpen(!saveOpen)} className="px-1.5 py-0.5 rounded ml-auto flex-shrink-0"
+          style={{ fontFamily:"monospace", fontSize:9, background:saveOpen?C.card:"transparent", color:C.cyan, border:`1px solid ${saveOpen?C.cyan:C.border}` }}>
+          💾
+        </button>
       </div>
       <div className="px-3 py-1">
         <div className="rounded-lg overflow-hidden" style={{ background: C.bg, border: `1px solid ${C.border}` }}>
@@ -1632,15 +1632,17 @@ export default function ImpellerViewer() {
       <div className="px-3 pb-2">
         <div className="rounded-lg p-2" style={{ background: C.card, border: `1px solid ${C.border}` }}>
           {/* Material + RPM */}
-          <div className="flex items-center gap-2 mb-2 pb-1" style={{ borderBottom: `1px solid ${C.border}` }}>
-            <span style={{ color: C.dim, fontFamily: "monospace", fontSize: 9 }}>재질</span>
-            <div className="flex gap-0.5 flex-wrap flex-1">
-              {Object.entries(MATERIALS).map(([k,m]) =>
-                <button key={k} onClick={() => setMatKey(k)} className="px-1.5 py-0.5 rounded"
-                  style={{ fontFamily:"monospace", fontSize:7, background:matKey===k?C.card:"transparent",
-                    color:matKey===k?m.color:C.dim, border:`1px solid ${matKey===k?m.color:C.border}` }}>{k}</button>)}
+          <div className="mb-2 pb-1" style={{ borderBottom: `1px solid ${C.border}` }}>
+            <div className="flex items-center gap-1 mb-1">
+              <span style={{ color: C.dim, fontFamily: "monospace", fontSize: 9 }}>재질</span>
+              <div className="flex gap-0.5 flex-wrap">
+                {Object.entries(MATERIALS).map(([k,m]) =>
+                  <button key={k} onClick={() => setMatKey(k)} className="px-1.5 py-0.5 rounded"
+                    style={{ fontFamily:"monospace", fontSize:7, background:matKey===k?C.card:"transparent",
+                      color:matKey===k?m.color:C.dim, border:`1px solid ${matKey===k?m.color:C.border}` }}>{k}</button>)}
+              </div>
             </div>
-            <div className="w-28"><S label="RPM" value={RPM} min={400} max={3000} step={10} onChange={setRPM} unit="" color={C.green} /></div>
+            <S label="RPM" value={RPM} min={400} max={3000} step={10} onChange={setRPM} unit="" color={C.green} />
           </div>
           <div className="grid grid-cols-2 gap-x-3">
             <div>
