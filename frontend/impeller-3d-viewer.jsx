@@ -111,14 +111,15 @@ function computeAero(p) {
     const dP_sc_mix=0.20*Pdyn_cap;
     const dP_scroll=dP_sc_fric+dP_sc_mix;
 
-    // Tongue recirculation — gap flow reduces delivered Q
-    const A_tgap=bScrollM * gapM; // gap area = scroll width × gap
-    const Cd_t=0.5+0.1*Math.min(1,Rtongue/5);
-    const dP_across=Math.max(0,(Pdyn_cap-dP_scroll)*0.3);
-    const Q_recirc=Cd_t*A_tgap*Math.sqrt(2*Math.max(0.1,dP_across)/rho);
-    const dP_tongue=Qm3s>1e-6?dP_across*(Q_recirc/Qm3s):0;
-    const Q_delivered=Math.max(0, Qm3s - Q_recirc); // actual output flow
+    // Tongue recirculation — volumetric efficiency model
+    // ε_leak = f(gap/D₂, R_tongue) — fraction of Q that recirculates
+    // gap↑ → ε_leak↑ → Q_delivered↓, η↓ | R_tongue↑ → ε_leak↓ (smoother turn)
+    const gapRatio = gapM / (2*r2); // δ/D₂
+    const eps_leak = Math.min(0.25, 0.82 * Math.pow(gapRatio, 0.7) / (1 + Rtongue/cutoffGap));
+    const Q_recirc = Qm3s * eps_leak;
+    const Q_delivered = Qm3s * (1 - eps_leak);
     const Q_del_m3min = Q_delivered * 60;
+    const dP_tongue = eps_leak * Pt_imp * 0.3; // mixing loss from recirculated flow
 
     // Diffuser recovery
     const diffAR=diffLength>0?1+2*(diffLength/1000)*Math.tan(Math.abs(diffAngle)*Math.PI/180)/Math.max(0.01,Math.sqrt(A_sc)):1;
