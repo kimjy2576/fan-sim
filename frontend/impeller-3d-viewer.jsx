@@ -192,18 +192,24 @@ function computeStructure(p, aero, mat) {
 const SWEEP_VARS = [
   {key:'D2',label:'D₂',unit:'mm',min:100,max:300,step:5},
   {key:'D1',label:'D₁',unit:'mm',min:60,max:200,step:5},
+  {key:'Deye',label:'D_eye',unit:'mm',min:60,max:180,step:5},
+  {key:'b1',label:'b₁',unit:'mm',min:15,max:120,step:5},
+  {key:'b2',label:'b₂',unit:'mm',min:20,max:100,step:5},
   {key:'beta2',label:'β₂',unit:'°',min:20,max:180,step:5},
   {key:'beta1',label:'β₁',unit:'°',min:5,max:85,step:5},
   {key:'Z',label:'Z',unit:'',min:16,max:48,step:2},
-  {key:'b2',label:'b₂',unit:'mm',min:20,max:100,step:5},
-  {key:'RPM',label:'RPM',unit:'',min:600,max:2400,step:100},
-  {key:'tBlade',label:'t (두께)',unit:'mm',min:0.5,max:3.0,step:0.5},
-  {key:'cutoffGap',label:'Tongue δ',unit:'mm',min:2,max:30,step:1},
-  {key:'Rtongue',label:'Tongue R',unit:'mm',min:1,max:20,step:1},
+  {key:'RPM',label:'RPM',unit:'',min:400,max:3000,step:100},
+  {key:'tBlade',label:'t',unit:'mm',min:0.3,max:3.0,step:0.1},
+  {key:'cutoffGap',label:'δ',unit:'mm',min:2,max:30,step:1},
+  {key:'cutoffAngle',label:'θ_cut',unit:'°',min:0,max:360,step:10},
+  {key:'Rtongue',label:'R_tongue',unit:'mm',min:1,max:20,step:1},
+  {key:'exitAngle',label:'θ_exit',unit:'°',min:0,max:360,step:10},
   {key:'tongueOutLen',label:'외면 L',unit:'mm',min:0,max:200,step:5},
   {key:'tongueOutAngle',label:'외면 α',unit:'°',min:-90,max:90,step:5},
-  {key:'scrollEndAngle',label:'θ_end',unit:'°',min:0,max:720,step:5},
-  {key:'diffAngle',label:'Diff α',unit:'°',min:-90,max:90,step:5},
+  {key:'scrollEndAngle',label:'θ_end',unit:'°',min:0,max:720,step:10},
+  {key:'scrollExpRate',label:'팽창률',unit:'',min:0.02,max:0.3,step:0.01},
+  {key:'bScroll',label:'폭',unit:'mm',min:30,max:120,step:5},
+  {key:'diffAngle',label:'Diff α',unit:'°',min:0,max:30,step:1},
   {key:'diffLength',label:'Diff L',unit:'mm',min:0,max:300,step:10},
 ];
 
@@ -851,6 +857,7 @@ export default function ImpellerViewer() {
     {key:'D2',label:'D₂',unit:'mm',min:100,max:300,step:5,def:175},
     {key:'D1',label:'D₁',unit:'mm',min:60,max:200,step:5,def:120},
     {key:'Deye',label:'D_eye',unit:'mm',min:60,max:180,step:5,def:110},
+    {key:'Du',label:'D_u',unit:'mm',min:80,max:350,step:5,def:180},
     {key:'b1',label:'b₁',unit:'mm',min:15,max:120,step:5,def:60},
     {key:'b2',label:'b₂',unit:'mm',min:20,max:100,step:5,def:50},
     {key:'beta2',label:'β₂',unit:'°',min:20,max:180,step:2,def:145},
@@ -858,12 +865,16 @@ export default function ImpellerViewer() {
     {key:'Z',label:'Z',unit:'',min:16,max:48,step:2,def:36},
     {key:'RPM',label:'RPM',unit:'',min:400,max:3000,step:50,def:1400},
     {key:'tBlade',label:'t',unit:'mm',min:0.3,max:3,step:0.1,def:1},
-    {key:'cutoffGap',label:'Tongue δ',unit:'mm',min:2,max:30,step:1,def:8},
-    {key:'Rtongue',label:'Tongue R',unit:'mm',min:1,max:20,step:1,def:5},
+    {key:'bladeLean',label:'Lean',unit:'°',min:-15,max:15,step:1,def:0},
+    {key:'cutoffGap',label:'δ',unit:'mm',min:2,max:30,step:1,def:8},
+    {key:'cutoffAngle',label:'θ_cut',unit:'°',min:0,max:360,step:5,def:0},
+    {key:'Rtongue',label:'R_tongue',unit:'mm',min:1,max:20,step:1,def:5},
+    {key:'exitAngle',label:'θ_exit',unit:'°',min:0,max:360,step:5,def:90},
     {key:'tongueOutLen',label:'외면 L',unit:'mm',min:0,max:200,step:5,def:35},
     {key:'tongueOutAngle',label:'외면 α',unit:'°',min:-90,max:90,step:5,def:5},
     {key:'scrollEndAngle',label:'θ_end',unit:'°',min:0,max:720,step:5,def:360},
     {key:'scrollExpRate',label:'팽창률',unit:'',min:0.02,max:0.3,step:0.01,def:0.12},
+    {key:'bScroll',label:'폭',unit:'mm',min:30,max:120,step:5,def:55},
     {key:'diffAngle',label:'Diff α',unit:'°',min:0,max:30,step:1,def:7},
     {key:'diffLength',label:'Diff L',unit:'mm',min:0,max:200,step:5,def:40},
   ];
@@ -895,7 +906,7 @@ export default function ImpellerViewer() {
     setTimeout(() => {
       const activeVars = OPT_VARS.filter(v => optEnabled[v.key]);
       if (activeVars.length === 0) { setOptRunning(false); alert('최적화 변수를 선택하세요'); return; }
-      const base = { D1,D2,Deye,b1,b2,beta1,beta2,Z,RPM,tBlade,cutoffGap,Rtongue,tongueOutLen,tongueOutAngle,wrapAngle,scrollEndAngle,diffAngle,diffLength };
+      const base = { ...baseParams };
       const mat = MATERIALS[matKey];
 
       // Latin Hypercube Sampling
@@ -910,11 +921,10 @@ export default function ImpellerViewer() {
           const st = r.step || v.step || 1;
           params[v.key] = Math.round(params[v.key] / st) * st;
         });
-        // If scrollEndAngle was optimized, recompute wrapAngle
-        if (params.scrollEndAngle !== undefined) {
-          const ca = params.cutoffAngle !== undefined ? params.cutoffAngle : cutoffAngle;
-          params.wrapAngle = Math.max(30, ((params.scrollEndAngle - ca) % 360 + 360) % 360 || 360);
-        }
+        // Recompute wrapAngle from absolute angles
+        const ca = params.cutoffAngle != null ? params.cutoffAngle : cutoffAngle;
+        const ea = params.scrollEndAngle != null ? params.scrollEndAngle : scrollEndAngle;
+        params.wrapAngle = Math.max(30, ((ea - ca) % 360 + 360) % 360 || 360);
         try {
           const aero = computeAero(params);
           const struc = computeStructure(params, aero, mat);
@@ -960,13 +970,15 @@ export default function ImpellerViewer() {
 
   const applyOptResult = (r) => {
     const p = r.params;
-    if(p.D1!=null)setD1(p.D1);if(p.D2!=null)setD2(p.D2);if(p.Deye!=null)setDeye(p.Deye);
+    if(p.D1!=null)setD1(p.D1);if(p.D2!=null)setD2(p.D2);if(p.Deye!=null)setDeye(p.Deye);if(p.Du!=null)setDu(p.Du);
     if(p.b1!=null)setB1(p.b1);if(p.b2!=null)setB2(p.b2);
     if(p.beta1!=null)setBeta1(p.beta1);if(p.beta2!=null)setBeta2(p.beta2);if(p.Z!=null)setZ(p.Z);
-    if(p.RPM!=null)setRPM(p.RPM);if(p.tBlade!=null)setTBlade(p.tBlade);
-    if(p.cutoffGap!=null)setCutoffGap(p.cutoffGap);if(p.Rtongue!=null)setRtongue(p.Rtongue);
+    if(p.RPM!=null)setRPM(p.RPM);if(p.tBlade!=null)setTBlade(p.tBlade);if(p.bladeLean!=null)setBladeLean(p.bladeLean);
+    if(p.cutoffGap!=null)setCutoffGap(p.cutoffGap);if(p.cutoffAngle!=null)setCutoffAngle(p.cutoffAngle);
+    if(p.Rtongue!=null)setRtongue(p.Rtongue);if(p.exitAngle!=null)setExitAngle(p.exitAngle);
     if(p.tongueOutLen!=null)setTongueOutLen(p.tongueOutLen);if(p.tongueOutAngle!=null)setTongueOutAngle(p.tongueOutAngle);
     if(p.scrollEndAngle!=null)setScrollEndAngle(p.scrollEndAngle);if(p.scrollExpRate!=null)setScrollExpRate(p.scrollExpRate);
+    if(p.bScroll!=null)setBScroll(p.bScroll);
     if(p.diffAngle!=null)setDiffAngle(p.diffAngle);if(p.diffLength!=null)setDiffLength(p.diffLength);
   };
   const [sweepVar, setSweepVar] = useState('beta2');
@@ -976,8 +988,9 @@ export default function ImpellerViewer() {
   const [sweepOut, setSweepOut] = useState('eta'); // selected output chart
 
   const mat = MATERIALS[matKey];
-  const baseParams = { D1, D2, Deye, b1, b2, beta1, beta2, Z, RPM, tBlade,
-    cutoffGap, Rtongue, tongueOutLen, tongueOutAngle, wrapAngle, scrollExpRate, diffAngle, diffLength };
+  const baseParams = { D1, D2, Du, Deye, b1, b2, beta1, beta2, Z, RPM, tBlade, bladeLean,
+    cutoffGap, cutoffAngle, Rtongue, exitAngle, tongueOutLen, tongueOutAngle,
+    wrapAngle, scrollEndAngle, scrollExpRate, bScroll, diffAngle, diffLength };
 
   // Auto-fit: calculate max scroll that fits within casing box
   const autoFitScroll = () => {
@@ -1244,9 +1257,11 @@ export default function ImpellerViewer() {
     for (let i = 0; i <= sweepSteps; i++) {
       const val = sweepMin + i * step;
       const params = { ...baseParams, [sweepVar]: val };
-      // If sweeping scrollEndAngle, recompute wrapAngle
-      if (sweepVar === 'scrollEndAngle') {
-        params.wrapAngle = Math.max(30, ((val - cutoffAngle) % 360 + 360) % 360 || 360);
+      // Recompute wrapAngle for angle sweeps
+      if (sweepVar === 'scrollEndAngle' || sweepVar === 'cutoffAngle') {
+        const ca = params.cutoffAngle != null ? params.cutoffAngle : cutoffAngle;
+        const ea = params.scrollEndAngle != null ? params.scrollEndAngle : scrollEndAngle;
+        params.wrapAngle = Math.max(30, ((ea - ca) % 360 + 360) % 360 || 360);
       }
       try {
         const aero = computeAero(params);
