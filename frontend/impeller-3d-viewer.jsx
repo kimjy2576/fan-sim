@@ -62,7 +62,7 @@ function VArrow({ x1,y1,x2,y2,color,label,dashed,sw=2 }) {
 function computeAero(p) {
   const { D1,D2,b1,b2,beta1,beta2,Z,RPM,tBlade=1,
     cutoffGap=8, Rtongue=5, wrapAngle=360, scrollExpRate=0.12, diffAngle=7, diffLength=40,
-    tongueOutLen=35, tongueOutAngle=5 } = p;
+    tongueOutLen=35, tongueOutAngle=5, scrollExpMode='uniform', scrollExpPts=null } = p;
   const T=298.15, rho=1.184, mu=1.85e-5;
   const omega=2*Math.PI*RPM/60, r1=D1/2000, r2=D2/2000, b1m=b1/1000, b2m=b2/1000;
   const b1R=beta1*Math.PI/180, b2R=beta2*Math.PI/180;
@@ -97,11 +97,26 @@ function computeAero(p) {
     const Pt_imp=Math.max(0,Pt_e-dPtotImp);
     const Pdyn_imp=0.5*rho*C2**2;
 
-    // Scroll losses (scrollExpRate affects exit area)
+    // Scroll losses
     const Pdyn_cap=Pdyn_imp*wrapFrac;
     const L_scroll=2*Math.PI*r2*wrapFrac;
     const bScrollM=b2m*1.1;
-    const rExit = r2 + r2 * scrollExpRate * wrapFrac * 2 * Math.PI; // scroll exit radius
+    // Scroll exit radius — depends on expansion mode
+    let rExit;
+    if (scrollExpMode === 'variable' && scrollExpPts && scrollExpPts.length >= 2) {
+      // Integrate variable k(θ) to get exit radius
+      const wrapRad = wrapAngle * Math.PI / 180;
+      let rAcc = r2 + cutoffGap/1000;
+      const nInteg = 20;
+      for (let j = 1; j <= nInteg; j++) {
+        const dTh = (j / nInteg) * wrapRad;
+        const kLocal = interpExpRate(dTh, scrollExpPts, wrapRad);
+        rAcc += kLocal * r2 * (wrapRad / nInteg);
+      }
+      rExit = rAcc;
+    } else {
+      rExit = r2 + r2 * scrollExpRate * wrapFrac * 2 * Math.PI;
+    }
     const A_sc_exit = bScrollM * (rExit - r2); // exit cross-section area
     const A_sc=Math.max(A_sc_exit, Qm3s>0?Qm3s/Math.max(1,C2*0.5):bScrollM*0.02);
     const D_h_sc=2*A_sc/(Math.sqrt(A_sc/bScrollM)+bScrollM);
@@ -1042,7 +1057,7 @@ export default function ImpellerViewer() {
   const mat = MATERIALS[matKey];
   const baseParams = { D1, D2, Du, Deye, b1, b2, beta1, beta2, Z, RPM, tBlade, bladeLean,
     cutoffGap, cutoffAngle, Rtongue, exitAngle, tongueOutLen, tongueOutAngle,
-    wrapAngle, scrollEndAngle, scrollExpRate, bScroll, diffAngle, diffLength };
+    wrapAngle, scrollEndAngle, scrollExpRate, scrollExpMode, scrollExpPts, bScroll, diffAngle, diffLength };
 
   // Auto-fit: calculate max scroll that fits within casing box
   const autoFitScroll = () => {
@@ -1298,7 +1313,7 @@ export default function ImpellerViewer() {
   const ratios = useMemo(() => ({ D1D2:(D1/D2).toFixed(3), DeyeD1:(Deye/D1).toFixed(3), DuD2:(Du/D2).toFixed(3), b2D2:(b2/D2).toFixed(3), b1b2:(b1/b2).toFixed(2) }), [D1,D2,Deye,Du,b1,b2]);
 
   // Base case performance + structure
-  const baseAero = useMemo(() => computeAero(baseParams), [D1,D2,Deye,b1,b2,beta1,beta2,Z,RPM,tBlade,cutoffGap,Rtongue,scrollEndAngle,cutoffAngle,scrollExpRate,diffAngle,diffLength,tongueOutLen,tongueOutAngle]);
+  const baseAero = useMemo(() => computeAero(baseParams), [D1,D2,Deye,b1,b2,beta1,beta2,Z,RPM,tBlade,cutoffGap,Rtongue,scrollEndAngle,cutoffAngle,scrollExpRate,scrollExpMode,scrollExpPts,diffAngle,diffLength,tongueOutLen,tongueOutAngle]);
   const baseStruc = useMemo(() => computeStructure(baseParams, baseAero, mat), [baseAero, matKey, tBlade, b1, b2, D1, D2, Z]);
 
   // Sweep results
