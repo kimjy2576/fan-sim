@@ -375,28 +375,77 @@ function buildBlade(pts, b1, b2, D1, D2, angle, leanDeg = 0) {
 }
 
 // ═══ SCROLL GEOMETRY ═══
-function scrollProfile(r2, wrapDeg, type, bScroll, startDeg = 0, cutoffGap = 8, Rtongue = 5, expRate = 0.12, nSeg = 72) {
-  // Spiral starts at scroll inner wall = r₂ + δ (independent of R_tongue)
+// Monotone cubic interpolation for k(θ)
+function interpExpRate(dTheta, expPts, wrapRad) {
+  if (!expPts || expPts.length < 2) return 0.12;
+  // Sort by angle, normalize to 0~wrapRad
+  const sorted = [...expPts].sort((a,b) => a.a - b.a);
+  const xs = sorted.map(p => p.a * Math.PI / 180); // control angles in rad
+  const ys = sorted.map(p => p.k); // k values
+  // Clamp
+  if (dTheta <= xs[0]) return ys[0];
+  if (dTheta >= xs[xs.length-1]) return ys[ys.length-1];
+  // Find segment
+  let seg = 0;
+  for (let i = 0; i < xs.length - 1; i++) { if (dTheta >= xs[i] && dTheta <= xs[i+1]) { seg = i; break; } }
+  // Linear interp (simple, stable)
+  const t = (dTheta - xs[seg]) / (xs[seg+1] - xs[seg] || 1);
+  // Smoothstep for C1 continuity
+  const s = t * t * (3 - 2 * t);
+  return ys[seg] + s * (ys[seg+1] - ys[seg]);
+}
+
+function scrollProfile(r2, wrapDeg, type, bScroll, startDeg = 0, cutoffGap = 8, Rtongue = 5, expRate = 0.12, nSeg = 72, expMode = 'uniform', expPts = null) {
   const rStart = r2 + cutoffGap;
   const wrapRad = wrapDeg * Math.PI / 180;
   const startRad = startDeg * Math.PI / 180;
   const pts = [];
 
   if (type === 'cv') {
-    const k = r2 * expRate;
-    for (let i = 0; i <= nSeg; i++) {
-      const dTheta = (i / nSeg) * wrapRad;
-      const theta = startRad + dTheta;
-      const r = rStart + k * dTheta;
-      pts.push({ theta, r });
+    if (expMode === 'variable' && expPts && expPts.length >= 2) {
+      // Variable expansion: integrate k(θ) along θ
+      let r = rStart;
+      for (let i = 0; i <= nSeg; i++) {
+        const dTheta = (i / nSeg) * wrapRad;
+        const theta = startRad + dTheta;
+        if (i > 0) {
+          const dTh = wrapRad / nSeg;
+          const kLocal = interpExpRate(dTheta, expPts, wrapRad) * r2;
+          r += kLocal * dTh;
+        }
+        pts.push({ theta, r });
+      }
+    } else {
+      // Uniform expansion
+      const k = r2 * expRate;
+      for (let i = 0; i <= nSeg; i++) {
+        const dTheta = (i / nSeg) * wrapRad;
+        const theta = startRad + dTheta;
+        const r = rStart + k * dTheta;
+        pts.push({ theta, r });
+      }
     }
   } else {
-    const alpha = expRate * 50 * Math.PI / 180;
-    for (let i = 0; i <= nSeg; i++) {
-      const dTheta = (i / nSeg) * wrapRad;
-      const theta = startRad + dTheta;
-      const r = rStart * Math.exp(dTheta * Math.tan(alpha));
-      pts.push({ theta, r });
+    if (expMode === 'variable' && expPts && expPts.length >= 2) {
+      let r = rStart;
+      for (let i = 0; i <= nSeg; i++) {
+        const dTheta = (i / nSeg) * wrapRad;
+        const theta = startRad + dTheta;
+        if (i > 0) {
+          const dTh = wrapRad / nSeg;
+          const alphaLocal = interpExpRate(dTheta, expPts, wrapRad) * 50 * Math.PI / 180;
+          r *= Math.exp(dTh * Math.tan(alphaLocal));
+        }
+        pts.push({ theta, r });
+      }
+    } else {
+      const alpha = expRate * 50 * Math.PI / 180;
+      for (let i = 0; i <= nSeg; i++) {
+        const dTheta = (i / nSeg) * wrapRad;
+        const theta = startRad + dTheta;
+        const r = rStart * Math.exp(dTheta * Math.tan(alpha));
+        pts.push({ theta, r });
+      }
     }
   }
   return pts;
@@ -465,9 +514,9 @@ function Tab({ active, onClick, children, color }) {
     borderBottom: active ? `2px solid ${color || C.blade}` : "2px solid transparent" }}>{children}</button>;
 }
 
-function FrontView({ Deye, D1, D2, Du, bladePts, Z, bladeType, bendPos, showScroll, scrollType, wrapAngle, cutoffGap, cutoffAngle, Rtongue, tongueOutLen, tongueOutAngle, diffAngle, diffLength, diffType, diffInnerWall, showCasing, casingW, casingH, casingCX, casingCY, scrollExpRate, exitAngle }) {
+function FrontView({ Deye, D1, D2, Du, bladePts, Z, bladeType, bendPos, showScroll, scrollType, wrapAngle, cutoffGap, cutoffAngle, Rtongue, tongueOutLen, tongueOutAngle, diffAngle, diffLength, diffType, diffInnerWall, showCasing, casingW, casingH, casingCX, casingCY, scrollExpRate, exitAngle, scrollExpMode, scrollExpPts }) {
   const w = 340, h = 280;
-  const sPts = showScroll ? scrollProfile(D2/2, wrapAngle, scrollType, 55, cutoffAngle, cutoffGap, Rtongue, scrollExpRate) : [];
+  const sPts = showScroll ? scrollProfile(D2/2, wrapAngle, scrollType, 55, cutoffAngle, cutoffGap, Rtongue, scrollExpRate, 72, scrollExpMode, scrollExpPts) : [];
   const scrollMaxR = showScroll && sPts.length > 0 ? Math.max(Du/2, ...sPts.map(p=>p.r)) + 10 : Math.max(D2, Du) / 2;
   const maxR = showCasing ? Math.max(scrollMaxR, casingW/2, casingH/2) : scrollMaxR;
   const sc = (Math.min(w, h) / 2 - 25) / maxR;
@@ -782,7 +831,9 @@ export default function ImpellerViewer() {
   const [scrollGapF, setScrollGapF] = useState(3); // front (shroud side) gap mm
   const [scrollGapB, setScrollGapB] = useState(3); // back (backplate side) gap mm
   const [bScroll, setBScroll] = useState(55); // scroll axial width (폭) mm
-  const [scrollExpRate, setScrollExpRate] = useState(0.12); // scroll expansion rate (k/r₂)
+  const [scrollExpRate, setScrollExpRate] = useState(0.12); // uniform mode expansion rate
+  const [scrollExpMode, setScrollExpMode] = useState('uniform'); // 'uniform' or 'variable'
+  const [scrollExpPts, setScrollExpPts] = useState([{a:0,k:0.08},{a:180,k:0.15},{a:360,k:0.12}]); // variable mode: [{a:angle°, k:rate}]
   const [scrollCross, setScrollCross] = useState('rect'); // 'rect' or 'circular'
   // Tongue
   const [cutoffGap, setCutoffGap] = useState(8); // mm, gap between D₂ and tongue tip
@@ -814,7 +865,7 @@ export default function ImpellerViewer() {
   const collectState = () => ({
     _v: '2.0', _t: new Date().toISOString(),
     Deye,D1,D2,Du,b1,b2,beta1,beta2,Z,tBlade,bladeType,Rfillet,bendPos,bladeLean,eyeRise,hubDepth,hubFillet,RPM,matKey,
-    scrollType,scrollEndAngle,scrollGapF,scrollGapB,bScroll,scrollExpRate,scrollCross,
+    scrollType,scrollEndAngle,scrollGapF,scrollGapB,bScroll,scrollExpRate,scrollExpMode,scrollExpPts,scrollCross,
     cutoffGap,cutoffAngle,Rtongue,exitAngle,tongueOutLen,tongueOutAngle,
     diffAngle,diffLength,diffType,diffInnerWall,
     showCasing,casingW,casingH,casingD,casingCX,casingCY,casingFace,
@@ -830,7 +881,8 @@ export default function ImpellerViewer() {
     s('RPM',setRPM);s('matKey',setMatKey);
     s('scrollType',setScrollType);s('scrollEndAngle',setScrollEndAngle);
     s('scrollGapF',setScrollGapF);s('scrollGapB',setScrollGapB);
-    s('bScroll',setBScroll);s('scrollExpRate',setScrollExpRate);s('scrollCross',setScrollCross);
+    s('bScroll',setBScroll);s('scrollExpRate',setScrollExpRate);s('scrollExpMode',setScrollExpMode);
+    if(d.scrollExpPts)setScrollExpPts(d.scrollExpPts);s('scrollCross',setScrollCross);
     s('cutoffGap',setCutoffGap);s('cutoffAngle',setCutoffAngle);
     s('Rtongue',setRtongue);s('exitAngle',setExitAngle);s('tongueOutLen',setTongueOutLen);s('tongueOutAngle',setTongueOutAngle);
     s('diffAngle',setDiffAngle);s('diffLength',setDiffLength);s('diffType',setDiffType);s('diffInnerWall',setDiffInnerWall);
@@ -1130,7 +1182,7 @@ export default function ImpellerViewer() {
 
     // Scroll casing
     if (showScroll) {
-      const sPts = scrollProfile(D2/2, wrapAngle, scrollType, bScroll, cutoffAngle, cutoffGap, Rtongue, scrollExpRate);
+      const sPts = scrollProfile(D2/2, wrapAngle, scrollType, bScroll, cutoffAngle, cutoffGap, Rtongue, scrollExpRate, 72, scrollExpMode, scrollExpPts);
       const sGeo = buildScrollMesh(sPts, bScroll, scrollGapF, scrollGapB, scrollCross);
       if (sGeo) {
         const sMat = new THREE.MeshPhongMaterial({ color: 0xd4a44a, transparent: true, opacity: 0.2, side: THREE.DoubleSide, shininess: 40 });
@@ -1240,7 +1292,7 @@ export default function ImpellerViewer() {
       grp.add(wire);
     }
   }, [Deye,D1,D2,Du,b1,b2,bladePts,Z,tBlade,bladeLean,eyeRise,hubDepth,hubFillet,showShroud,showBackplate,showScroll,explode,viewTab,
-      scrollType,wrapAngle,scrollGapF,scrollGapB,bScroll,scrollCross,scrollExpRate,cutoffGap,cutoffAngle,scrollEndAngle,Rtongue,tongueOutLen,tongueOutAngle,exitAngle,
+      scrollType,wrapAngle,scrollGapF,scrollGapB,bScroll,scrollCross,scrollExpRate,scrollExpMode,scrollExpPts,cutoffGap,cutoffAngle,scrollEndAngle,Rtongue,tongueOutLen,tongueOutAngle,exitAngle,
       diffAngle,diffLength,diffType,diffInnerWall,showCasing,casingW,casingH,casingD,casingCX,casingCY]);
 
   const ratios = useMemo(() => ({ D1D2:(D1/D2).toFixed(3), DeyeD1:(Deye/D1).toFixed(3), DuD2:(Du/D2).toFixed(3), b2D2:(b2/D2).toFixed(3), b1b2:(b1/b2).toFixed(2) }), [D1,D2,Deye,Du,b1,b2]);
@@ -1338,7 +1390,7 @@ export default function ImpellerViewer() {
                 <input type="range" min={0} max={30} step={1} value={explode} onChange={e=>setExplode(+e.target.value)} className="w-16 h-1" style={{accentColor:C.accent}} /></div>
             </div>
           </>}
-          {viewTab===1 && <div className="py-2"><FrontView {...{Deye,D1,D2,Du,b1,b2,bladePts,Z,bladeType,bendPos,showScroll,scrollType,wrapAngle,cutoffGap,cutoffAngle,Rtongue,tongueOutLen,tongueOutAngle,diffAngle,diffLength,diffType,diffInnerWall,showCasing,casingW,casingH,casingCX,casingCY,scrollExpRate,exitAngle}} /></div>}
+          {viewTab===1 && <div className="py-2"><FrontView {...{Deye,D1,D2,Du,b1,b2,bladePts,Z,bladeType,bendPos,showScroll,scrollType,wrapAngle,cutoffGap,cutoffAngle,Rtongue,tongueOutLen,tongueOutAngle,diffAngle,diffLength,diffType,diffInnerWall,showCasing,casingW,casingH,casingCX,casingCY,scrollExpRate,exitAngle,scrollExpMode,scrollExpPts}} /></div>}
           {viewTab===2 && <div className="py-2"><SectionView {...{Deye,D1,D2,Du,b1,b2,eyeRise,showScroll,scrollGapF,scrollGapB,bScroll,hubDepth,hubFillet}} /></div>}
           {viewTab===3 && <div className="py-2"><BottomView {...{D2,Du,Deye}} /></div>}
           <div style={{display:viewTab===4?'block':'none'}}>
@@ -1820,12 +1872,67 @@ export default function ImpellerViewer() {
               <div>
                 <S label="θ_end" value={scrollEndAngle} min={0} max={720} step={5} onChange={setScrollEndAngle} unit="°" color="#d4a44a" />
                 <S label="폭" value={bScroll} min={30} max={120} step={1} onChange={setBScroll} unit="mm" color="#d4a44a" />
-                <S label="팽창률" value={scrollExpRate} min={0.02} max={0.3} step={0.01} onChange={setScrollExpRate} unit="" color="#d4a44a" />
               </div>
               <div>
                 <S label="δ_f" value={scrollGapF} min={1} max={15} step={0.5} onChange={setScrollGapF} unit="mm" color="#d4a44a" />
                 <S label="δ_b" value={scrollGapB} min={1} max={15} step={0.5} onChange={setScrollGapB} unit="mm" color="#d4a44a" />
               </div>
+            </div>
+            {/* Expansion rate mode */}
+            <div className="mt-1 p-1 rounded" style={{ background: C.bg }}>
+              <div className="flex items-center gap-2 mb-1">
+                <span style={{ color: "#d4a44a", fontFamily: "monospace", fontSize: 7 }}>팽창률</span>
+                <div className="flex gap-0.5 ml-auto">
+                  {[{k:'uniform',l:'균일'},{k:'variable',l:'가변'}].map(m =>
+                    <button key={m.k} onClick={() => setScrollExpMode(m.k)} className="px-1.5 py-0.5 rounded"
+                      style={{ fontFamily:"monospace", fontSize:6,
+                        background:scrollExpMode===m.k?C.card:"transparent", color:scrollExpMode===m.k?"#d4a44a":C.dim,
+                        border:`1px solid ${scrollExpMode===m.k?"#d4a44a":C.border}` }}>{m.l}</button>)}
+                </div>
+              </div>
+              {scrollExpMode==='uniform' && <S label="k" value={scrollExpRate} min={0.02} max={0.3} step={0.01} onChange={setScrollExpRate} unit="" color="#d4a44a" />}
+              {scrollExpMode==='variable' && <>
+                <div style={{ color:C.dim, fontFamily:"monospace", fontSize:7, marginBottom:2 }}>각도별 팽창률 제어점 (spline 보간)</div>
+                {scrollExpPts.map((pt, i) => <div key={i} className="flex items-center gap-1 mb-0.5" style={{ fontFamily:"monospace", fontSize:8 }}>
+                  <span style={{ color:C.dim, width:12 }}>{i+1}</span>
+                  <input type="number" value={pt.a} onChange={e => { const nxt=[...scrollExpPts]; nxt[i]={...nxt[i],a:+e.target.value}; setScrollExpPts(nxt); }}
+                    className="w-12 px-0.5 rounded text-right" style={{ background:C.card,color:C.text,fontSize:8,border:`1px solid ${C.border}`,fontFamily:"monospace" }} />
+                  <span style={{color:C.dim,fontSize:6}}>°</span>
+                  <input type="number" value={pt.k} step={0.01} onChange={e => { const nxt=[...scrollExpPts]; nxt[i]={...nxt[i],k:+e.target.value}; setScrollExpPts(nxt); }}
+                    className="w-12 px-0.5 rounded text-right" style={{ background:C.card,color:C.amber,fontSize:8,border:`1px solid ${C.border}33`,fontFamily:"monospace" }} />
+                  <span style={{color:C.dim,fontSize:6}}>k</span>
+                  {scrollExpPts.length > 2 && <button onClick={() => { const nxt=[...scrollExpPts]; nxt.splice(i,1); setScrollExpPts(nxt); }}
+                    style={{color:C.red,fontSize:8,fontFamily:"monospace"}}>✕</button>}
+                </div>)}
+                <button onClick={() => {
+                  const last = scrollExpPts[scrollExpPts.length-1];
+                  setScrollExpPts([...scrollExpPts, {a: Math.min(720, last.a + 90), k: last.k}]);
+                }} className="mt-1 px-2 py-0.5 rounded w-full"
+                  style={{fontFamily:"monospace",fontSize:7,color:"#d4a44a",background:C.card,border:`1px solid #d4a44a44`}}>+ 제어점 추가</button>
+                {/* Mini preview of k(θ) */}
+                {(() => {
+                  const W=160,H=50,pad={l:20,r:4,t:4,b:12};
+                  const sorted=[...scrollExpPts].sort((a,b)=>a.a-b.a);
+                  const aMin=sorted[0]?.a||0,aMax=sorted[sorted.length-1]?.a||360;
+                  const kMin=Math.min(...sorted.map(p=>p.k)),kMax=Math.max(...sorted.map(p=>p.k));
+                  const pw=W-pad.l-pad.r,ph=H-pad.t-pad.b;
+                  const sx=a=>pad.l+(a-aMin)/((aMax-aMin)||1)*pw;
+                  const sy=k=>pad.t+ph-(k-kMin)/((kMax-kMin)||0.01)*ph;
+                  const nPts=40;
+                  const curvePts=Array.from({length:nPts+1},(_,i)=>{
+                    const dTh=(aMin + i/nPts*(aMax-aMin))*Math.PI/180;
+                    const kVal=interpExpRate(dTh,scrollExpPts,(aMax-aMin)*Math.PI/180);
+                    return {x:sx(aMin+i/nPts*(aMax-aMin)),y:sy(kVal)};
+                  });
+                  return <svg width={W} height={H} style={{display:"block",margin:"4px auto 0",background:C.card,borderRadius:3}}>
+                    <path d={curvePts.map((p,i)=>`${i===0?'M':'L'}${p.x} ${p.y}`).join(' ')} fill="none" stroke="#d4a44a" strokeWidth={1.5}/>
+                    {sorted.map((p,i)=><circle key={i} cx={sx(p.a)} cy={sy(p.k)} r={3} fill="#d4a44a" stroke={C.bg} strokeWidth={1}/>)}
+                    <text x={pad.l} y={H-1} fill={C.dim} fontSize={5} fontFamily="monospace">{aMin}°</text>
+                    <text x={pad.l+pw} y={H-1} fill={C.dim} fontSize={5} fontFamily="monospace" textAnchor="end">{aMax}°</text>
+                    <text x={pad.l-2} y={pad.t+5} fill={C.dim} fontSize={5} fontFamily="monospace" textAnchor="end">{kMax.toFixed(2)}</text>
+                  </svg>;
+                })()}
+              </>}
             </div>
             {/* Tongue */}
             <div className="mt-1 pt-1" style={{ borderTop: `1px solid ${C.border}33` }}>
