@@ -41,7 +41,119 @@ async def root():
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "version": "4.1"}
+    return {"status": "ok", "version": "5.0", "hpwd": True}
+
+
+# ═══ HPWD Standard API ═══
+
+@app.post("/api/fan/compute")
+async def fan_compute(request: Request):
+    """
+    HPWD Standard Fan Compute Endpoint.
+    
+    Input:
+    {
+        "mode": "on_design" | "semi_empirical" | "off_design",
+        "inlet": { "T": 25, "omega": 0.010, "P": 101325, "RH": null },
+        "geometry": { "D1": 120, "D2": 175, ... },
+        "fit_coeffs": { ... },       // semi_empirical only
+        "pq_map": { "data": [...] }, // off_design only
+        "system_curve": { "coeffs": [a, b, c] }  // optional: ΔP = aQ² + bQ + c
+    }
+    
+    Output:
+    {
+        "inlet_state": { T, omega, P, rho, mu, cp, RH },
+        "outlet_state": { T, omega, P, m_dot, Q_m3s, dT_fan, Ps, W_shaft, eta },
+        "performance": { bep: {...}, pts: [...], BPF, SPL, Ns },
+        "operating_point": { Q, Ps, eta, W } // if system_curve provided
+    }
+    """
+    from backend.air_properties import compute_inlet_state
+    from backend.fan_model import compute_aero, compute_outlet_state
+    
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"error": "Invalid JSON"}, status_code=400)
+    
+    mode = body.get("mode", "on_design")
+    inlet_raw = body.get("inlet", {})
+    geometry = body.get("geometry", {})
+    fit_coeffs = body.get("fit_coeffs", None)
+    pq_map = body.get("pq_map", None)
+    sys_curve = body.get("system_curve", None)
+    
+    # 1. Compute inlet air state
+    inlet = compute_inlet_state(
+        T=inlet_raw.get("T", 25.0),
+        omega=inlet_raw.get("omega", 0.010),
+        P=inlet_raw.get("P", 101325.0),
+        RH=inlet_raw.get("RH", None),
+    )
+    
+    # 2. Compute fan performance
+    air = {"rho": inlet["rho"], "mu": inlet["mu"]}
+    try:
+        result = compute_aero(geometry, air=air, mode=mode,
+                              fit_coeffs=fit_coeffs, pq_map=pq_map)
+    except Exception as e:
+        return JSONResponse({"error": f"Computation failed: {str(e)}"}, status_code=500)
+    
+    # 3. Compute outlet state
+    outlet = compute_outlet_state(inlet, result)
+    
+    # 4. Operating point (if system curve given)
+    op_point = None
+    if sys_curve and result.get("pts"):
+        op_point = _find_operating_point(result["pts"], sys_curve)
+    
+    # 5. Trim pts for JSON (keep every 5th point)
+    pts_trimmed = result["pts"][::5] if len(result.get("pts", [])) > 40 else result.get("pts", [])
+    
+    return {
+        "inlet_state": inlet,
+        "outlet_state": outlet,
+        "performance": {
+            "bep": result.get("bep", {}),
+            "pts": pts_trimmed,
+            "BPF": result.get("BPF"),
+            "SPL": result.get("SPL"),
+            "Ns": result.get("Ns"),
+        },
+        "operating_point": op_point,
+        "mode": mode,
+    }
+
+
+def _find_operating_point(pts, sys_curve):
+    """Find PQ curve × system resistance curve intersection."""
+    coeffs = sys_curve.get("coeffs", [0.1, 0, 0])  # ΔP = aQ² + bQ + c
+    a = coeffs[0] if len(coeffs) > 0 else 0.1
+    b = coeffs[1] if len(coeffs) > 1 else 0
+    c = coeffs[2] if len(coeffs) > 2 else 0
+    
+    # Find where Ps_fan(Q) = ΔP_sys(Q)
+    best_diff = float('inf')
+    best_pt = None
+    for pt in pts:
+        Q = pt.get("Q", 0)  # m³/min
+        dP_sys = a * Q ** 2 + b * Q + c
+        diff = abs(pt.get("Ps", 0) - dP_sys)
+        if diff < best_diff:
+            best_diff = diff
+            best_pt = pt
+    
+    if best_pt:
+        Q_op = best_pt["Q"]
+        return {
+            "Q": Q_op,
+            "Ps": best_pt.get("Ps", 0),
+            "eta": best_pt.get("eta", 0),
+            "W_shaft": best_pt.get("Pshaft", 0),
+            "dP_sys": a * Q_op ** 2 + b * Q_op + c,
+        }
+    return None
 
 
 @app.post("/api/generate-step")
