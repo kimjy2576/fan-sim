@@ -884,7 +884,7 @@ export default function ImpellerViewer() {
     cutoffGap,cutoffAngle,Rtongue,exitAngle,tongueOutLen,tongueOutAngle,
     diffAngle,diffLength,diffType,diffInnerWall,
     showCasing,casingW,casingH,casingD,casingCX,casingCY,casingFace,
-    fanMode,expData,
+    fanMode,expData,fitCoeffs,
   });
   const restore = (d) => {
     if (!d || typeof d !== 'object') return false;
@@ -904,7 +904,7 @@ export default function ImpellerViewer() {
     s('diffAngle',setDiffAngle);s('diffLength',setDiffLength);s('diffType',setDiffType);s('diffInnerWall',setDiffInnerWall);
     s('showCasing',setShowCasing);s('casingW',setCasingW);s('casingH',setCasingH);s('casingD',setCasingD);
     s('casingCX',setCasingCX);s('casingCY',setCasingCY);s('casingFace',setCasingFace);
-    s('fanMode',setFanMode);if(d.expData)setExpData(d.expData);
+    s('fanMode',setFanMode);if(d.expData)setExpData(d.expData);if(d.fitCoeffs)setFitCoeffs(d.fitCoeffs);
     return true;
   };
   const exportJSON = () => {
@@ -971,7 +971,159 @@ export default function ImpellerViewer() {
   const [optRunning, setOptRunning] = useState(false);
   // Experimental PQ data (Off-design)
   const [expData, setExpData] = useState([]); // [{Q, Ps, Pt, eta, RPM, W}, ...]
-  const [fanMode, setFanMode] = useState('on_design'); // 'on_design' | 'off_design'
+  const [fanMode, setFanMode] = useState('on_design'); // 'on_design' | 'semi_empirical' | 'off_design'
+  const [fitCoeffs, setFitCoeffs] = useState(null); // {k_inc, k_fric, DR_crit, k_rec, k_disk, k_jw, k_sc_mix, k_tongue_a, k_tongue_b}
+  const [fitRunning, setFitRunning] = useState(false);
+  const [fitResult, setFitResult] = useState(null); // {coeffs, rmse_before, rmse_after, iterations}
+
+  // Nelder-Mead simplex optimizer (JS)
+  const nelderMead = (fn, x0, maxIter=300, tol=1e-6) => {
+    const n = x0.length;
+    const alpha=1, gamma=2, rho_nm=0.5, sigma_nm=0.5;
+    let simplex = [x0.map(v=>v)];
+    for (let i = 0; i < n; i++) {
+      const p = [...x0]; p[i] *= 1.05; if (Math.abs(p[i]) < 0.001) p[i] = 0.01;
+      simplex.push(p);
+    }
+    let vals = simplex.map(p => fn(p));
+    for (let iter = 0; iter < maxIter; iter++) {
+      const order = vals.map((_,i)=>i).sort((a,b)=>vals[a]-vals[b]);
+      simplex = order.map(i=>simplex[i]); vals = order.map(i=>vals[i]);
+      const centroid = Array(n).fill(0);
+      for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) centroid[j] += simplex[i][j] / n;
+      // Reflect
+      const xr = centroid.map((c,j) => c + alpha*(c - simplex[n][j]));
+      const fr = fn(xr);
+      if (fr < vals[0]) {
+        const xe = centroid.map((c,j) => c + gamma*(xr[j] - c));
+        const fe = fn(xe);
+        simplex[n] = fe < fr ? xe : xr; vals[n] = Math.min(fe, fr);
+      } else if (fr < vals[n-1]) {
+        simplex[n] = xr; vals[n] = fr;
+      } else {
+        const xc = centroid.map((c,j) => c + rho_nm*(simplex[n][j] - c));
+        const fc = fn(xc);
+        if (fc < vals[n]) { simplex[n] = xc; vals[n] = fc; }
+        else { for (let i = 1; i <= n; i++) { simplex[i] = simplex[i].map((v,j) => simplex[0][j] + sigma_nm*(v - simplex[0][j])); vals[i] = fn(simplex[i]); } }
+      }
+      if (Math.abs(vals[n] - vals[0]) < tol) break;
+    }
+    const best = vals.indexOf(Math.min(...vals));
+    return { x: simplex[best], fval: vals[best] };
+  };
+
+  const runFitting = () => {
+    if (expData.length < 3) { alert('최소 3개 이상의 실험 데이터가 필요합니다'); return; }
+    setFitRunning(true);
+    setTimeout(() => {
+      // Objective: minimize RMSE(Ps) + weight*RMSE(η)
+      const coeffNames = ['k_inc','k_fric','DR_crit','k_rec','k_disk','k_jw','k_sc_mix','k_tongue_a','k_tongue_b'];
+      const x0 = [1.0, 1.0, 0.5, 0.0085, 1.0, 1.0, 0.20, 0.82, 0.7];
+      const bounds_lo = [0.2, 0.2, 0.2, 0.001, 0.2, 0.2, 0.05, 0.1, 0.3];
+      const bounds_hi = [3.0, 3.0, 0.8, 0.05, 3.0, 3.0, 0.50, 2.0, 1.2];
+
+      // RMSE before fitting (default coeffs)
+      const baseGeom = { D1,D2,Deye:Deye,b1,b2,beta1,beta2,Z,RPM,tBlade,cutoffGap,Rtongue,wrapAngle,scrollExpRate,diffAngle,diffLength,tongueOutLen,tongueOutAngle };
+      const evalRMSE = (coeffArr) => {
+        const fc = {};
+        coeffNames.forEach((k,i) => { fc[k] = Math.max(bounds_lo[i], Math.min(bounds_hi[i], coeffArr[i])); });
+        try {
+          const r = computeAeroFit(baseGeom, fc);
+          if (!r || !r.pts || r.pts.length < 10) return 1e6;
+          let sse_ps = 0, sse_eta = 0, nPs = 0, nEta = 0;
+          expData.forEach(d => {
+            let best = r.pts[0], bestD = 999;
+            for (const p of r.pts) { const dd = Math.abs(p.Q - d.Q); if (dd < bestD) { bestD = dd; best = p; } }
+            if (d.Ps > 0) { sse_ps += (best.Ps - d.Ps)**2; nPs++; }
+            if (d.eta > 0) { sse_eta += (best.eta - d.eta)**2; nEta++; }
+          });
+          const rmse_ps = nPs > 0 ? Math.sqrt(sse_ps / nPs) : 0;
+          const rmse_eta = nEta > 0 ? Math.sqrt(sse_eta / nEta) * 500 : 0; // weight η higher
+          return rmse_ps + rmse_eta;
+        } catch { return 1e6; }
+      };
+
+      const rmse_before = evalRMSE(x0);
+      const result = nelderMead(evalRMSE, x0, 500);
+      const rmse_after = result.fval;
+
+      const fitted = {};
+      coeffNames.forEach((k,i) => { fitted[k] = Math.max(bounds_lo[i], Math.min(bounds_hi[i], result.x[i])); });
+      // Round to 4 decimal places
+      Object.keys(fitted).forEach(k => { fitted[k] = Math.round(fitted[k] * 10000) / 10000; });
+
+      setFitCoeffs(fitted);
+      setFitResult({ coeffs: fitted, rmse_before, rmse_after });
+      setFitRunning(false);
+    }, 50);
+  };
+
+  // computeAero with fit coefficients (lightweight — reuses frontend logic)
+  const computeAeroFit = (geom, fc) => {
+    // Clone baseParams with fit coefficients applied via loss multipliers
+    const p = { ...geom };
+    const rho=1.184, mu=1.85e-5;
+    const omega=2*Math.PI*p.RPM/60, r1=p.D1/2000, r2=p.D2/2000, b1m=p.b1/1000, b2m=p.b2/1000;
+    const b1R=p.beta1*Math.PI/180, b2R=p.beta2*Math.PI/180;
+    const U1=omega*r1, U2=omega*r2;
+    const sigma=1-(Math.PI*Math.sin(b2R))/p.Z;
+    const QmaxM3s=Math.PI*(p.D2/1000)*b2m*U2*1.2;
+    const pitch2=Math.PI*(p.D2/1000)/p.Z, Dh=2*pitch2*b2m/(pitch2+b2m);
+    const tBladeM=(p.tBlade||1)/1000;
+    const k_inc_base=1-(tBladeM/(Math.PI*(p.D1/1000)/p.Z))**2;
+    const gapM=(p.cutoffGap||8)/1000;
+    const wrapFrac=Math.min(1,(p.wrapAngle||360)/360);
+    const bScrollM=b2m*1.1;
+    const N=100, pts=[];
+    let bestEta=0, bestIdx=0;
+    for(let i=0;i<=N;i++){
+      const Qm3s=(i/N)*QmaxM3s;
+      const Cr2=Qm3s/(Math.PI*(p.D2/1000)*b2m);
+      const Ct2=sigma*U2-Cr2/Math.tan(b2R);
+      const C2=Math.sqrt(Cr2**2+Ct2**2);
+      const Cr1=Qm3s/(Math.PI*(p.D1/1000)*b1m);
+      const W1=Math.sqrt(Cr1**2+U1**2), W2=Math.sqrt(Cr2**2+(Ct2-U2)**2);
+      const Pt_e=rho*U2*Ct2;
+      const incA=Math.atan2(Cr1,U1)-b1R;
+      const dPinc=fc.k_inc*k_inc_base*0.5*rho*(W1*Math.sin(incA))**2;
+      const Wa=(W1+W2)/2,Re=rho*Wa*Dh/mu;
+      const f=Re>2300?1/(-1.8*Math.log10(6.9/Re+(5e-5/Dh/3.7)**1.11))**2:(Re>0?64/Re:0.02);
+      const dPfric=fc.k_fric*f*(10/Dh)*0.5*rho*Wa**2; // Lb ≈ 10mm approx
+      const DR=W1>0?1-W2/W1+Math.abs(Ct2)/(2*p.Z*W1/Math.PI):0;
+      const dPrec=DR>fc.DR_crit?fc.k_rec*(DR-fc.DR_crit)**2*rho*U2**2:0;
+      const ReDisk=rho*omega*r2**2/mu, Cm=ReDisk>0?0.0622/Math.pow(ReDisk,0.2):0.005;
+      const Pdf=fc.k_disk*2*0.5*Cm*rho*omega**3*r2**5;
+      const dPdisk=Qm3s>1e-6?Pdf/Qm3s:Pdf/1e-6;
+      const eps_jw=0.12+0.5*tBladeM/pitch2;
+      const dPjw=fc.k_jw*0.5*rho*C2**2*eps_jw**2;
+      const Pt_imp=Math.max(0,Pt_e-dPinc-dPfric-dPrec-Math.min(dPdisk,Pt_e*0.5)-dPjw);
+      const Pdyn_cap=0.5*rho*C2**2*wrapFrac;
+      const L_sc=2*Math.PI*r2*wrapFrac;
+      const rExit=r2+r2*(p.scrollExpRate||0.12)*wrapFrac*2*Math.PI;
+      const A_sc=Math.max(bScrollM*(rExit-r2),Qm3s>0?Qm3s/Math.max(1,C2*0.5):bScrollM*0.02);
+      const D_h_sc=2*A_sc/(Math.sqrt(A_sc/bScrollM)+bScrollM);
+      const C_sc=Qm3s>0?Qm3s/Math.max(1e-4,A_sc)*0.7:C2*0.5;
+      const Re_sc=rho*Math.abs(C_sc)*Math.max(0.005,D_h_sc)/mu;
+      const f_sc=Re_sc>2300?0.316/Math.pow(Re_sc,0.25):(Re_sc>0?64/Re_sc:0.02);
+      const dP_scroll=f_sc*(L_sc/Math.max(0.005,D_h_sc))*0.5*rho*C_sc**2+fc.k_sc_mix*Pdyn_cap;
+      const gapRatio=gapM/(2*r2);
+      const eps_leak=Math.min(0.25,fc.k_tongue_a*Math.pow(gapRatio,fc.k_tongue_b)/(1+(p.Rtongue||5)/(p.cutoffGap||8)));
+      const Q_delivered=Qm3s*(1-eps_leak);
+      const dP_tongue=eps_leak*Pt_imp*0.3;
+      const dP_uncap=0.5*rho*(C2*Math.sqrt(1-wrapFrac))**2*(1-wrapFrac);
+      const Pt_fan=Math.max(0,Pt_imp-dPjw-dP_scroll-dP_tongue-dP_uncap);
+      const diffAR=(p.diffLength||0)>0?1+2*((p.diffLength||40)/1000)*Math.tan(Math.abs(p.diffAngle||7)*Math.PI/180)/Math.max(0.01,Math.sqrt(A_sc)):1;
+      const A_exit=Math.max(0.001,A_sc*Math.max(1,diffAR));
+      const V_exit=Q_delivered>0?Q_delivered/A_exit:0;
+      const Pdyn_exit=0.5*rho*V_exit**2;
+      const Ps=Pt_fan-Pdyn_exit;
+      const Pshaft=Qm3s>1e-6?Pt_e*Qm3s+Pdf:Pdf;
+      const eta=Pshaft>0?Math.max(0,Ps*Q_delivered)/Pshaft:0;
+      pts.push({Q:Q_delivered*60,Qm3s:Q_delivered,Pt:Pt_fan,Ps,Pdyn:Pdyn_exit,eta});
+      if(i>=N/10&&eta>bestEta){bestEta=eta;bestIdx=i;}
+    }
+    return {bep:pts[bestIdx]||pts[0],pts};
+  };
   const expFileRef = useRef(null);
   const parseExpCSV = (text) => {
     const lines = text.trim().split('\n').filter(l => l.trim() && !l.startsWith('#'));
@@ -1682,14 +1834,58 @@ export default function ImpellerViewer() {
             <div className="flex items-center gap-2 mb-2">
               <span style={{ color:C.cyan, fontFamily:"monospace", fontSize:10, fontWeight:700 }}>PQ ANALYSIS</span>
               <div className="flex gap-0.5 ml-auto">
-                {[{k:'on_design',l:'On-design'},{k:'off_design',l:'Off-design'}].map(m =>
+                {[{k:'on_design',l:'On-design'},{k:'semi_empirical',l:'Semi-emp'},{k:'off_design',l:'Off-design'}].map(m =>
                   <button key={m.k} onClick={() => setFanMode(m.k)} className="px-2 py-0.5 rounded"
                     style={{ fontFamily:"monospace", fontSize:7, background:fanMode===m.k?C.card:"transparent",
                       color:fanMode===m.k?C.cyan:C.dim, border:`1px solid ${fanMode===m.k?C.cyan:C.border}` }}>{m.l}</button>)}
               </div>
             </div>
+            {/* Semi-empirical fitting panel */}
+            {fanMode==='semi_empirical' && <div className="mb-2 p-1.5 rounded" style={{ background:C.bg, border:`1px solid ${C.green}33` }}>
+              <div className="flex items-center gap-2 mb-2">
+                <span style={{ color:C.green, fontFamily:"monospace", fontSize:8 }}>피팅 자동 최적화</span>
+                <button onClick={runFitting} disabled={fitRunning || expData.length < 3} className="ml-auto px-3 py-0.5 rounded"
+                  style={{ fontFamily:"monospace", fontSize:8, background:fitRunning?C.dim:C.green, color:C.bg, opacity:expData.length<3?0.4:1 }}>
+                  {fitRunning?"최적화 중...":"▶ 피팅 실행"}</button>
+              </div>
+              {expData.length < 3 && <div style={{fontFamily:"monospace",fontSize:7,color:C.red}}>⚠ 실험 데이터 3개 이상 필요 (Off-design에서 업로드)</div>}
+              {expData.length >= 3 && !fitCoeffs && <div style={{fontFamily:"monospace",fontSize:7,color:C.dim}}>실험 데이터 {expData.length}점 로드됨. 피팅을 실행하세요.</div>}
+              {fitCoeffs && <>
+                <div style={{fontFamily:"monospace",fontSize:7,color:C.dim,marginBottom:2}}>피팅된 손실 계수 (9개)</div>
+                <div className="grid grid-cols-3 gap-1" style={{fontFamily:"monospace",fontSize:7}}>
+                  {[
+                    {k:'k_inc',l:'Incidence',def:1.0},
+                    {k:'k_fric',l:'Friction',def:1.0},
+                    {k:'DR_crit',l:'DR_crit',def:0.5},
+                    {k:'k_rec',l:'Recirc',def:0.0085},
+                    {k:'k_disk',l:'Disk',def:1.0},
+                    {k:'k_jw',l:'Jet-wake',def:1.0},
+                    {k:'k_sc_mix',l:'Sc.mix',def:0.20},
+                    {k:'k_tongue_a',l:'Tng.a',def:0.82},
+                    {k:'k_tongue_b',l:'Tng.b',def:0.70},
+                  ].map(c => {
+                    const v = fitCoeffs[c.k];
+                    const changed = Math.abs(v - c.def) / Math.max(0.001, c.def) > 0.05;
+                    return <div key={c.k}>
+                      <span style={{color:C.dim}}>{c.l}: </span>
+                      <span style={{color:changed?C.amber:C.text}}>{typeof v==='number'?v.toFixed(4):v}</span>
+                      {changed && <span style={{color:C.dim,fontSize:5}}> ({c.def})</span>}
+                    </div>;
+                  })}
+                </div>
+                {fitResult && <div className="mt-2 flex gap-3" style={{fontFamily:"monospace",fontSize:7}}>
+                  <div><span style={{color:C.dim}}>RMSE 전: </span><span style={{color:C.red}}>{fitResult.rmse_before.toFixed(1)}</span></div>
+                  <div><span style={{color:C.dim}}>→ 후: </span><span style={{color:C.green}}>{fitResult.rmse_after.toFixed(1)}</span></div>
+                  <div><span style={{color:C.dim}}>개선: </span><span style={{color:C.green}}>{((1-fitResult.rmse_after/Math.max(0.1,fitResult.rmse_before))*100).toFixed(0)}%</span></div>
+                </div>}
+                <div className="flex gap-1 mt-2">
+                  <button onClick={() => { setFitCoeffs(null); setFitResult(null); }} className="flex-1 py-0.5 rounded"
+                    style={{fontFamily:"monospace",fontSize:7,color:C.red,background:C.card,border:`1px solid ${C.red}33`}}>초기화</button>
+                </div>
+              </>}
+            </div>}
             {/* Experimental data upload */}
-            {fanMode==='off_design' && <div className="mb-2 p-1.5 rounded" style={{ background:C.bg, border:`1px solid ${C.orange}33` }}>
+            {(fanMode==='off_design' || fanMode==='semi_empirical') && <div className="mb-2 p-1.5 rounded" style={{ background:C.bg, border:`1px solid ${C.orange}33` }}>
               <div style={{ color:C.orange, fontFamily:"monospace", fontSize:8, marginBottom:3 }}>실험 PQ 데이터</div>
               <div className="flex gap-1 mb-1">
                 <button onClick={() => expFileRef.current?.click()} className="flex-1 py-1 rounded"
@@ -1731,6 +1927,13 @@ export default function ImpellerViewer() {
               const syP = p => pad.t + ph - (p/Math.max(1,maxP))*ph;
               const syE = e => pad.t + ph - (e/Math.max(0.01,maxEta))*ph;
               const mkPath = (arr, fn) => arr.map((p,i) => `${i===0?'M':'L'}${sx(p.Q)} ${fn(p)}`).join(' ');
+              // Fitted curve (semi-empirical)
+              const fitPts = (fitCoeffs && fanMode==='semi_empirical') ? (() => {
+                try {
+                  const geom = {D1,D2,Deye,b1,b2,beta1,beta2,Z,RPM,tBlade,cutoffGap,Rtongue,wrapAngle,scrollExpRate,diffAngle,diffLength,tongueOutLen,tongueOutAngle};
+                  return computeAeroFit(geom, fitCoeffs).pts.filter(p=>p.Q>0);
+                } catch { return []; }
+              })() : [];
 
               // Loss at BEP
               const bepPt = bepIdx >= 0 ? pts[bepIdx] : pts[0];
@@ -1756,6 +1959,8 @@ export default function ImpellerViewer() {
                   <path d={mkPath(pts, p=>syP(p.Pdyn))} fill="none" stroke={C.amber} strokeWidth={1} opacity={0.4}/>
                   <path d={mkPath(pts, p=>syP(p.Pt))} fill="none" stroke={C.blade} strokeWidth={1.5} opacity={0.7}/>
                   <path d={mkPath(pts, p=>syP(p.Ps))} fill="none" stroke={C.cyan} strokeWidth={2}/>
+                  {/* Fitted curve overlay */}
+                  {fitPts.length > 2 && <path d={mkPath(fitPts, p=>syP(p.Ps))} fill="none" stroke={C.green} strokeWidth={1.5} strokeDasharray="4,2"/>}
                   <circle cx={sx(bep.Q)} cy={syP(bep.Ps)} r={4} fill="none" stroke={C.green} strokeWidth={2}/>
                   <line x1={sx(bep.Q)} y1={pad.t} x2={sx(bep.Q)} y2={pad.t+ph} stroke={C.green} strokeWidth={0.5} strokeDasharray="3,3" opacity={0.3}/>
                   <text x={sx(bep.Q)+5} y={syP(bep.Ps)-5} fill={C.green} fontSize={7} fontFamily="monospace" fontWeight="bold">BEP</text>
@@ -1778,6 +1983,10 @@ export default function ImpellerViewer() {
                       fill="none" stroke={C.orange} strokeWidth={1} strokeDasharray="2,1" opacity={0.5}/>)}
                     <circle cx={pad.l+105} cy={pad.t+4} r={3} fill="none" stroke={C.orange} strokeWidth={1.5}/>
                     <text x={pad.l+110} y={pad.t+7} fill={C.orange} fontSize={6} fontFamily="monospace">Exp</text>
+                    {fitPts.length > 0 && <>
+                      <line x1={pad.l+128} y1={pad.t+4} x2={pad.l+139} y2={pad.t+4} stroke={C.green} strokeWidth={1.5} strokeDasharray="4,2"/>
+                      <text x={pad.l+141} y={pad.t+7} fill={C.green} fontSize={6} fontFamily="monospace">Fit</text>
+                    </>}
                   </>}
                 </svg>
 
@@ -1797,6 +2006,8 @@ export default function ImpellerViewer() {
                   {/* Experimental η overlay */}
                   {expData.filter(d=>d.eta>0).map((d,i) => <circle key={'ee'+i} cx={sx(d.Q)} cy={10+100*(1-d.eta/Math.max(0.01,maxEta))} r={3.5}
                     fill="none" stroke={C.orange} strokeWidth={1.5} opacity={0.8}/>)}
+                  {/* Fitted η curve */}
+                  {fitPts.length > 2 && <path d={fitPts.map((p,i) => `${i===0?'M':'L'}${sx(p.Q)} ${10+100*(1-p.eta/Math.max(0.01,maxEta))}`).join(' ')} fill="none" stroke={C.green} strokeWidth={1.5} strokeDasharray="4,2"/>}
                 </svg>
 
                 {/* BEP cards */}
