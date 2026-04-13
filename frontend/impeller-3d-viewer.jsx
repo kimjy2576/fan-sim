@@ -884,7 +884,7 @@ export default function ImpellerViewer() {
     cutoffGap,cutoffAngle,Rtongue,exitAngle,tongueOutLen,tongueOutAngle,
     diffAngle,diffLength,diffType,diffInnerWall,
     showCasing,casingW,casingH,casingD,casingCX,casingCY,casingFace,
-    fanMode,expData,fitCoeffs,
+    fanMode,expData,fitCoeffs,showSysCurve,sysA,sysB,sysC,sysCurveData,
   });
   const restore = (d) => {
     if (!d || typeof d !== 'object') return false;
@@ -905,6 +905,7 @@ export default function ImpellerViewer() {
     s('showCasing',setShowCasing);s('casingW',setCasingW);s('casingH',setCasingH);s('casingD',setCasingD);
     s('casingCX',setCasingCX);s('casingCY',setCasingCY);s('casingFace',setCasingFace);
     s('fanMode',setFanMode);if(d.expData)setExpData(d.expData);if(d.fitCoeffs)setFitCoeffs(d.fitCoeffs);
+    s('showSysCurve',setShowSysCurve);s('sysA',setSysA);s('sysB',setSysB);s('sysC',setSysC);if(d.sysCurveData)setSysCurveData(d.sysCurveData);
     return true;
   };
   const exportJSON = () => {
@@ -975,6 +976,74 @@ export default function ImpellerViewer() {
   const [fitCoeffs, setFitCoeffs] = useState(null); // {k_inc, k_fric, DR_crit, k_rec, k_disk, k_jw, k_sc_mix, k_tongue_a, k_tongue_b}
   const [fitRunning, setFitRunning] = useState(false);
   const [fitResult, setFitResult] = useState(null); // {coeffs, rmse_before, rmse_after, iterations}
+  // System resistance curve: ΔP = aQ² + bQ + c
+  const [showSysCurve, setShowSysCurve] = useState(false);
+  const [sysA, setSysA] = useState(1.5);  // Pa/(m³/min)²
+  const [sysB, setSysB] = useState(0);    // Pa/(m³/min)
+  const [sysC, setSysC] = useState(5);    // Pa (static loss)
+  const [sysCurveData, setSysCurveData] = useState([]); // [{Q, dP}] experimental system curve
+  const sysCurveFileRef = useRef(null);
+  const parseSysCurveCSV = (text) => {
+    const lines = text.trim().split('\n').filter(l => l.trim() && !l.startsWith('#'));
+    if (lines.length < 2) return;
+    const hdr = lines[0].split(/[,\t]/).map(h => h.trim().toLowerCase());
+    const qIdx = hdr.findIndex(h => h==='q' || h.includes('flow'));
+    const dpIdx = hdr.findIndex(h => h==='dp' || h==='ps' || h.includes('pressure') || h.includes('저항'));
+    if (qIdx < 0 || dpIdx < 0) { alert('CSV에 Q, dP 열이 필요합니다'); return; }
+    const data = [];
+    for (let i = 1; i < lines.length; i++) {
+      const vals = lines[i].split(/[,\t]/).map(v => parseFloat(v.trim()));
+      if (!isNaN(vals[qIdx]) && !isNaN(vals[dpIdx])) data.push({ Q: vals[qIdx], dP: vals[dpIdx] });
+    }
+    if (data.length >= 2) {
+      setSysCurveData(data);
+      // Auto-fit quadratic: dP = aQ² + bQ + c
+      const n = data.length;
+      const sQ = data.reduce((s,d)=>s+d.Q,0), sQ2 = data.reduce((s,d)=>s+d.Q**2,0);
+      const sQ3 = data.reduce((s,d)=>s+d.Q**3,0), sQ4 = data.reduce((s,d)=>s+d.Q**4,0);
+      const sP = data.reduce((s,d)=>s+d.dP,0), sQP = data.reduce((s,d)=>s+d.Q*d.dP,0), sQ2P = data.reduce((s,d)=>s+d.Q**2*d.dP,0);
+      const det = n*(sQ2*sQ4-sQ3**2) - sQ*(sQ*sQ4-sQ2*sQ3) + sQ2*(sQ*sQ3-sQ2**2);
+      if (Math.abs(det) > 1e-10) {
+        const a_fit = (sP*(sQ2*sQ4-sQ3**2) - sQ*(sQP*sQ4-sQ2P*sQ3) + sQ2*(sQP*sQ3-sQ2P*sQ2)) / det;
+        const b_fit = (n*(sQP*sQ4-sQ2P*sQ3) - sP*(sQ*sQ4-sQ2*sQ3) + sQ2*(sQ*sQ2P-sQ2*sQP)) / det;
+        const c_fit = (n*(sQ2*sQ2P-sQ3*sQP) - sQ*(sQ*sQ2P-sQ3*sP) + sP*(sQ*sQ3-sQ2**2)) / det;
+        setSysA(Math.round(c_fit*1000)/1000); setSysB(Math.round(b_fit*1000)/1000); setSysC(Math.round(a_fit*1000)/1000);
+      }
+    }
+  };
+  // Find operating point: fan Ps(Q) = system dP(Q)
+  const operatingPoint = useMemo(() => {
+    if (!showSysCurve || !baseAero?.pts?.length) return null;
+    const pts = baseAero.pts.filter(p => p.Q > 0);
+    let bestDiff = Infinity, bestPt = null;
+    for (const p of pts) {
+      const dP_sys = sysA * p.Q**2 + sysB * p.Q + sysC;
+      const diff = Math.abs(p.Ps - dP_sys);
+      if (diff < bestDiff) { bestDiff = diff; bestPt = { ...p, dP_sys }; }
+    }
+    // Refine with linear interpolation between two closest pts
+    if (bestPt && pts.length > 2) {
+      const idx = pts.findIndex(p => p === bestPt || (Math.abs(p.Q - bestPt.Q) < 0.01));
+      if (idx > 0 && idx < pts.length - 1) {
+        const p0 = pts[idx-1], p1 = pts[idx], p2 = pts[idx+1];
+        // Check which neighbor gives sign change
+        const s1 = p1.Ps - (sysA*p1.Q**2 + sysB*p1.Q + sysC);
+        for (const pn of [p0, p2]) {
+          const sn = pn.Ps - (sysA*pn.Q**2 + sysB*pn.Q + sysC);
+          if (s1 * sn < 0) { // sign change → intersection between
+            const t = Math.abs(s1) / (Math.abs(s1) + Math.abs(sn));
+            const Q_op = p1.Q + t * (pn.Q - p1.Q);
+            const Ps_op = p1.Ps + t * (pn.Ps - p1.Ps);
+            const eta_op = p1.eta + t * (pn.eta - p1.eta);
+            bestPt = { Q: Q_op, Ps: Ps_op, eta: eta_op, dP_sys: sysA*Q_op**2 + sysB*Q_op + sysC,
+              Pshaft: p1.Pshaft + t * ((pn.Pshaft||0) - (p1.Pshaft||0)) };
+            break;
+          }
+        }
+      }
+    }
+    return bestPt;
+  }, [showSysCurve, sysA, sysB, sysC, baseAero]);
 
   // Nelder-Mead simplex optimizer (JS)
   const nelderMead = (fn, x0, maxIter=300, tol=1e-6) => {
@@ -1908,6 +1977,38 @@ export default function ImpellerViewer() {
                 CSV 형식: Q,Ps[,Pt,eta,RPM,W] (헤더 필수, 탭/콤마 구분)
               </div>}
             </div>}
+            {/* System resistance curve */}
+            <div className="mb-2 p-1.5 rounded" style={{ background:C.bg, border:`1px solid ${showSysCurve?'#f97316':'transparent'}33` }}>
+              <div className="flex items-center gap-2">
+                <label className="flex items-center gap-1" style={{fontFamily:"monospace",fontSize:8}}>
+                  <input type="checkbox" checked={showSysCurve} onChange={e=>setShowSysCurve(e.target.checked)} />
+                  <span style={{color:showSysCurve?'#f97316':C.dim}}>시스템 저항 커브</span>
+                </label>
+                {showSysCurve && <button onClick={() => sysCurveFileRef.current?.click()} className="ml-auto px-2 py-0.5 rounded"
+                  style={{fontFamily:"monospace",fontSize:7,color:'#f97316',background:C.card,border:`1px solid #f9731644`}}>📂 저항 CSV</button>}
+                <input ref={sysCurveFileRef} type="file" accept=".csv,.tsv,.txt" style={{display:'none'}}
+                  onChange={e => { const f=e.target.files?.[0]; if(f){const r=new FileReader(); r.onload=ev=>parseSysCurveCSV(ev.target.result); r.readAsText(f);} }} />
+              </div>
+              {showSysCurve && <div className="mt-1">
+                <div style={{fontFamily:"monospace",fontSize:7,color:C.dim,marginBottom:2}}>ΔP = a·Q² + b·Q + c (Pa, m³/min)</div>
+                <div className="grid grid-cols-3 gap-1">
+                  <S label="a" value={sysA} min={0} max={20} step={0.1} onChange={setSysA} unit="" color="#f97316" />
+                  <S label="b" value={sysB} min={-10} max={10} step={0.1} onChange={setSysB} unit="" color="#f97316" />
+                  <S label="c" value={sysC} min={0} max={100} step={1} onChange={setSysC} unit="Pa" color="#f97316" />
+                </div>
+                {sysCurveData.length > 0 && <div style={{fontFamily:"monospace",fontSize:6,color:C.dim,marginTop:1}}>
+                  저항 데이터 {sysCurveData.length}점 → 자동 피팅 완료</div>}
+                {operatingPoint && <div className="mt-1 p-1 rounded" style={{background:C.card,border:`1px solid #f9731644`}}>
+                  <div style={{fontFamily:"monospace",fontSize:8,color:'#f97316',marginBottom:2}}>▸ 운전점</div>
+                  <div className="grid grid-cols-4 gap-1" style={{fontFamily:"monospace",fontSize:7}}>
+                    <div><span style={{color:C.dim}}>Q=</span><span style={{color:C.amber}}>{operatingPoint.Q.toFixed(1)}</span></div>
+                    <div><span style={{color:C.dim}}>Ps=</span><span style={{color:C.cyan}}>{operatingPoint.Ps.toFixed(0)}</span></div>
+                    <div><span style={{color:C.dim}}>η=</span><span style={{color:C.green}}>{(operatingPoint.eta*100).toFixed(1)}%</span></div>
+                    <div><span style={{color:C.dim}}>W=</span><span style={{color:C.red}}>{(operatingPoint.Pshaft||0).toFixed(1)}</span></div>
+                  </div>
+                </div>}
+              </div>}
+            </div>
             {(() => {
               const aero = baseAero;
               if (!aero?.pts?.length) return <div style={{color:C.dim}}>데이터 없음</div>;
@@ -1916,7 +2017,8 @@ export default function ImpellerViewer() {
               const bepIdx = pts.findIndex(p => Math.abs(p.Q - bep.Q) < 0.5);
               // Include experimental data in axis scaling
               const allQ = [...pts.map(p=>p.Q), ...expData.map(d=>d.Q)];
-              const allP = [...pts.map(p=>Math.max(p.Pt,p.Ps,p.Pdyn)), ...expData.map(d=>Math.max(d.Ps||0,d.Pt||0))];
+              const allP = [...pts.map(p=>Math.max(p.Pt,p.Ps,p.Pdyn)), ...expData.map(d=>Math.max(d.Ps||0,d.Pt||0)),
+                ...(showSysCurve ? [sysA*Math.max(...allQ)**2 + sysB*Math.max(...allQ) + sysC] : [])];
               const allEta = [...pts.map(p=>p.eta), ...expData.filter(d=>d.eta>0).map(d=>d.eta)];
               const W = 320, H = 160, pad = {l:38,r:12,t:10,b:22};
               const pw = W-pad.l-pad.r, ph = H-pad.t-pad.b;
@@ -1988,6 +2090,24 @@ export default function ImpellerViewer() {
                       <text x={pad.l+141} y={pad.t+7} fill={C.green} fontSize={6} fontFamily="monospace">Fit</text>
                     </>}
                   </>}
+                  {/* System resistance curve */}
+                  {showSysCurve && (() => {
+                    const sysPts = [];
+                    for (let q = 0; q <= maxQ; q += maxQ/40) sysPts.push({ Q: q, dP: sysA*q**2 + sysB*q + sysC });
+                    return <>
+                      <path d={sysPts.map((p,i) => `${i===0?'M':'L'}${sx(p.Q)} ${syP(p.dP)}`).join(' ')}
+                        fill="none" stroke="#f97316" strokeWidth={1.5} strokeDasharray="6,3"/>
+                      {sysCurveData.map((d,i) => <circle key={'sc'+i} cx={sx(d.Q)} cy={syP(d.dP)} r={2.5} fill="#f97316" opacity={0.5}/>)}
+                      {operatingPoint && <>
+                        <circle cx={sx(operatingPoint.Q)} cy={syP(operatingPoint.Ps)} r={6} fill="none" stroke="#f97316" strokeWidth={2.5}/>
+                        <circle cx={sx(operatingPoint.Q)} cy={syP(operatingPoint.Ps)} r={2} fill="#f97316"/>
+                        <line x1={sx(operatingPoint.Q)} y1={pad.t} x2={sx(operatingPoint.Q)} y2={pad.t+ph} stroke="#f97316" strokeWidth={0.5} strokeDasharray="2,3" opacity={0.4}/>
+                        <text x={sx(operatingPoint.Q)+5} y={syP(operatingPoint.Ps)+12} fill="#f97316" fontSize={7} fontFamily="monospace" fontWeight="bold">OP</text>
+                      </>}
+                      <line x1={pad.l+155} y1={pad.t+4} x2={pad.l+166} y2={pad.t+4} stroke="#f97316" strokeWidth={1.5} strokeDasharray="4,2"/>
+                      <text x={pad.l+168} y={pad.t+7} fill="#f97316" fontSize={6} fontFamily="monospace">Sys</text>
+                    </>;
+                  })()}
                 </svg>
 
                 {/* Chart 2: Efficiency curve */}
@@ -2008,6 +2128,12 @@ export default function ImpellerViewer() {
                     fill="none" stroke={C.orange} strokeWidth={1.5} opacity={0.8}/>)}
                   {/* Fitted η curve */}
                   {fitPts.length > 2 && <path d={fitPts.map((p,i) => `${i===0?'M':'L'}${sx(p.Q)} ${10+100*(1-p.eta/Math.max(0.01,maxEta))}`).join(' ')} fill="none" stroke={C.green} strokeWidth={1.5} strokeDasharray="4,2"/>}
+                  {/* Operating point on η chart */}
+                  {showSysCurve && operatingPoint && <>
+                    <circle cx={sx(operatingPoint.Q)} cy={10+100*(1-operatingPoint.eta/Math.max(0.01,maxEta))} r={5} fill="none" stroke="#f97316" strokeWidth={2}/>
+                    <line x1={sx(operatingPoint.Q)} y1={10} x2={sx(operatingPoint.Q)} y2={110} stroke="#f97316" strokeWidth={0.5} strokeDasharray="2,3" opacity={0.4}/>
+                    <text x={sx(operatingPoint.Q)+5} y={10+100*(1-operatingPoint.eta/Math.max(0.01,maxEta))+10} fill="#f97316" fontSize={6} fontFamily="monospace">{(operatingPoint.eta*100).toFixed(1)}%</text>
+                  </>}
                 </svg>
 
                 {/* BEP cards */}
