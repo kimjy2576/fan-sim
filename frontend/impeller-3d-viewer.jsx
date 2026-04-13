@@ -884,6 +884,7 @@ export default function ImpellerViewer() {
     cutoffGap,cutoffAngle,Rtongue,exitAngle,tongueOutLen,tongueOutAngle,
     diffAngle,diffLength,diffType,diffInnerWall,
     showCasing,casingW,casingH,casingD,casingCX,casingCY,casingFace,
+    fanMode,expData,
   });
   const restore = (d) => {
     if (!d || typeof d !== 'object') return false;
@@ -903,6 +904,7 @@ export default function ImpellerViewer() {
     s('diffAngle',setDiffAngle);s('diffLength',setDiffLength);s('diffType',setDiffType);s('diffInnerWall',setDiffInnerWall);
     s('showCasing',setShowCasing);s('casingW',setCasingW);s('casingH',setCasingH);s('casingD',setCasingD);
     s('casingCX',setCasingCX);s('casingCY',setCasingCY);s('casingFace',setCasingFace);
+    s('fanMode',setFanMode);if(d.expData)setExpData(d.expData);
     return true;
   };
   const exportJSON = () => {
@@ -967,6 +969,33 @@ export default function ImpellerViewer() {
   const [optSamples, setOptSamples] = useState(200);
   const [optResults, setOptResults] = useState(null);
   const [optRunning, setOptRunning] = useState(false);
+  // Experimental PQ data (Off-design)
+  const [expData, setExpData] = useState([]); // [{Q, Ps, Pt, eta, RPM, W}, ...]
+  const [fanMode, setFanMode] = useState('on_design'); // 'on_design' | 'off_design'
+  const expFileRef = useRef(null);
+  const parseExpCSV = (text) => {
+    const lines = text.trim().split('\n').filter(l => l.trim() && !l.startsWith('#'));
+    if (lines.length < 2) return;
+    const hdr = lines[0].split(/[,\t]/).map(h => h.trim().toLowerCase());
+    const qIdx = hdr.findIndex(h => h==='q' || h.includes('flow') || h.includes('유량'));
+    const psIdx = hdr.findIndex(h => h==='ps' || h.includes('static') || h.includes('정압'));
+    const ptIdx = hdr.findIndex(h => h==='pt' || h.includes('total') || h.includes('전압'));
+    const etaIdx = hdr.findIndex(h => h==='eta' || h.includes('효율') || h.includes('eff'));
+    const rpmIdx = hdr.findIndex(h => h==='rpm' || h.includes('speed'));
+    const wIdx = hdr.findIndex(h => h==='w' || h.includes('power') || h.includes('전력'));
+    if (qIdx < 0 || (psIdx < 0 && ptIdx < 0)) { alert('CSV에 Q, Ps(또는 Pt) 열이 필요합니다'); return; }
+    const data = [];
+    for (let i = 1; i < lines.length; i++) {
+      const vals = lines[i].split(/[,\t]/).map(v => parseFloat(v.trim()));
+      if (isNaN(vals[qIdx])) continue;
+      data.push({
+        Q: vals[qIdx], Ps: psIdx >= 0 ? vals[psIdx] : 0, Pt: ptIdx >= 0 ? vals[ptIdx] : (psIdx >= 0 ? vals[psIdx] : 0),
+        eta: etaIdx >= 0 ? vals[etaIdx] : 0, RPM: rpmIdx >= 0 ? vals[rpmIdx] : RPM,
+        W: wIdx >= 0 ? vals[wIdx] : 0,
+      });
+    }
+    if (data.length > 0) setExpData(data);
+  };
 
   const runOptimization = () => {
     setOptRunning(true);
@@ -1650,18 +1679,54 @@ export default function ImpellerViewer() {
             </div>}
           </div></div>
           <div style={{display:viewTab===6?'block':'none'}}><div className="p-2">
-            <div style={{ color:C.cyan, fontFamily:"monospace", fontSize:10, fontWeight:700, marginBottom:4 }}>PQ ANALYSIS</div>
+            <div className="flex items-center gap-2 mb-2">
+              <span style={{ color:C.cyan, fontFamily:"monospace", fontSize:10, fontWeight:700 }}>PQ ANALYSIS</span>
+              <div className="flex gap-0.5 ml-auto">
+                {[{k:'on_design',l:'On-design'},{k:'off_design',l:'Off-design'}].map(m =>
+                  <button key={m.k} onClick={() => setFanMode(m.k)} className="px-2 py-0.5 rounded"
+                    style={{ fontFamily:"monospace", fontSize:7, background:fanMode===m.k?C.card:"transparent",
+                      color:fanMode===m.k?C.cyan:C.dim, border:`1px solid ${fanMode===m.k?C.cyan:C.border}` }}>{m.l}</button>)}
+              </div>
+            </div>
+            {/* Experimental data upload */}
+            {fanMode==='off_design' && <div className="mb-2 p-1.5 rounded" style={{ background:C.bg, border:`1px solid ${C.orange}33` }}>
+              <div style={{ color:C.orange, fontFamily:"monospace", fontSize:8, marginBottom:3 }}>실험 PQ 데이터</div>
+              <div className="flex gap-1 mb-1">
+                <button onClick={() => expFileRef.current?.click()} className="flex-1 py-1 rounded"
+                  style={{ fontFamily:"monospace", fontSize:8, background:C.card, color:C.orange, border:`1px solid ${C.orange}44` }}>📂 CSV 불러오기</button>
+                <input ref={expFileRef} type="file" accept=".csv,.tsv,.txt" style={{display:'none'}}
+                  onChange={e => { const f=e.target.files?.[0]; if(f){const r=new FileReader(); r.onload=ev=>parseExpCSV(ev.target.result); r.readAsText(f);} }} />
+                <button onClick={() => {
+                  const txt = prompt('CSV 데이터 붙여넣기 (Q,Ps 또는 Q,Ps,eta)\n예: Q,Ps,eta\\n1.5,120,0.55\\n2.0,115,0.60');
+                  if (txt) parseExpCSV(txt);
+                }} className="flex-1 py-1 rounded"
+                  style={{ fontFamily:"monospace", fontSize:8, background:C.card, color:C.amber, border:`1px solid ${C.amber}44` }}>📋 붙여넣기</button>
+                {expData.length > 0 && <button onClick={() => setExpData([])} className="px-2 py-1 rounded"
+                  style={{ fontFamily:"monospace", fontSize:8, background:C.card, color:C.red, border:`1px solid ${C.red}44` }}>✕</button>}
+              </div>
+              {expData.length > 0 && <div style={{ fontFamily:"monospace", fontSize:7, color:C.dim }}>
+                {expData.length}개 데이터 로드 | Q: {Math.min(...expData.map(d=>d.Q)).toFixed(1)}~{Math.max(...expData.map(d=>d.Q)).toFixed(1)} m³/min
+                {expData[0].eta > 0 && ` | η: ${Math.max(...expData.map(d=>d.eta)).toFixed(1)}`}
+              </div>}
+              {expData.length === 0 && <div style={{ fontFamily:"monospace", fontSize:7, color:C.dim }}>
+                CSV 형식: Q,Ps[,Pt,eta,RPM,W] (헤더 필수, 탭/콤마 구분)
+              </div>}
+            </div>}
             {(() => {
               const aero = baseAero;
               if (!aero?.pts?.length) return <div style={{color:C.dim}}>데이터 없음</div>;
               const pts = aero.pts.filter(p => p.Q > 0);
               const bep = aero.bep;
               const bepIdx = pts.findIndex(p => Math.abs(p.Q - bep.Q) < 0.5);
+              // Include experimental data in axis scaling
+              const allQ = [...pts.map(p=>p.Q), ...expData.map(d=>d.Q)];
+              const allP = [...pts.map(p=>Math.max(p.Pt,p.Ps,p.Pdyn)), ...expData.map(d=>Math.max(d.Ps||0,d.Pt||0))];
+              const allEta = [...pts.map(p=>p.eta), ...expData.filter(d=>d.eta>0).map(d=>d.eta)];
               const W = 320, H = 160, pad = {l:38,r:12,t:10,b:22};
               const pw = W-pad.l-pad.r, ph = H-pad.t-pad.b;
-              const maxQ = Math.max(...pts.map(p=>p.Q));
-              const maxP = Math.max(...pts.map(p=>Math.max(p.Pt,p.Ps,p.Pdyn)));
-              const maxEta = Math.max(...pts.map(p=>p.eta));
+              const maxQ = Math.max(...allQ);
+              const maxP = Math.max(...allP);
+              const maxEta = Math.max(...allEta, 0.01);
               const sx = q => pad.l + (q/maxQ)*pw;
               const syP = p => pad.t + ph - (p/Math.max(1,maxP))*ph;
               const syE = e => pad.t + ph - (e/Math.max(0.01,maxEta))*ph;
@@ -1705,6 +1770,15 @@ export default function ImpellerViewer() {
                   <text x={pad.l+51} y={pad.t+7} fill={C.blade} fontSize={6} fontFamily="monospace">Pt</text>
                   <line x1={pad.l+68} y1={pad.t+4} x2={pad.l+79} y2={pad.t+4} stroke={C.amber} strokeWidth={1} opacity={0.6}/>
                   <text x={pad.l+81} y={pad.t+7} fill={C.amber} fontSize={6} fontFamily="monospace">Pd</text>
+                  {/* Experimental data overlay */}
+                  {expData.length > 0 && <>
+                    {expData.map((d,i) => <circle key={'ep'+i} cx={sx(d.Q)} cy={syP(d.Ps||d.Pt||0)} r={3.5}
+                      fill="none" stroke={C.orange} strokeWidth={1.5} opacity={0.8}/>)}
+                    {expData.filter(d=>d.Pt>0).map((d,i) => <circle key={'ept'+i} cx={sx(d.Q)} cy={syP(d.Pt)} r={2.5}
+                      fill="none" stroke={C.orange} strokeWidth={1} strokeDasharray="2,1" opacity={0.5}/>)}
+                    <circle cx={pad.l+105} cy={pad.t+4} r={3} fill="none" stroke={C.orange} strokeWidth={1.5}/>
+                    <text x={pad.l+110} y={pad.t+7} fill={C.orange} fontSize={6} fontFamily="monospace">Exp</text>
+                  </>}
                 </svg>
 
                 {/* Chart 2: Efficiency curve */}
@@ -1720,6 +1794,9 @@ export default function ImpellerViewer() {
                   <text x={4} y={60} fill={C.dim} fontSize={6} fontFamily="monospace" textAnchor="middle" transform="rotate(-90,4,60)">η</text>
                   <text x={pad.l-2} y={16} fill={C.dim} fontSize={6} fontFamily="monospace" textAnchor="end">{(maxEta*100).toFixed(0)}%</text>
                   <text x={pad.l-2} y={110} fill={C.dim} fontSize={6} fontFamily="monospace" textAnchor="end">0</text>
+                  {/* Experimental η overlay */}
+                  {expData.filter(d=>d.eta>0).map((d,i) => <circle key={'ee'+i} cx={sx(d.Q)} cy={10+100*(1-d.eta/Math.max(0.01,maxEta))} r={3.5}
+                    fill="none" stroke={C.orange} strokeWidth={1.5} opacity={0.8}/>)}
                 </svg>
 
                 {/* BEP cards */}
@@ -1768,7 +1845,67 @@ export default function ImpellerViewer() {
                   </div>
                 </div>
 
-                {/* Velocity + Structure */}
+                {/* Experimental comparison metrics */}
+                {expData.length >= 2 && <div className="mt-2 p-1.5 rounded" style={{background:C.bg, border:`1px solid ${C.orange}33`}}>
+                  <div style={{color:C.orange,fontFamily:"monospace",fontSize:8,marginBottom:3}}>실험 vs 모델 비교</div>
+                  {(() => {
+                    // Interpolate model at experimental Q points
+                    const errors_Ps = [], errors_eta = [];
+                    expData.forEach(d => {
+                      // Find nearest model point
+                      let best = pts[0], bestD = Math.abs(pts[0].Q - d.Q);
+                      for (const p of pts) { const dd = Math.abs(p.Q - d.Q); if (dd < bestD) { bestD = dd; best = p; } }
+                      if (d.Ps > 0) errors_Ps.push({ Q: d.Q, exp: d.Ps, mod: best.Ps, err: best.Ps - d.Ps });
+                      if (d.eta > 0) errors_eta.push({ Q: d.Q, exp: d.eta, mod: best.eta, err: best.eta - d.eta });
+                    });
+                    const rmse_Ps = errors_Ps.length > 0 ? Math.sqrt(errors_Ps.reduce((s,e) => s + e.err**2, 0) / errors_Ps.length) : 0;
+                    const mape_Ps = errors_Ps.length > 0 ? errors_Ps.reduce((s,e) => s + Math.abs(e.err/Math.max(1,e.exp)), 0) / errors_Ps.length * 100 : 0;
+                    const rmse_eta = errors_eta.length > 0 ? Math.sqrt(errors_eta.reduce((s,e) => s + e.err**2, 0) / errors_eta.length) : 0;
+                    const r2_Ps = (() => {
+                      if (errors_Ps.length < 2) return 0;
+                      const avg = errors_Ps.reduce((s,e) => s + e.exp, 0) / errors_Ps.length;
+                      const ss_tot = errors_Ps.reduce((s,e) => s + (e.exp - avg)**2, 0);
+                      const ss_res = errors_Ps.reduce((s,e) => s + e.err**2, 0);
+                      return ss_tot > 0 ? 1 - ss_res / ss_tot : 0;
+                    })();
+                    return <div className="grid grid-cols-2 gap-x-3" style={{fontFamily:"monospace",fontSize:7}}>
+                      <div>
+                        <div style={{color:C.dim,marginBottom:1}}>정압 Ps ({errors_Ps.length}점)</div>
+                        <div>RMSE: <span style={{color:rmse_Ps<10?C.green:rmse_Ps<20?C.amber:C.red}}>{rmse_Ps.toFixed(1)} Pa</span></div>
+                        <div>MAPE: <span style={{color:mape_Ps<5?C.green:mape_Ps<10?C.amber:C.red}}>{mape_Ps.toFixed(1)}%</span></div>
+                        <div>R²: <span style={{color:r2_Ps>0.95?C.green:r2_Ps>0.9?C.amber:C.red}}>{r2_Ps.toFixed(3)}</span></div>
+                      </div>
+                      {errors_eta.length > 0 && <div>
+                        <div style={{color:C.dim,marginBottom:1}}>효율 η ({errors_eta.length}점)</div>
+                        <div>RMSE: <span style={{color:rmse_eta<0.03?C.green:C.amber}}>{(rmse_eta*100).toFixed(1)}%p</span></div>
+                      </div>}
+                    </div>;
+                  })()}
+                  {/* Data table */}
+                  <div style={{maxHeight:80,overflowY:'auto',marginTop:4}}>
+                    <table style={{fontFamily:"monospace",fontSize:6,borderCollapse:"collapse",width:"100%"}}>
+                      <thead><tr style={{borderBottom:`1px solid ${C.border}`}}>
+                        <th className="px-1 text-right" style={{color:C.dim}}>Q</th>
+                        <th className="px-1 text-right" style={{color:C.dim}}>Ps_exp</th>
+                        <th className="px-1 text-right" style={{color:C.dim}}>Ps_mod</th>
+                        <th className="px-1 text-right" style={{color:C.dim}}>Err</th>
+                        {expData[0]?.eta > 0 && <><th className="px-1 text-right" style={{color:C.dim}}>η_exp</th><th className="px-1 text-right" style={{color:C.dim}}>η_mod</th></>}
+                      </tr></thead>
+                      <tbody>{expData.map((d,i) => {
+                        let best = pts[0], bestD = Math.abs(pts[0].Q - d.Q);
+                        for (const p of pts) { const dd = Math.abs(p.Q - d.Q); if (dd < bestD) { bestD = dd; best = p; } }
+                        const err = best.Ps - (d.Ps||0);
+                        return <tr key={i} style={{borderBottom:`1px solid ${C.border}11`}}>
+                          <td className="px-1 text-right" style={{color:C.text}}>{d.Q.toFixed(1)}</td>
+                          <td className="px-1 text-right" style={{color:C.orange}}>{(d.Ps||0).toFixed(0)}</td>
+                          <td className="px-1 text-right" style={{color:C.cyan}}>{best.Ps.toFixed(0)}</td>
+                          <td className="px-1 text-right" style={{color:Math.abs(err)<10?C.green:C.red}}>{err>0?'+':''}{err.toFixed(0)}</td>
+                          {d.eta > 0 && <><td className="px-1 text-right" style={{color:C.orange}}>{(d.eta*100).toFixed(1)}</td><td className="px-1 text-right" style={{color:C.green}}>{(best.eta*100).toFixed(1)}</td></>}
+                        </tr>;
+                      })}</tbody>
+                    </table>
+                  </div>
+                </div>}
                 <div className="mt-2 p-1.5 rounded" style={{background:C.bg}}>
                   <div style={{color:C.dim,fontFamily:"monospace",fontSize:8,marginBottom:2}}>속도 삼각형 + 구조</div>
                   <div className="grid grid-cols-4 gap-1" style={{fontFamily:"monospace",fontSize:8}}>
