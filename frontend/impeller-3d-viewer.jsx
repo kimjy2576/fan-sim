@@ -2184,39 +2184,116 @@ export default function ImpellerViewer() {
 
                 {/* Experimental comparison metrics */}
                 {expData.length >= 2 && <div className="mt-2 p-1.5 rounded" style={{background:C.bg, border:`1px solid ${C.orange}33`}}>
-                  <div style={{color:C.orange,fontFamily:"monospace",fontSize:8,marginBottom:3}}>실험 vs 모델 비교</div>
+                  <div style={{color:C.orange,fontFamily:"monospace",fontSize:8,marginBottom:3}}>검증 프레임워크 — 실험 vs 모델</div>
                   {(() => {
-                    // Interpolate model at experimental Q points
+                    // Compute errors for default model
                     const errors_Ps = [], errors_eta = [];
                     expData.forEach(d => {
-                      // Find nearest model point
                       let best = pts[0], bestD = Math.abs(pts[0].Q - d.Q);
                       for (const p of pts) { const dd = Math.abs(p.Q - d.Q); if (dd < bestD) { bestD = dd; best = p; } }
                       if (d.Ps > 0) errors_Ps.push({ Q: d.Q, exp: d.Ps, mod: best.Ps, err: best.Ps - d.Ps });
                       if (d.eta > 0) errors_eta.push({ Q: d.Q, exp: d.eta, mod: best.eta, err: best.eta - d.eta });
                     });
-                    const rmse_Ps = errors_Ps.length > 0 ? Math.sqrt(errors_Ps.reduce((s,e) => s + e.err**2, 0) / errors_Ps.length) : 0;
-                    const mape_Ps = errors_Ps.length > 0 ? errors_Ps.reduce((s,e) => s + Math.abs(e.err/Math.max(1,e.exp)), 0) / errors_Ps.length * 100 : 0;
-                    const rmse_eta = errors_eta.length > 0 ? Math.sqrt(errors_eta.reduce((s,e) => s + e.err**2, 0) / errors_eta.length) : 0;
-                    const r2_Ps = (() => {
-                      if (errors_Ps.length < 2) return 0;
-                      const avg = errors_Ps.reduce((s,e) => s + e.exp, 0) / errors_Ps.length;
-                      const ss_tot = errors_Ps.reduce((s,e) => s + (e.exp - avg)**2, 0);
-                      const ss_res = errors_Ps.reduce((s,e) => s + e.err**2, 0);
-                      return ss_tot > 0 ? 1 - ss_res / ss_tot : 0;
-                    })();
-                    return <div className="grid grid-cols-2 gap-x-3" style={{fontFamily:"monospace",fontSize:7}}>
-                      <div>
-                        <div style={{color:C.dim,marginBottom:1}}>정압 Ps ({errors_Ps.length}점)</div>
-                        <div>RMSE: <span style={{color:rmse_Ps<10?C.green:rmse_Ps<20?C.amber:C.red}}>{rmse_Ps.toFixed(1)} Pa</span></div>
-                        <div>MAPE: <span style={{color:mape_Ps<5?C.green:mape_Ps<10?C.amber:C.red}}>{mape_Ps.toFixed(1)}%</span></div>
-                        <div>R²: <span style={{color:r2_Ps>0.95?C.green:r2_Ps>0.9?C.amber:C.red}}>{r2_Ps.toFixed(3)}</span></div>
+                    // Compute errors for fitted model (if exists)
+                    let fit_errors_Ps = [];
+                    if (fitCoeffs && fitPts.length > 2) {
+                      expData.forEach(d => {
+                        let best = fitPts[0], bestD = Math.abs(fitPts[0].Q - d.Q);
+                        for (const p of fitPts) { const dd = Math.abs(p.Q - d.Q); if (dd < bestD) { bestD = dd; best = p; } }
+                        if (d.Ps > 0) fit_errors_Ps.push({ Q: d.Q, exp: d.Ps, mod: best.Ps, err: best.Ps - d.Ps });
+                      });
+                    }
+                    const calc = (errs) => {
+                      if (errs.length < 1) return {};
+                      const rmse = Math.sqrt(errs.reduce((s,e) => s + e.err**2, 0) / errs.length);
+                      const mape = errs.reduce((s,e) => s + Math.abs(e.err/Math.max(1,e.exp)), 0) / errs.length * 100;
+                      const maxErr = Math.max(...errs.map(e => Math.abs(e.err)));
+                      const avg = errs.reduce((s,e) => s + e.exp, 0) / errs.length;
+                      const ss_tot = errs.reduce((s,e) => s + (e.exp - avg)**2, 0);
+                      const ss_res = errs.reduce((s,e) => s + e.err**2, 0);
+                      const r2 = ss_tot > 0 ? 1 - ss_res / ss_tot : 0;
+                      return { rmse, mape, maxErr, r2 };
+                    };
+                    const m_def = calc(errors_Ps);
+                    const m_fit = fit_errors_Ps.length > 0 ? calc(fit_errors_Ps) : null;
+                    const m_eta = calc(errors_eta);
+
+                    // Residual chart
+                    const resW=300, resH=80, rPad={l:32,r:8,t:6,b:14};
+                    const rpw=resW-rPad.l-rPad.r, rph=resH-rPad.t-rPad.b;
+                    const qMin=Math.min(...errors_Ps.map(e=>e.Q)), qMax=Math.max(...errors_Ps.map(e=>e.Q));
+                    const eMax=Math.max(1, Math.max(...errors_Ps.map(e=>Math.abs(e.err))));
+                    const rsx=q=>rPad.l+(q-qMin)/((qMax-qMin)||1)*rpw;
+                    const rsy=e=>rPad.t+rph/2-e/eMax*(rph/2);
+
+                    return <>
+                      {/* Metrics table */}
+                      <div className="grid grid-cols-2 gap-x-3 mb-2" style={{fontFamily:"monospace",fontSize:7}}>
+                        <div>
+                          <div style={{color:C.dim,marginBottom:1}}>정압 Ps — {m_fit?'기본':'모델'} ({errors_Ps.length}점)</div>
+                          <div>RMSE: <span style={{color:m_def.rmse<10?C.green:m_def.rmse<20?C.amber:C.red}}>{m_def.rmse?.toFixed(1)} Pa</span></div>
+                          <div>MAPE: <span style={{color:m_def.mape<5?C.green:m_def.mape<10?C.amber:C.red}}>{m_def.mape?.toFixed(1)}%</span></div>
+                          <div>R²: <span style={{color:m_def.r2>0.95?C.green:m_def.r2>0.9?C.amber:C.red}}>{m_def.r2?.toFixed(3)}</span></div>
+                          <div>MaxErr: <span style={{color:m_def.maxErr<15?C.green:C.amber}}>{m_def.maxErr?.toFixed(1)} Pa</span></div>
+                        </div>
+                        {m_fit ? <div>
+                          <div style={{color:C.green,marginBottom:1}}>Ps — 피팅 모델</div>
+                          <div>RMSE: <span style={{color:m_fit.rmse<10?C.green:m_fit.rmse<20?C.amber:C.red}}>{m_fit.rmse?.toFixed(1)} Pa</span></div>
+                          <div>MAPE: <span style={{color:m_fit.mape<5?C.green:m_fit.mape<10?C.amber:C.red}}>{m_fit.mape?.toFixed(1)}%</span></div>
+                          <div>R²: <span style={{color:m_fit.r2>0.95?C.green:m_fit.r2>0.9?C.amber:C.red}}>{m_fit.r2?.toFixed(3)}</span></div>
+                          <div>개선: <span style={{color:C.green}}>{((1-m_fit.rmse/Math.max(0.1,m_def.rmse))*100).toFixed(0)}%</span></div>
+                        </div> : (m_eta.rmse > 0 && <div>
+                          <div style={{color:C.dim,marginBottom:1}}>효율 η ({errors_eta.length}점)</div>
+                          <div>RMSE: <span style={{color:m_eta.rmse<0.03?C.green:C.amber}}>{(m_eta.rmse*100).toFixed(1)}%p</span></div>
+                          <div>R²: <span style={{color:m_eta.r2>0.9?C.green:C.amber}}>{m_eta.r2?.toFixed(3)}</span></div>
+                        </div>)}
                       </div>
-                      {errors_eta.length > 0 && <div>
-                        <div style={{color:C.dim,marginBottom:1}}>효율 η ({errors_eta.length}점)</div>
-                        <div>RMSE: <span style={{color:rmse_eta<0.03?C.green:C.amber}}>{(rmse_eta*100).toFixed(1)}%p</span></div>
+
+                      {/* Residual plot */}
+                      {errors_Ps.length >= 3 && <div>
+                        <div style={{color:C.dim,fontFamily:"monospace",fontSize:7,marginBottom:2}}>잔차 플롯 (Ps_mod - Ps_exp)</div>
+                        <svg width={resW} height={resH} style={{display:"block",margin:"0 auto",background:C.card,borderRadius:3}}>
+                          <line x1={rPad.l} y1={rPad.t+rph/2} x2={rPad.l+rpw} y2={rPad.t+rph/2} stroke={C.dim} strokeWidth={0.5}/>
+                          <line x1={rPad.l} y1={rPad.t} x2={rPad.l} y2={rPad.t+rph} stroke={C.dim} strokeWidth={0.3}/>
+                          {/* ±RMSE band */}
+                          <rect x={rPad.l} y={rsy(m_def.rmse)} width={rpw} height={rsy(-m_def.rmse)-rsy(m_def.rmse)}
+                            fill={C.green} opacity={0.06}/>
+                          {/* Default model residuals */}
+                          {errors_Ps.map((e,i) => <circle key={'rd'+i} cx={rsx(e.Q)} cy={rsy(e.err)} r={3}
+                            fill={Math.abs(e.err)<m_def.rmse?C.cyan:C.red} opacity={0.7}/>)}
+                          {/* Fitted model residuals */}
+                          {fit_errors_Ps.map((e,i) => <circle key={'rf'+i} cx={rsx(e.Q)} cy={rsy(e.err)} r={2}
+                            fill={C.green} opacity={0.6} stroke={C.bg} strokeWidth={0.5}/>)}
+                          <text x={rPad.l+rpw/2} y={resH-1} fill={C.dim} fontSize={6} fontFamily="monospace" textAnchor="middle">Q (m³/min)</text>
+                          <text x={rPad.l-2} y={rPad.t+5} fill={C.dim} fontSize={5} fontFamily="monospace" textAnchor="end">+{eMax.toFixed(0)}</text>
+                          <text x={rPad.l-2} y={rPad.t+rph} fill={C.dim} fontSize={5} fontFamily="monospace" textAnchor="end">-{eMax.toFixed(0)}</text>
+                          <text x={rPad.l-2} y={rPad.t+rph/2+3} fill={C.dim} fontSize={5} fontFamily="monospace" textAnchor="end">0</text>
+                        </svg>
+                        <div style={{fontFamily:"monospace",fontSize:6,color:C.dim,textAlign:"center",marginTop:1}}>
+                          <span style={{color:C.cyan}}>●</span> 기본 {m_fit && <><span style={{color:C.green}}>●</span> 피팅</>} | 녹색 대역 = ±RMSE
+                        </div>
                       </div>}
-                    </div>;
+
+                      {/* Parity plot */}
+                      {errors_Ps.length >= 3 && <div className="mt-2">
+                        <div style={{color:C.dim,fontFamily:"monospace",fontSize:7,marginBottom:2}}>패리티 플롯 (Ps_mod vs Ps_exp)</div>
+                        {(() => {
+                          const pW=140,pH=140,pPad={l:28,r:6,t:6,b:16};
+                          const ppw=pW-pPad.l-pPad.r, pph=pH-pPad.t-pPad.b;
+                          const pMin=Math.min(...errors_Ps.map(e=>Math.min(e.exp,e.mod)));
+                          const pMax=Math.max(...errors_Ps.map(e=>Math.max(e.exp,e.mod)));
+                          const ps=v=>pPad.l+(v-pMin)/((pMax-pMin)||1)*ppw;
+                          const py=v=>pPad.t+pph-(v-pMin)/((pMax-pMin)||1)*pph;
+                          return <svg width={pW} height={pH} style={{display:"block",margin:"0 auto",background:C.card,borderRadius:3}}>
+                            <line x1={ps(pMin)} y1={py(pMin)} x2={ps(pMax)} y2={py(pMax)} stroke={C.dim} strokeWidth={0.5} strokeDasharray="4,3"/>
+                            {errors_Ps.map((e,i) => <circle key={'pp'+i} cx={ps(e.exp)} cy={py(e.mod)} r={3} fill={C.cyan} opacity={0.7}/>)}
+                            {fit_errors_Ps.map((e,i) => <circle key={'pf'+i} cx={ps(e.exp)} cy={py(e.mod)} r={2.5} fill={C.green} opacity={0.6}/>)}
+                            <text x={pPad.l+ppw/2} y={pH-2} fill={C.dim} fontSize={6} fontFamily="monospace" textAnchor="middle">Ps_exp (Pa)</text>
+                            <text x={4} y={pPad.t+pph/2} fill={C.dim} fontSize={6} fontFamily="monospace" textAnchor="middle" transform={`rotate(-90,4,${pPad.t+pph/2})`}>Ps_mod (Pa)</text>
+                          </svg>;
+                        })()}
+                      </div>}
+                    </>;
                   })()}
                   {/* Data table */}
                   <div style={{maxHeight:80,overflowY:'auto',marginTop:4}}>
