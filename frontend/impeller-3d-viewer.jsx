@@ -885,6 +885,7 @@ export default function ImpellerViewer() {
     diffAngle,diffLength,diffType,diffInnerWall,
     showCasing,casingW,casingH,casingD,casingCX,casingCY,casingFace,
     fanMode,expData,fitCoeffs,showSysCurve,sysA,sysB,sysC,sysCurveData,
+    qsShow,qsDuration,qsSteps,qsAStart,qsAEnd,qsCStart,qsCEnd,
   });
   const restore = (d) => {
     if (!d || typeof d !== 'object') return false;
@@ -906,6 +907,8 @@ export default function ImpellerViewer() {
     s('casingCX',setCasingCX);s('casingCY',setCasingCY);s('casingFace',setCasingFace);
     s('fanMode',setFanMode);if(d.expData)setExpData(d.expData);if(d.fitCoeffs)setFitCoeffs(d.fitCoeffs);
     s('showSysCurve',setShowSysCurve);s('sysA',setSysA);s('sysB',setSysB);s('sysC',setSysC);if(d.sysCurveData)setSysCurveData(d.sysCurveData);
+    s('qsShow',setQsShow);s('qsDuration',setQsDuration);s('qsSteps',setQsSteps);
+    s('qsAStart',setQsAStart);s('qsAEnd',setQsAEnd);s('qsCStart',setQsCStart);s('qsCEnd',setQsCEnd);
     return true;
   };
   const exportJSON = () => {
@@ -1044,6 +1047,45 @@ export default function ImpellerViewer() {
     }
     return bestPt;
   }, [showSysCurve, sysA, sysB, sysC, baseAero]);
+
+  // Quasi-steady time-domain simulation
+  const [qsShow, setQsShow] = useState(false);
+  const [qsDuration, setQsDuration] = useState(90); // minutes
+  const [qsSteps, setQsSteps] = useState(30);
+  const [qsAStart, setQsAStart] = useState(1.5); // a coefficient at t=0
+  const [qsAEnd, setQsAEnd] = useState(3.0);     // a coefficient at t=end (resistance increases as filter clogs)
+  const [qsCStart, setQsCStart] = useState(5);    // c at t=0
+  const [qsCEnd, setQsCEnd] = useState(15);       // c at t=end
+  const [qsResults, setQsResults] = useState(null);
+
+  const runQuasiSteady = () => {
+    if (!baseAero?.pts?.length) return;
+    const pts = baseAero.pts.filter(p => p.Q > 0);
+    const results = [];
+    for (let step = 0; step <= qsSteps; step++) {
+      const t_min = (step / qsSteps) * qsDuration;
+      const frac = step / qsSteps;
+      // System resistance changes linearly over time
+      const a_t = qsAStart + frac * (qsAEnd - qsAStart);
+      const c_t = qsCStart + frac * (qsCEnd - qsCStart);
+      const b_t = sysB; // b stays constant
+      // Find operating point at this time step
+      let bestDiff = Infinity, bestPt = null;
+      for (const p of pts) {
+        const dP_sys = a_t * p.Q**2 + b_t * p.Q + c_t;
+        const diff = Math.abs(p.Ps - dP_sys);
+        if (diff < bestDiff) { bestDiff = diff; bestPt = p; }
+      }
+      if (bestPt) {
+        results.push({
+          t: t_min, a: a_t, c: c_t,
+          Q: bestPt.Q, Ps: bestPt.Ps, eta: bestPt.eta,
+          W: bestPt.Pshaft || 0, dP_sys: a_t * bestPt.Q**2 + b_t * bestPt.Q + c_t,
+        });
+      }
+    }
+    setQsResults(results);
+  };
 
   // Nelder-Mead simplex optimizer (JS)
   const nelderMead = (fn, x0, maxIter=300, tol=1e-6) => {
@@ -2009,6 +2051,87 @@ export default function ImpellerViewer() {
                 </div>}
               </div>}
             </div>
+            {/* Quasi-steady time-domain simulation */}
+            {showSysCurve && <div className="mb-2 p-1.5 rounded" style={{ background:C.bg, border:`1px solid ${C.purple}33` }}>
+              <div className="flex items-center gap-2">
+                <label className="flex items-center gap-1" style={{fontFamily:"monospace",fontSize:8}}>
+                  <input type="checkbox" checked={qsShow} onChange={e=>setQsShow(e.target.checked)} />
+                  <span style={{color:qsShow?C.purple:C.dim}}>Quasi-Steady 시간영역</span>
+                </label>
+                {qsShow && <button onClick={runQuasiSteady} className="ml-auto px-3 py-0.5 rounded"
+                  style={{fontFamily:"monospace",fontSize:8,background:C.purple,color:C.bg}}>▶ 시뮬레이션</button>}
+              </div>
+              {qsShow && <div className="mt-1">
+                <div style={{fontFamily:"monospace",fontSize:7,color:C.dim,marginBottom:2}}>건조 시간에 따른 시스템 저항 변화 → 운전점 이동</div>
+                <div className="grid grid-cols-2 gap-1 mb-1">
+                  <S label="시간" value={qsDuration} min={10} max={180} step={5} onChange={setQsDuration} unit="min" color={C.purple} />
+                  <S label="스텝" value={qsSteps} min={10} max={60} step={5} onChange={setQsSteps} unit="" color={C.purple} />
+                </div>
+                <div style={{fontFamily:"monospace",fontSize:7,color:C.dim,marginBottom:1}}>저항 변화 (시작 → 종료)</div>
+                <div className="grid grid-cols-2 gap-1">
+                  <S label="a₀" value={qsAStart} min={0.1} max={10} step={0.1} onChange={setQsAStart} unit="" color={C.purple} />
+                  <S label="a₁" value={qsAEnd} min={0.1} max={10} step={0.1} onChange={setQsAEnd} unit="" color={C.purple} />
+                  <S label="c₀" value={qsCStart} min={0} max={50} step={1} onChange={setQsCStart} unit="Pa" color={C.purple} />
+                  <S label="c₁" value={qsCEnd} min={0} max={50} step={1} onChange={setQsCEnd} unit="Pa" color={C.purple} />
+                </div>
+                <div style={{fontFamily:"monospace",fontSize:6,color:C.dim,marginTop:1}}>a₀→a₁: 2차항 변화 (필터 막힘), c₀→c₁: 정적 손실 변화</div>
+                {qsResults && qsResults.length > 2 && (() => {
+                  const W=310,H=120,p={l:34,r:28,t:8,b:16};
+                  const pw=W-p.l-p.r,ph=H-p.t-p.b;
+                  const tMax=qsResults[qsResults.length-1].t;
+                  const qArr=qsResults.map(r=>r.Q), psArr=qsResults.map(r=>r.Ps), etaArr=qsResults.map(r=>r.eta);
+                  const qMin=Math.min(...qArr),qMax=Math.max(...qArr);
+                  const psMin=Math.min(...psArr),psMax=Math.max(...psArr);
+                  const etaMin=Math.min(...etaArr),etaMax=Math.max(...etaArr);
+                  const sx=t=>p.l+(t/tMax)*pw;
+                  const syQ=q=>p.t+ph-(q-qMin)/((qMax-qMin)||1)*ph;
+                  const syPs=v=>p.t+ph-(v-psMin)/((psMax-psMin)||1)*ph;
+                  const syEta=e=>p.t+ph-(e-etaMin)/((etaMax-etaMin)||0.01)*ph;
+                  return <div className="mt-2">
+                    {/* Q vs time */}
+                    <svg width={W} height={H} style={{display:"block",margin:"0 auto",background:C.card,borderRadius:3}}>
+                      <line x1={p.l} y1={p.t} x2={p.l} y2={p.t+ph} stroke={C.dim} strokeWidth={0.3}/>
+                      <line x1={p.l} y1={p.t+ph} x2={p.l+pw} y2={p.t+ph} stroke={C.dim} strokeWidth={0.3}/>
+                      <path d={qsResults.map((r,i)=>`${i===0?'M':'L'}${sx(r.t)} ${syQ(r.Q)}`).join(' ')} fill="none" stroke={C.amber} strokeWidth={1.5}/>
+                      <path d={qsResults.map((r,i)=>`${i===0?'M':'L'}${sx(r.t)} ${syPs(r.Ps)}`).join(' ')} fill="none" stroke={C.cyan} strokeWidth={1.5}/>
+                      <path d={qsResults.map((r,i)=>`${i===0?'M':'L'}${sx(r.t)} ${syEta(r.eta)}`).join(' ')} fill="none" stroke={C.green} strokeWidth={1.5}/>
+                      <text x={p.l+pw/2} y={H-2} fill={C.dim} fontSize={6} fontFamily="monospace" textAnchor="middle">시간 (min)</text>
+                      {/* Left axis labels */}
+                      <text x={p.l-2} y={p.t+5} fill={C.amber} fontSize={5} fontFamily="monospace" textAnchor="end">{qMax.toFixed(1)}</text>
+                      <text x={p.l-2} y={p.t+ph} fill={C.amber} fontSize={5} fontFamily="monospace" textAnchor="end">{qMin.toFixed(1)}</text>
+                      {/* Right axis labels */}
+                      <text x={p.l+pw+2} y={p.t+5} fill={C.cyan} fontSize={5} fontFamily="monospace">{psMax.toFixed(0)}</text>
+                      <text x={p.l+pw+2} y={p.t+ph} fill={C.cyan} fontSize={5} fontFamily="monospace">{psMin.toFixed(0)}</text>
+                      {/* Time labels */}
+                      <text x={p.l} y={H-8} fill={C.dim} fontSize={5} fontFamily="monospace">0</text>
+                      <text x={p.l+pw} y={H-8} fill={C.dim} fontSize={5} fontFamily="monospace" textAnchor="end">{tMax}</text>
+                      {/* Legend */}
+                      <line x1={p.l+5} y1={p.t+3} x2={p.l+15} y2={p.t+3} stroke={C.amber} strokeWidth={1.5}/>
+                      <text x={p.l+17} y={p.t+6} fill={C.amber} fontSize={5} fontFamily="monospace">Q</text>
+                      <line x1={p.l+30} y1={p.t+3} x2={p.l+40} y2={p.t+3} stroke={C.cyan} strokeWidth={1.5}/>
+                      <text x={p.l+42} y={p.t+6} fill={C.cyan} fontSize={5} fontFamily="monospace">Ps</text>
+                      <line x1={p.l+55} y1={p.t+3} x2={p.l+65} y2={p.t+3} stroke={C.green} strokeWidth={1.5}/>
+                      <text x={p.l+67} y={p.t+6} fill={C.green} fontSize={5} fontFamily="monospace">η</text>
+                    </svg>
+                    {/* Summary */}
+                    <div className="mt-1 grid grid-cols-3 gap-1" style={{fontFamily:"monospace",fontSize:7}}>
+                      <div style={{textAlign:"center"}}>
+                        <div style={{color:C.dim}}>Q</div>
+                        <div style={{color:C.amber}}>{qMax.toFixed(1)} → {qMin.toFixed(1)}</div>
+                      </div>
+                      <div style={{textAlign:"center"}}>
+                        <div style={{color:C.dim}}>Ps</div>
+                        <div style={{color:C.cyan}}>{psArr[0].toFixed(0)} → {psArr[psArr.length-1].toFixed(0)}</div>
+                      </div>
+                      <div style={{textAlign:"center"}}>
+                        <div style={{color:C.dim}}>η</div>
+                        <div style={{color:C.green}}>{(etaArr[0]*100).toFixed(1)} → {(etaArr[etaArr.length-1]*100).toFixed(1)}%</div>
+                      </div>
+                    </div>
+                  </div>;
+                })()}
+              </div>}
+            </div>}
             {(() => {
               const aero = baseAero;
               if (!aero?.pts?.length) return <div style={{color:C.dim}}>데이터 없음</div>;
