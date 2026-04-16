@@ -1014,78 +1014,6 @@ export default function ImpellerViewer() {
       }
     }
   };
-  // Find operating point: fan Ps(Q) = system dP(Q)
-  const operatingPoint = useMemo(() => {
-    if (!showSysCurve || !baseAero?.pts?.length) return null;
-    const pts = baseAero.pts.filter(p => p.Q > 0);
-    let bestDiff = Infinity, bestPt = null;
-    for (const p of pts) {
-      const dP_sys = sysA * p.Q**2 + sysB * p.Q + sysC;
-      const diff = Math.abs(p.Ps - dP_sys);
-      if (diff < bestDiff) { bestDiff = diff; bestPt = { ...p, dP_sys }; }
-    }
-    // Refine with linear interpolation between two closest pts
-    if (bestPt && pts.length > 2) {
-      const idx = pts.findIndex(p => p === bestPt || (Math.abs(p.Q - bestPt.Q) < 0.01));
-      if (idx > 0 && idx < pts.length - 1) {
-        const p0 = pts[idx-1], p1 = pts[idx], p2 = pts[idx+1];
-        // Check which neighbor gives sign change
-        const s1 = p1.Ps - (sysA*p1.Q**2 + sysB*p1.Q + sysC);
-        for (const pn of [p0, p2]) {
-          const sn = pn.Ps - (sysA*pn.Q**2 + sysB*pn.Q + sysC);
-          if (s1 * sn < 0) { // sign change → intersection between
-            const t = Math.abs(s1) / (Math.abs(s1) + Math.abs(sn));
-            const Q_op = p1.Q + t * (pn.Q - p1.Q);
-            const Ps_op = p1.Ps + t * (pn.Ps - p1.Ps);
-            const eta_op = p1.eta + t * (pn.eta - p1.eta);
-            bestPt = { Q: Q_op, Ps: Ps_op, eta: eta_op, dP_sys: sysA*Q_op**2 + sysB*Q_op + sysC,
-              Pshaft: p1.Pshaft + t * ((pn.Pshaft||0) - (p1.Pshaft||0)) };
-            break;
-          }
-        }
-      }
-    }
-    return bestPt;
-  }, [showSysCurve, sysA, sysB, sysC, baseAero]);
-
-  // Quasi-steady time-domain simulation
-  const [qsShow, setQsShow] = useState(false);
-  const [qsDuration, setQsDuration] = useState(90); // minutes
-  const [qsSteps, setQsSteps] = useState(30);
-  const [qsAStart, setQsAStart] = useState(1.5); // a coefficient at t=0
-  const [qsAEnd, setQsAEnd] = useState(3.0);     // a coefficient at t=end (resistance increases as filter clogs)
-  const [qsCStart, setQsCStart] = useState(5);    // c at t=0
-  const [qsCEnd, setQsCEnd] = useState(15);       // c at t=end
-  const [qsResults, setQsResults] = useState(null);
-
-  const runQuasiSteady = () => {
-    if (!baseAero?.pts?.length) return;
-    const pts = baseAero.pts.filter(p => p.Q > 0);
-    const results = [];
-    for (let step = 0; step <= qsSteps; step++) {
-      const t_min = (step / qsSteps) * qsDuration;
-      const frac = step / qsSteps;
-      // System resistance changes linearly over time
-      const a_t = qsAStart + frac * (qsAEnd - qsAStart);
-      const c_t = qsCStart + frac * (qsCEnd - qsCStart);
-      const b_t = sysB; // b stays constant
-      // Find operating point at this time step
-      let bestDiff = Infinity, bestPt = null;
-      for (const p of pts) {
-        const dP_sys = a_t * p.Q**2 + b_t * p.Q + c_t;
-        const diff = Math.abs(p.Ps - dP_sys);
-        if (diff < bestDiff) { bestDiff = diff; bestPt = p; }
-      }
-      if (bestPt) {
-        results.push({
-          t: t_min, a: a_t, c: c_t,
-          Q: bestPt.Q, Ps: bestPt.Ps, eta: bestPt.eta,
-          W: bestPt.Pshaft || 0, dP_sys: a_t * bestPt.Q**2 + b_t * bestPt.Q + c_t,
-        });
-      }
-    }
-    setQsResults(results);
-  };
 
   // Nelder-Mead simplex optimizer (JS)
   const nelderMead = (fn, x0, maxIter=300, tol=1e-6) => {
@@ -1607,6 +1535,59 @@ export default function ImpellerViewer() {
   // Base case performance + structure
   const baseAero = useMemo(() => computeAero(baseParams), [D1,D2,Deye,b1,b2,beta1,beta2,Z,RPM,tBlade,cutoffGap,Rtongue,scrollEndAngle,cutoffAngle,scrollExpRate,scrollExpMode,scrollExpPts,diffAngle,diffLength,tongueOutLen,tongueOutAngle]);
   const baseStruc = useMemo(() => computeStructure(baseParams, baseAero, mat), [baseAero, matKey, tBlade, b1, b2, D1, D2, Z]);
+
+  // Find operating point: fan Ps(Q) = system dP(Q)
+  const operatingPoint = useMemo(() => {
+    if (!showSysCurve || !baseAero?.pts?.length) return null;
+    const pts = baseAero.pts.filter(p => p.Q > 0);
+    let bestDiff = Infinity, bestPt = null;
+    for (const p of pts) {
+      const dP_sys = sysA * p.Q**2 + sysB * p.Q + sysC;
+      const diff = Math.abs(p.Ps - dP_sys);
+      if (diff < bestDiff) { bestDiff = diff; bestPt = { ...p, dP_sys }; }
+    }
+    if (bestPt && pts.length > 2) {
+      const idx = pts.findIndex(p => Math.abs(p.Q - bestPt.Q) < 0.01);
+      if (idx > 0 && idx < pts.length - 1) {
+        const p1 = pts[idx], s1 = p1.Ps - (sysA*p1.Q**2 + sysB*p1.Q + sysC);
+        for (const pn of [pts[idx-1], pts[idx+1]]) {
+          const sn = pn.Ps - (sysA*pn.Q**2 + sysB*pn.Q + sysC);
+          if (s1 * sn < 0) {
+            const t = Math.abs(s1) / (Math.abs(s1) + Math.abs(sn));
+            const Q_op = p1.Q + t * (pn.Q - p1.Q);
+            bestPt = { Q: Q_op, Ps: p1.Ps + t*(pn.Ps-p1.Ps), eta: p1.eta + t*(pn.eta-p1.eta),
+              dP_sys: sysA*Q_op**2 + sysB*Q_op + sysC, Pshaft: (p1.Pshaft||0) + t*((pn.Pshaft||0)-(p1.Pshaft||0)) };
+            break;
+          }
+        }
+      }
+    }
+    return bestPt;
+  }, [showSysCurve, sysA, sysB, sysC, baseAero]);
+
+  // Quasi-steady state
+  const [qsShow, setQsShow] = useState(false);
+  const [qsDuration, setQsDuration] = useState(90);
+  const [qsSteps, setQsSteps] = useState(30);
+  const [qsAStart, setQsAStart] = useState(1.5);
+  const [qsAEnd, setQsAEnd] = useState(3.0);
+  const [qsCStart, setQsCStart] = useState(5);
+  const [qsCEnd, setQsCEnd] = useState(15);
+  const [qsResults, setQsResults] = useState(null);
+
+  const runQuasiSteady = () => {
+    if (!baseAero?.pts?.length) return;
+    const pts = baseAero.pts.filter(p => p.Q > 0);
+    const results = [];
+    for (let step = 0; step <= qsSteps; step++) {
+      const frac = step / qsSteps, t_min = frac * qsDuration;
+      const a_t = qsAStart + frac*(qsAEnd-qsAStart), c_t = qsCStart + frac*(qsCEnd-qsCStart);
+      let bestDiff = Infinity, bestPt = null;
+      for (const p of pts) { const d = Math.abs(p.Ps - (a_t*p.Q**2 + sysB*p.Q + c_t)); if (d < bestDiff) { bestDiff=d; bestPt=p; } }
+      if (bestPt) results.push({ t:t_min, a:a_t, c:c_t, Q:bestPt.Q, Ps:bestPt.Ps, eta:bestPt.eta, W:bestPt.Pshaft||0 });
+    }
+    setQsResults(results);
+  };
 
   // Sweep results
   const sweepResults = useMemo(() => {
