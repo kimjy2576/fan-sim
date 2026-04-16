@@ -6,6 +6,12 @@ const C = {
   blade: "#60a5fa", shroud: "#94a3b8", hub: "#f59e0b",
   backplate: "#a78bfa", eye: "#34d399", accent: "#f472b6",
   red: "#ef4444", green: "#4ade80", cyan: "#22d3ee", purple: "#a855f7", orange: "#f59e0b", amber: "#fbbf24", pink: "#f472b6",
+  // HPWD Standard Tokens (mapped to existing)
+  surface: "#111827",      // = card
+  surface2: "#1a2036",     // slightly lighter
+  textSec: "#94a3b8",      // secondary text
+  textTer: "#4a5568",      // = dim
+  accentBg: "#1e3a8a22",   // accent background
 };
 
 // ═══ MATERIAL DATABASE ═══
@@ -1616,16 +1622,39 @@ export default function ImpellerViewer() {
 
   return (
     <div style={{ background: C.bg, minHeight: "100vh", color: C.text }} className="font-sans">
-      <div className="px-3 pt-3 pb-1">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-sm font-bold" style={{ fontFamily: "monospace" }}><span style={{ color: C.accent }}>◆</span> Impeller Design & Parametric Study</h1>
-            <p style={{ color: C.dim, fontFamily: "monospace", fontSize: 9 }}>3D + 2D + 성능·소음·구조 sweep</p>
+      {/* HPWD Standard Header */}
+      <div style={{ background: C.surface, borderBottom: `1px solid ${C.border}`, padding: "8px 16px" }}>
+        <div className="flex items-center gap-3">
+          <a href="#" onClick={e=>e.preventDefault()} style={{ color: C.cyan, fontSize: 12, fontFamily: "monospace", textDecoration: "none" }}>← System</a>
+          <span style={{ color: C.dim }}>|</span>
+          <span style={{ fontSize: 14, fontWeight: 700, fontFamily: "monospace", color: C.text }}>
+            <span style={{ color: C.blade }}>◆</span> Fan
+          </span>
+          <span style={{ color: C.dim }}>|</span>
+          <span style={{ color: C.textSec, fontSize: 10, fontFamily: "monospace" }}>Mode:</span>
+          <div className="flex gap-0.5" style={{ background: C.bg, borderRadius: 6, padding: 2 }}>
+            {[{k:'on_design',l:'On-design'},{k:'semi_empirical',l:'Semi-emp'},{k:'off_design',l:'Off-design'}].map(m =>
+              <button key={m.k} onClick={() => setFanMode(m.k)}
+                style={{ fontFamily: "monospace", fontSize: 10, padding: "3px 10px", borderRadius: 4,
+                  background: fanMode===m.k ? C.surface2 : "transparent",
+                  color: fanMode===m.k ? C.cyan : C.textSec,
+                  border: "none", cursor: "pointer",
+                  fontWeight: fanMode===m.k ? 700 : 400,
+                }}>{m.l}</button>)}
           </div>
+          <div className="ml-auto flex gap-1">
+            <button onClick={() => setSaveOpen(!saveOpen)}
+              style={{ fontFamily: "monospace", fontSize: 12, padding: "4px 10px", borderRadius: 4,
+                background: saveOpen ? C.surface2 : "transparent", color: C.cyan,
+                border: `1px solid ${saveOpen ? C.cyan : C.border}`, cursor: "pointer" }}>💾</button>
+          </div>
+        </div>
+        <div style={{ color: C.dim, fontFamily: "monospace", fontSize: 9, marginTop: 2 }}>
+          시로코 팬 임펠러-스크롤 1D 시뮬레이터 · 3D/2D/성능/소음/구조/피팅/검증
         </div>
       </div>
       {/* Save/Load Panel */}
-      {saveOpen && <div className="px-3 pb-1">
+      {saveOpen && <div className="px-3 pb-1 pt-1">
         <div className="rounded-lg p-2" style={{ background:C.card, border:`1px solid ${C.cyan}44` }}>
           <div style={{ color:C.cyan, fontFamily:"monospace", fontSize:9, fontWeight:700, marginBottom:4 }}>SAVE / LOAD</div>
           <div className="flex gap-1 mb-2">
@@ -1925,12 +1954,7 @@ export default function ImpellerViewer() {
           <div style={{display:viewTab===6?'block':'none'}}><div className="p-2">
             <div className="flex items-center gap-2 mb-2">
               <span style={{ color:C.cyan, fontFamily:"monospace", fontSize:10, fontWeight:700 }}>PQ ANALYSIS</span>
-              <div className="flex gap-0.5 ml-auto">
-                {[{k:'on_design',l:'On-design'},{k:'semi_empirical',l:'Semi-emp'},{k:'off_design',l:'Off-design'}].map(m =>
-                  <button key={m.k} onClick={() => setFanMode(m.k)} className="px-2 py-0.5 rounded"
-                    style={{ fontFamily:"monospace", fontSize:7, background:fanMode===m.k?C.card:"transparent",
-                      color:fanMode===m.k?C.cyan:C.dim, border:`1px solid ${fanMode===m.k?C.cyan:C.border}` }}>{m.l}</button>)}
-              </div>
+              <span style={{ color:C.dim, fontFamily:"monospace", fontSize:8 }}>— 모드: <span style={{color:C.cyan}}>{fanMode==='on_design'?'On-design':fanMode==='semi_empirical'?'Semi-empirical':'Off-design'}</span> (헤더에서 전환)</span>
             </div>
             {/* Semi-empirical fitting panel */}
             {fanMode==='semi_empirical' && <div className="mb-2 p-1.5 rounded" style={{ background:C.bg, border:`1px solid ${C.green}33` }}>
@@ -2712,7 +2736,44 @@ export default function ImpellerViewer() {
           </div>
         </div>
       </div>
-      <div className="text-center pb-3" style={{color:C.border,fontFamily:"monospace",fontSize:9}}>Impeller Design & Parametric Study v1.0</div>
+      {/* HPWD Standard Bottom KPI Bar — always visible */}
+      <div style={{ position: "sticky", bottom: 0, background: C.surface, borderTop: `1px solid ${C.border}`,
+        padding: "8px 16px", marginTop: 8, boxShadow: `0 -2px 8px ${C.bg}` }}>
+        {(() => {
+          const aero = baseAero;
+          const bep = aero?.bep || {};
+          const op = operatingPoint;
+          const showOp = showSysCurve && op;
+          const kpi = showOp ? [
+            {l:"Q_op", v: op.Q?.toFixed(1), u: "m³/min", c: C.amber},
+            {l:"Ps_op", v: op.Ps?.toFixed(0), u: "Pa", c: C.cyan},
+            {l:"η_op", v: (op.eta*100)?.toFixed(1), u: "%", c: C.green},
+            {l:"W_op", v: (op.Pshaft||0)?.toFixed(1), u: "W", c: C.red},
+            {l:"SPL", v: aero?.SPL?.toFixed(1), u: "dB", c: C.purple},
+            {l:"Mode", v: fanMode==='on_design'?'On':fanMode==='semi_empirical'?'Semi':'Off', u: "", c: C.dim},
+          ] : [
+            {l:"Q_BEP", v: bep.Q?.toFixed(1), u: "m³/min", c: C.amber},
+            {l:"Ps", v: bep.Ps?.toFixed(0), u: "Pa", c: C.cyan},
+            {l:"Pt", v: bep.Pt?.toFixed(0), u: "Pa", c: C.blade},
+            {l:"η", v: (bep.eta*100)?.toFixed(1), u: "%", c: C.green},
+            {l:"SPL", v: aero?.SPL?.toFixed(1), u: "dB", c: C.purple},
+            {l:"SF", v: baseStruc?.SF?.toFixed(1), u: "", c: baseStruc?.SF > 2 ? C.green : C.red},
+          ];
+          return <div className="flex items-center gap-3" style={{ overflowX: "auto" }}>
+            {kpi.map(k => <div key={k.l} style={{ flex: "0 0 auto", display: "flex", flexDirection: "column", alignItems: "center", minWidth: 50 }}>
+              <span style={{ color: C.textSec, fontFamily: "monospace", fontSize: 8 }}>{k.l}</span>
+              <span style={{ color: k.c, fontFamily: "monospace", fontSize: 13, fontWeight: 700 }}>{k.v || "—"}</span>
+              {k.u && <span style={{ color: C.dim, fontFamily: "monospace", fontSize: 7 }}>{k.u}</span>}
+            </div>)}
+            <div className="ml-auto flex items-center gap-2" style={{flex: "0 0 auto"}}>
+              {showOp && <div style={{padding: "3px 8px", borderRadius: 4, background: "#f9731622", fontSize: 9, fontFamily: "monospace", color: C.orange, border: `1px solid ${C.orange}44`}}>▸ 운전점</div>}
+              {fitCoeffs && fanMode==='semi_empirical' && <div style={{padding: "3px 8px", borderRadius: 4, background: "#4ade8022", fontSize: 9, fontFamily: "monospace", color: C.green, border: `1px solid ${C.green}44`}}>✓ 피팅 적용</div>}
+              {expData.length > 0 && <div style={{padding: "3px 8px", borderRadius: 4, background: "#f59e0b22", fontSize: 9, fontFamily: "monospace", color: C.orange, border: `1px solid ${C.orange}44`}}>{expData.length}점 실험</div>}
+            </div>
+          </div>;
+        })()}
+      </div>
+      <div className="text-center pb-3 pt-2" style={{color:C.border,fontFamily:"monospace",fontSize:9}}>Fan-Sim v5.0 · HPWD Integration</div>
     </div>
   );
 }
