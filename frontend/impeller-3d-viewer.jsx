@@ -2751,7 +2751,47 @@ export default function ImpellerViewer() {
           </div>
         </div>
       </div>
-      <div className="text-center pb-3" style={{color:C.border,fontFamily: "'Noto Sans KR', sans-serif",fontSize:9}}>Impeller Design & Parametric Study v1.0</div>
+      {/* ═══ HPWD Standard KPI Bar (sticky bottom) ═══ */}
+      <div style={{
+        position: "sticky", bottom: 0,
+        display: "flex", borderTop: `1px solid ${C.border}`,
+        background: C.card, flexShrink: 0, zIndex: 50
+      }}>
+        {[
+          { l: "Q_BEP", v: baseAero.bep.Q.toFixed(1), u: "m³/min" },
+          { l: "Ps", v: baseAero.bep.Ps.toFixed(0), u: "Pa" },
+          { l: "η", v: (baseAero.bep.eta*100).toFixed(1), u: "%" },
+          { l: "SPL", v: baseAero.SPL.toFixed(1), u: "dB" },
+          { l: "P_shaft", v: baseAero.bep.Pshaft.toFixed(1), u: "W" },
+          { l: "SF", v: baseStruc.SF.toFixed(1), u: "" },
+        ].map((k, i, arr) => (
+          <div key={k.l} style={{
+            flex: 1, textAlign: "center", padding: "8px 6px",
+            borderRight: i < arr.length - 1 ? `1px solid ${C.border}` : "none"
+          }}>
+            <div style={{ fontSize: 10, color: C.dim, marginBottom: 2 }}>{k.l}</div>
+            <div style={{ fontSize: 15, fontWeight: 500, color: C.text, fontFamily: "'Noto Sans KR', sans-serif" }}>
+              {k.v}{k.u && <span style={{ fontSize: 11, fontWeight: 400, color: C.muted }}> {k.u}</span>}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Status bar */}
+      <div style={{
+        fontSize: 11, color: C.dim, padding: "5px 20px",
+        borderTop: `1px solid ${C.border}`, background: C.card,
+        display: "flex", gap: 16, flexShrink: 0
+      }}>
+        <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          <span style={{ width: 6, height: 6, borderRadius: "50%", background: C.green, display: "inline-block" }} />수렴
+        </span>
+        <span>Mode: {fanMode}</span>
+        <span>RPM: {RPM}</span>
+        <span>{mat.name}</span>
+      </div>
+
+      <div className="text-center pb-3 pt-2" style={{color:C.border,fontFamily: "'Noto Sans KR', sans-serif",fontSize:9}}>Impeller Design & Parametric Study v1.0</div>
     </div>
   );
 }
