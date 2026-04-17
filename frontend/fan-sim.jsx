@@ -1,36 +1,27 @@
 const { useState, useEffect, useRef, useMemo } = React;
-// THREE.js guard — stub all 28 classes for artifact viewer compatibility
+// THREE.js guard — Proxy catches ALL property access
 if (typeof THREE === 'undefined') {
-  const noop = () => {};
-  const mkVec = () => ({ x:0, y:0, z:0, set:noop, copy:()=>mkVec(), add:()=>mkVec(), sub:()=>mkVec(), normalize:()=>mkVec(), multiplyScalar:()=>mkVec(), clone:()=>mkVec() });
-  const mkGeo = function(){ this.dispose=noop; this.setAttribute=noop; this.attributes={}; };
-  const mkMat = function(){ this.dispose=noop; this.color={set:noop}; };
-  const mkObj = function(){ this.add=noop; this.remove=noop; this.position=mkVec(); this.rotation={x:0,y:0,z:0}; this.scale=mkVec(); this.children=[]; };
-  window.THREE = {
-    Scene: function(){ mkObj.call(this); this.background=null; },
-    PerspectiveCamera: function(){ mkObj.call(this); this.aspect=1; this.updateProjectionMatrix=noop; this.lookAt=noop; },
-    WebGLRenderer: function(){ this.setSize=noop; this.setPixelRatio=noop; this.render=noop; this.dispose=noop; this.domElement=document.createElement('canvas'); },
-    AmbientLight: function(){ mkObj.call(this); },
-    DirectionalLight: function(){ mkObj.call(this); },
-    Group: function(){ mkObj.call(this); },
-    Mesh: function(){ mkObj.call(this); },
-    LineSegments: function(){ mkObj.call(this); },
-    GridHelper: function(){ mkObj.call(this); },
-    ArrowHelper: function(){ mkObj.call(this); },
-    CylinderGeometry: mkGeo, LatheGeometry: mkGeo, ExtrudeGeometry: mkGeo,
-    BoxGeometry: mkGeo, RingGeometry: mkGeo, TorusGeometry: mkGeo,
-    BufferGeometry: function(){ mkGeo.call(this); this.setFromPoints=noop; },
-    EdgesGeometry: mkGeo,
-    MeshStandardMaterial: mkMat, MeshPhongMaterial: mkMat, MeshBasicMaterial: mkMat, LineBasicMaterial: mkMat,
-    Shape: function(){ this.moveTo=noop; this.lineTo=noop; this.quadraticCurveTo=noop; this.absarc=noop; this.curves=[]; },
-    Path: function(){ this.moveTo=noop; this.lineTo=noop; this.quadraticCurveTo=noop; this.absarc=noop; this.curves=[]; },
-    Vector2: function(x,y){ this.x=x||0; this.y=y||0; },
-    Vector3: function(x,y,z){ this.x=x||0; this.y=y||0; this.z=z||0; this.set=noop; this.normalize=()=>this; },
-    Color: function(){ this.set=noop; },
-    Box3: function(){ this.setFromObject=()=>this; this.getCenter=()=>mkVec(); this.getSize=()=>mkVec(); },
-    Float32BufferAttribute: function(){},
-    DoubleSide: 2,
-  };
+  const handler = { get(t, p) {
+    if (p === 'DoubleSide') return 2;
+    if (typeof t[p] !== 'undefined') return t[p];
+    return function() {
+      const o = this || {};
+      o.position = { x:0, y:0, z:0, set(){}, copy(){ return this; } };
+      o.rotation = { x:0, y:0, z:0 };
+      o.scale = { x:1, y:1, z:1, set(){} };
+      o.add = () => {}; o.remove = () => {}; o.dispose = () => {};
+      o.lookAt = () => {}; o.updateProjectionMatrix = () => {};
+      o.setSize = () => {}; o.setPixelRatio = () => {}; o.render = () => {};
+      o.setFromObject = () => o; o.getCenter = () => ({x:0,y:0,z:0}); o.getSize = () => ({x:1,y:1,z:1});
+      o.setAttribute = () => {}; o.setFromPoints = () => {};
+      o.moveTo = () => {}; o.lineTo = () => {}; o.quadraticCurveTo = () => {}; o.absarc = () => {};
+      o.set = () => {}; o.normalize = () => o; o.curves = []; o.children = [];
+      o.color = { set(){} }; o.background = null; o.aspect = 1;
+      o.domElement = document.createElement('canvas');
+      return o;
+    };
+  }};
+  window.THREE = new Proxy({}, handler);
 }
 
 // ═══ HPWD STANDARD CSS INJECTION ═══
