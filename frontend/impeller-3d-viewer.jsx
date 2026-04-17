@@ -34,14 +34,14 @@ function PQChart({ data, xKey, lines, w = 320, h = 150, xLabel = "", yLabel = ""
   return <svg width={w} height={h}>
     {[0,1,2,3,4].map(i => {const v=yMin+(yMax-yMin)*i/4; return <g key={i}>
       <line x1={pad.l} y1={sy(v)} x2={w-pad.r} y2={sy(v)} stroke={C.border} strokeWidth={0.5}/>
-      <text x={pad.l-3} y={sy(v)+3} fill={C.dim} fontSize={7} textAnchor="end" fontFamily="monospace">{v<10?v.toFixed(2):v.toFixed(0)}</text></g>;})}
+      <text x={pad.l-3} y={sy(v)+3} fill={C.dim} fontSize={7} textAnchor="end" fontFamily="'Noto Sans KR', sans-serif">{v<10?v.toFixed(2):v.toFixed(0)}</text></g>;})}
     {lines.map(l => <polyline key={l.key} points={data.map(d=>`${sx(d[xKey])},${sy(d[l.key])}`).join(" ")}
       fill="none" stroke={l.color} strokeWidth={l.w||1.5} strokeDasharray={l.dash||"none"}/>)}
     {markers.map((m,i) => <g key={i}><line x1={sx(m.x)} y1={pad.t} x2={sx(m.x)} y2={pad.t+ch} stroke={m.color||C.amber} strokeWidth={1} strokeDasharray="4,3" opacity={0.6}/>
       <circle cx={sx(m.x)} cy={sy(m.y)} r={3} fill={m.color||C.amber}/>
-      {m.label && <text x={sx(m.x)+4} y={sy(m.y)-5} fill={m.color||C.amber} fontSize={7} fontFamily="monospace">{m.label}</text>}</g>)}
-    <text x={pad.l+cw/2} y={h-3} fill={C.dim} fontSize={8} textAnchor="middle" fontFamily="monospace">{xLabel}</text>
-    <text x={3} y={pad.t+ch/2} fill={C.dim} fontSize={8} textAnchor="middle" fontFamily="monospace" transform={`rotate(-90,3,${pad.t+ch/2})`}>{yLabel}</text>
+      {m.label && <text x={sx(m.x)+4} y={sy(m.y)-5} fill={m.color||C.amber} fontSize={7} fontFamily="'Noto Sans KR', sans-serif">{m.label}</text>}</g>)}
+    <text x={pad.l+cw/2} y={h-3} fill={C.dim} fontSize={8} textAnchor="middle" fontFamily="'Noto Sans KR', sans-serif">{xLabel}</text>
+    <text x={3} y={pad.t+ch/2} fill={C.dim} fontSize={8} textAnchor="middle" fontFamily="'Noto Sans KR', sans-serif" transform={`rotate(-90,3,${pad.t+ch/2})`}>{yLabel}</text>
   </svg>;
 }
 
@@ -55,7 +55,7 @@ function VArrow({ x1,y1,x2,y2,color,label,dashed,sw=2 }) {
   return <g>
     <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={color} strokeWidth={sw} strokeDasharray={dashed?"5,3":"none"} opacity={dashed?0.6:1}/>
     <polygon points={`${x2},${y2} ${lx},${ly} ${rx},${ry}`} fill={color} opacity={dashed?0.5:0.85}/>
-    {label && <text x={mx} y={my} fill={color} fontSize={10} fontWeight="700" textAnchor="middle" fontFamily="monospace">{label}</text>}
+    {label && <text x={mx} y={my} fill={color} fontSize={10} fontWeight="700" textAnchor="middle" fontFamily="'Noto Sans KR', sans-serif">{label}</text>}
   </g>;
 }
 
@@ -242,19 +242,19 @@ function MiniChart({data,xKey,yKey,w=160,h=100,color=C.blade,label,yUnit=''}){
   // Grid lines
   const gridY = big ? 4 : 2;
   return <svg width={w} height={h} style={{display:"block",margin:"0 auto"}}>
-    <text x={w/2} y={big?14:10} fill={C.muted} fontSize={big?10:7} fontFamily="monospace" textAnchor="middle" fontWeight={big?"bold":"normal"}>{label}</text>
+    <text x={w/2} y={big?14:10} fill={C.muted} fontSize={big?10:7} fontFamily="'Noto Sans KR', sans-serif" textAnchor="middle" fontWeight={big?"bold":"normal"}>{label}</text>
     {Array.from({length:gridY+1}).map((_,i) => {
       const y = p.t + (ph/gridY)*i;
       const val = yMax - (yMax-yMin)*(i/gridY);
       return <g key={i}><line x1={p.l} y1={y} x2={p.l+pw} y2={y} stroke={C.border} strokeWidth={0.3}/>
-        <text x={p.l-3} y={y+3} fill={C.dim} fontSize={fs-2} fontFamily="monospace" textAnchor="end">{val.toFixed(yMax-yMin>10?0:1)}</text></g>;
+        <text x={p.l-3} y={y+3} fill={C.dim} fontSize={fs-2} fontFamily="'Noto Sans KR', sans-serif" textAnchor="end">{val.toFixed(yMax-yMin>10?0:1)}</text></g>;
     })}
     <line x1={p.l} y1={p.t} x2={p.l} y2={p.t+ph} stroke={C.border} strokeWidth={0.5}/>
     <line x1={p.l} y1={p.t+ph} x2={p.l+pw} y2={p.t+ph} stroke={C.border} strokeWidth={0.5}/>
     <polyline points={pts} fill="none" stroke={color} strokeWidth={lw}/>
     {data.map((d,i)=><circle key={i} cx={sx(d[xKey])} cy={sy(d[yKey])} r={dotR} fill={color} opacity={0.8}/>)}
-    <text x={p.l} y={h-3} fill={C.dim} fontSize={fs-1} fontFamily="monospace">{xMin}</text>
-    <text x={p.l+pw} y={h-3} fill={C.dim} fontSize={fs-1} fontFamily="monospace" textAnchor="end">{xMax}</text>
+    <text x={p.l} y={h-3} fill={C.dim} fontSize={fs-1} fontFamily="'Noto Sans KR', sans-serif">{xMin}</text>
+    <text x={p.l+pw} y={h-3} fill={C.dim} fontSize={fs-1} fontFamily="'Noto Sans KR', sans-serif" textAnchor="end">{xMax}</text>
   </svg>;
 }
 
@@ -266,15 +266,15 @@ function S({ label, value, min, max, step, onChange, unit, color }) {
   const onKey = (e) => { if (e.key === 'Enter') endEdit(); if (e.key === 'Escape') setEditing(false); };
   return (
     <div className="flex items-center gap-1 py-0.5">
-      <span className="w-10 text-right" style={{ color: color || C.muted, fontFamily: "monospace", fontSize: 10 }}>{label}</span>
+      <span className="w-10 text-right" style={{ color: color || C.muted, fontFamily: "'Noto Sans KR', sans-serif", fontSize: 10 }}>{label}</span>
       <input type="range" min={min} max={max} step={step} value={value} onChange={e => onChange(+e.target.value)}
         className="flex-1 h-1 appearance-none rounded cursor-pointer" style={{ background: C.border, accentColor: color || C.blade }} />
       {editing ? (
         <input type="number" value={text} onChange={e => setText(e.target.value)} onBlur={endEdit} onKeyDown={onKey} autoFocus
-          className="w-14 text-right rounded px-0.5" style={{ background: C.bg, color: C.text, fontFamily: "monospace", fontSize: 10, border: `1px solid ${color || C.blade}`, outline: "none" }} />
+          className="w-14 text-right rounded px-0.5" style={{ background: C.bg, color: C.text, fontFamily: "'Noto Sans KR', sans-serif", fontSize: 10, border: `1px solid ${color || C.blade}`, outline: "none" }} />
       ) : (
         <span className="w-14 text-right cursor-pointer" onDoubleClick={startEdit} title="더블클릭: 직접 입력"
-          style={{ color: C.text, fontFamily: "monospace", fontSize: 10, borderBottom: `1px dashed ${C.border}` }}>
+          style={{ color: C.text, fontFamily: "'Noto Sans KR', sans-serif", fontSize: 10, borderBottom: `1px dashed ${C.border}` }}>
           {typeof value === 'number' && value % 1 !== 0 ? value.toFixed(1) : value}{unit}
         </span>
       )}
@@ -525,7 +525,7 @@ function buildScrollMesh(scrollPts, bScroll, scrollGapF, scrollGapB, crossSectio
 }
 
 function Tab({ active, onClick, children, color }) {
-  return <button onClick={onClick} className="px-3 py-1 text-xs rounded-t" style={{ fontFamily: "monospace", fontSize: 10,
+  return <button onClick={onClick} className="px-3 py-1 text-xs rounded-t" style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize: 10,
     background: active ? C.card : "transparent", color: active ? (color || C.text) : C.dim,
     borderBottom: active ? `2px solid ${color || C.blade}` : "2px solid transparent" }}>{children}</button>;
 }
@@ -543,12 +543,12 @@ function FrontView({ Deye, D1, D2, Du, bladePts, Z, bladeType, bendPos, showScro
   const tongueTheta = cutoffAngle * Math.PI / 180;
   const rTongue = D2/2 + cutoffGap + Rtongue; // tip center = r₂ + δ + R
   return <svg width={w} height={h} style={{ display: "block", margin: "0 auto" }}>
-    <text x={w/2} y={16} fill={C.dim} fontSize={9} fontFamily="monospace" textAnchor="middle">정면도 (Front — Eye 방향에서 본 모습)</text>
+    <text x={w/2} y={16} fill={C.dim} fontSize={9} fontFamily="'Noto Sans KR', sans-serif" textAnchor="middle">정면도 (Front — Eye 방향에서 본 모습)</text>
     {/* Casing box */}
     {showCasing && <rect x={w/2 - casingW/2*sc} y={h/2+10 - casingH/2*sc} width={casingW*sc} height={casingH*sc}
       fill="none" stroke="#4488aa" strokeWidth={1.5} opacity={0.5} rx={2} />}
     {showCasing && <>
-      <text x={w/2} y={h/2+10 + casingH/2*sc + 12} fill="#4488aa" fontSize={7} fontFamily="monospace" textAnchor="middle">{casingW}×{casingH}mm</text>
+      <text x={w/2} y={h/2+10 + casingH/2*sc + 12} fill="#4488aa" fontSize={7} fontFamily="'Noto Sans KR', sans-serif" textAnchor="middle">{casingW}×{casingH}mm</text>
       {/* Center crosshair */}
       <line x1={cx-4} y1={cy} x2={cx+4} y2={cy} stroke="#4488aa" strokeWidth={0.5} opacity={0.3} />
       <line x1={cx} y1={cy-4} x2={cx} y2={cy+4} stroke="#4488aa" strokeWidth={0.5} opacity={0.3} />
@@ -571,7 +571,7 @@ function FrontView({ Deye, D1, D2, Du, bladePts, Z, bladeType, bendPos, showScro
         stroke={C.green} strokeWidth={1.5} opacity={0.5} markerEnd="url(#aF)" />;
     })}
     <defs><marker id="aF" viewBox="0 0 10 10" refX={8} refY={5} markerWidth={5} markerHeight={5} orient="auto"><path d="M0 0L10 5L0 10z" fill={C.green} opacity={0.5} /></marker></defs>
-    <text x={cx} y={cy + 3} fill={C.green} fontSize={8} fontFamily="monospace" textAnchor="middle" opacity={0.5}>AIR IN ⊙</text>
+    <text x={cx} y={cy + 3} fill={C.green} fontSize={8} fontFamily="'Noto Sans KR', sans-serif" textAnchor="middle" opacity={0.5}>AIR IN ⊙</text>
     {/* Axis lines: θ_cut and θ_exit */}
     {showScroll && (() => {
       const cutRad = cutoffAngle * Math.PI / 180;
@@ -582,7 +582,7 @@ function FrontView({ Deye, D1, D2, Du, bladePts, Z, bladeType, bendPos, showScro
         <line x1={cx} y1={cy} x2={cx + axLen * Math.cos(exitRad)} y2={cy - axLen * Math.sin(exitRad)}
           stroke="#d4a44a" strokeWidth={1} strokeDasharray="6,3" opacity={0.4} />
         <text x={cx + (axLen+8) * Math.cos(exitRad)} y={cy - (axLen+8) * Math.sin(exitRad)}
-          fill="#d4a44a" fontSize={6} fontFamily="monospace" textAnchor="middle" opacity={0.6}>θ_exit={exitAngle}°</text>
+          fill="#d4a44a" fontSize={6} fontFamily="'Noto Sans KR', sans-serif" textAnchor="middle" opacity={0.6}>θ_exit={exitAngle}°</text>
         {/* θ_cut axis */}
         <line x1={cx} y1={cy} x2={cx + axLen * 0.5 * Math.cos(cutRad)} y2={cy - axLen * 0.5 * Math.sin(cutRad)}
           stroke={C.red} strokeWidth={0.8} strokeDasharray="4,3" opacity={0.3} />
@@ -624,7 +624,7 @@ function FrontView({ Deye, D1, D2, Du, bladePts, Z, bladeType, bendPos, showScro
           {diffInnerWall && <path d={`M${innerX} ${innerY} Q${innerX + dL*0.5*dx} ${innerY + dL*0.5*dy} ${iEndX} ${iEndY}`} fill="none" stroke="#d4a44a" strokeWidth={1.2} />}
           <path d={`M${outerX} ${outerY} Q${outerX + dL*0.5*dx + dL*0.3*Math.tan(halfA)*nx} ${outerY + dL*0.5*dy + dL*0.3*Math.tan(halfA)*ny} ${oEndX} ${oEndY}`} fill="none" stroke="#d4a44a" strokeWidth={1.2} />
           <line x1={diffInnerWall?iEndX:innerX} y1={diffInnerWall?iEndY:innerY} x2={oEndX} y2={oEndY} stroke="#d4a44a" strokeWidth={1} strokeDasharray="3,2" />
-          {!diffInnerWall && <text x={(innerX+outerX)/2-10} y={(innerY+outerY)/2} fill="#d4a44a" fontSize={5} fontFamily="monospace">개방</text>}
+          {!diffInnerWall && <text x={(innerX+outerX)/2-10} y={(innerY+outerY)/2} fill="#d4a44a" fontSize={5} fontFamily="'Noto Sans KR', sans-serif">개방</text>}
         </g>;
       }
       if (diffType === 'stepped') {
@@ -635,7 +635,7 @@ function FrontView({ Deye, D1, D2, Du, bladePts, Z, bladeType, bendPos, showScro
           <path d={`M${outerX} ${outerY} L${outerX + midL*dx} ${outerY + midL*dy} L${outerX + midL*dx + stepX} ${outerY + midL*dy + stepY} L${oEndX} ${oEndY}`} fill="none" stroke="#d4a44a" strokeWidth={1.2} />
           {diffInnerWall && <line x1={innerX} y1={innerY} x2={iEndX} y2={iEndY} stroke="#d4a44a" strokeWidth={1.2} />}
           <line x1={diffInnerWall?iEndX:innerX} y1={diffInnerWall?iEndY:innerY} x2={oEndX} y2={oEndY} stroke="#d4a44a" strokeWidth={1} strokeDasharray="3,2" />
-          {!diffInnerWall && <text x={(innerX+outerX)/2-10} y={(innerY+outerY)/2} fill="#d4a44a" fontSize={5} fontFamily="monospace">개방</text>}
+          {!diffInnerWall && <text x={(innerX+outerX)/2-10} y={(innerY+outerY)/2} fill="#d4a44a" fontSize={5} fontFamily="'Noto Sans KR', sans-serif">개방</text>}
         </g>;
       }
       // Single
@@ -643,8 +643,8 @@ function FrontView({ Deye, D1, D2, Du, bladePts, Z, bladeType, bendPos, showScro
         {diffInnerWall && <line x1={innerX} y1={innerY} x2={iEndX} y2={iEndY} stroke="#d4a44a" strokeWidth={1.2} />}
         <line x1={outerX} y1={outerY} x2={oEndX} y2={oEndY} stroke="#d4a44a" strokeWidth={1.2} />
         <line x1={diffInnerWall?iEndX:innerX} y1={diffInnerWall?iEndY:innerY} x2={oEndX} y2={oEndY} stroke="#d4a44a" strokeWidth={1} strokeDasharray="3,2" />
-        <text x={(oEndX)+6} y={(oEndY)} fill="#d4a44a" fontSize={5} fontFamily="monospace">출구</text>
-        {!diffInnerWall && <text x={(innerX+outerX)/2-10} y={(innerY+outerY)/2} fill="#d4a44a" fontSize={5} fontFamily="monospace">개방</text>}
+        <text x={(oEndX)+6} y={(oEndY)} fill="#d4a44a" fontSize={5} fontFamily="'Noto Sans KR', sans-serif">출구</text>
+        {!diffInnerWall && <text x={(innerX+outerX)/2-10} y={(innerY+outerY)/2} fill="#d4a44a" fontSize={5} fontFamily="'Noto Sans KR', sans-serif">개방</text>}
       </g>;
     })()}
     {/* Tongue — inner face → tip round arc → outer face */}
@@ -715,16 +715,16 @@ function FrontView({ Deye, D1, D2, Du, bladePts, Z, bladeType, bendPos, showScro
         <circle cx={tipX} cy={tipY} r={1.5} fill={C.red} opacity={0.4} />
 
         {/* Labels */}
-        <text x={(d2X+tipX)/2+6} y={(d2Y+tipY)/2-4} fill={C.red} fontSize={6} fontFamily="monospace" opacity={0.7}>δ={cutoffGap}</text>
-        <text x={tipX+R+3} y={tipY-R-2} fill={C.red} fontSize={5} fontFamily="monospace" opacity={0.5}>R={Rtongue}</text>
-        <text x={inEndX+4} y={inEndY} fill={C.red} fontSize={5} fontFamily="monospace" opacity={0.4}>내면</text>
-        <text x={outEndX+4} y={outEndY} fill={C.red} fontSize={5} fontFamily="monospace" opacity={0.4}>외면</text>
+        <text x={(d2X+tipX)/2+6} y={(d2Y+tipY)/2-4} fill={C.red} fontSize={6} fontFamily="'Noto Sans KR', sans-serif" opacity={0.7}>δ={cutoffGap}</text>
+        <text x={tipX+R+3} y={tipY-R-2} fill={C.red} fontSize={5} fontFamily="'Noto Sans KR', sans-serif" opacity={0.5}>R={Rtongue}</text>
+        <text x={inEndX+4} y={inEndY} fill={C.red} fontSize={5} fontFamily="'Noto Sans KR', sans-serif" opacity={0.4}>내면</text>
+        <text x={outEndX+4} y={outEndY} fill={C.red} fontSize={5} fontFamily="'Noto Sans KR', sans-serif" opacity={0.4}>외면</text>
       </>;
     })()}
-    <text x={cx} y={cy + D2/2*sc + 18} fill={C.blade} fontSize={8} fontFamily="monospace" textAnchor="middle">D₂={D2}mm</text>
-    <text x={cx} y={cy + D2/2*sc + 30} fill={C.eye} fontSize={8} fontFamily="monospace" textAnchor="middle">D_eye={Deye}mm</text>
-    {bladeType==='sfs' && <text x={cx} y={cy - rBend*sc - 4} fill={C.accent} fontSize={7} fontFamily="monospace" textAnchor="middle" opacity={0.6}>Bend D={rBend*2|0}mm</text>}
-    {Du > D2 && <text x={cx} y={cy - Du/2*sc - 6} fill={C.accent} fontSize={7} fontFamily="monospace" textAnchor="middle">D_u={Du}mm (+{Du-D2})</text>}
+    <text x={cx} y={cy + D2/2*sc + 18} fill={C.blade} fontSize={8} fontFamily="'Noto Sans KR', sans-serif" textAnchor="middle">D₂={D2}mm</text>
+    <text x={cx} y={cy + D2/2*sc + 30} fill={C.eye} fontSize={8} fontFamily="'Noto Sans KR', sans-serif" textAnchor="middle">D_eye={Deye}mm</text>
+    {bladeType==='sfs' && <text x={cx} y={cy - rBend*sc - 4} fill={C.accent} fontSize={7} fontFamily="'Noto Sans KR', sans-serif" textAnchor="middle" opacity={0.6}>Bend D={rBend*2|0}mm</text>}
+    {Du > D2 && <text x={cx} y={cy - Du/2*sc - 6} fill={C.accent} fontSize={7} fontFamily="'Noto Sans KR', sans-serif" textAnchor="middle">D_u={Du}mm (+{Du-D2})</text>}
   </svg>;
 }
 
@@ -738,9 +738,9 @@ function SectionView({ Deye, D1, D2, Du, b1, b2, eyeRise, showScroll, scrollGapF
   // Eye curve control point offset
   const eyeCurveR = eyeRise * 0.8 * sc; // radial spread of curve
   return <svg width={w} height={h} style={{ display: "block", margin: "0 auto" }}>
-    <text x={w/2} y={14} fill={C.dim} fontSize={9} fontFamily="monospace" textAnchor="middle">단면도 (Section View)</text>
+    <text x={w/2} y={14} fill={C.dim} fontSize={9} fontFamily="'Noto Sans KR', sans-serif" textAnchor="middle">단면도 (Section View)</text>
     <line x1={cx} y1={22} x2={cx} y2={h-8} stroke={C.dim} strokeWidth={0.5} strokeDasharray="4,3" opacity={0.3} />
-    <text x={cx+3} y={26} fill={C.dim} fontSize={7} fontFamily="monospace">CL</text>
+    <text x={cx+3} y={26} fill={C.dim} fontSize={7} fontFamily="'Noto Sans KR', sans-serif">CL</text>
     {[1, -1].map(s => <g key={s}>
       <path d={`M${cx+s*rE} ${cy-h1-eyeH} Q${cx+s*(rE+eyeCurveR*0.5)} ${cy-h1-eyeH*0.2} ${cx+s*(rE+eyeCurveR)} ${cy-h1} L${cx+s*r2s} ${cy-h2}`} fill="none" stroke={C.shroud} strokeWidth={1.5} />
       <line x1={cx+s*rU} y1={cy+h2} x2={cx+s*hubR} y2={cy+h1} stroke={C.backplate} strokeWidth={1.5} />
@@ -763,8 +763,8 @@ function SectionView({ Deye, D1, D2, Du, b1, b2, eyeRise, showScroll, scrollGapF
           {/* Outer wall */}
           <line x1={cx+s*rScr} y1={cy-h2-gF} x2={cx+s*rScr} y2={cy+h2+gB} stroke="#d4a44a" strokeWidth={1.5} opacity={0.5} />
           {/* Gap arrows */}
-          {gF > 2 && <text x={cx+s*(r2s+rScr)/2} y={cy-h2-gF/2+3} fill="#d4a44a" fontSize={5} fontFamily="monospace" textAnchor="middle">δ_f={scrollGapF}</text>}
-          {gB > 2 && <text x={cx+s*(r2s+rScr)/2} y={cy+h2+gB/2+3} fill="#d4a44a" fontSize={5} fontFamily="monospace" textAnchor="middle">δ_b={scrollGapB}</text>}
+          {gF > 2 && <text x={cx+s*(r2s+rScr)/2} y={cy-h2-gF/2+3} fill="#d4a44a" fontSize={5} fontFamily="'Noto Sans KR', sans-serif" textAnchor="middle">δ_f={scrollGapF}</text>}
+          {gB > 2 && <text x={cx+s*(r2s+rScr)/2} y={cy+h2+gB/2+3} fill="#d4a44a" fontSize={5} fontFamily="'Noto Sans KR', sans-serif" textAnchor="middle">δ_b={scrollGapB}</text>}
         </>;
       })()}
     </g>)}
@@ -780,22 +780,22 @@ function SectionView({ Deye, D1, D2, Du, b1, b2, eyeRise, showScroll, scrollGapF
         {[-1,1].map(s => <path key={s} d={`M${cx+s*hubR} ${cy+h1} L${cx+s*hubR} ${cy+h1-hD+fR} Q${cx+s*hubR} ${cy+h1-hD} ${cx+s*(hubR-fR)} ${cy+h1-hD} L${cx+s*hTopR} ${cy+h1-hD}`}
           fill="none" stroke={C.hub} strokeWidth={1.2} />)}
         <line x1={cx-hTopR} y1={cy+h1-hD} x2={cx+hTopR} y2={cy+h1-hD} stroke={C.hub} strokeWidth={1} />
-        <text x={cx+hubR+4} y={cy+h1-hD/2} fill={C.hub} fontSize={6} fontFamily="monospace" opacity={0.6}>Hub {hubDepth}mm</text>
+        <text x={cx+hubR+4} y={cy+h1-hD/2} fill={C.hub} fontSize={6} fontFamily="'Noto Sans KR', sans-serif" opacity={0.6}>Hub {hubDepth}mm</text>
       </>;
     })()}
-    <text x={cx} y={cy-h1-eyeH-18} fill={C.green} fontSize={8} fontFamily="monospace" textAnchor="middle" opacity={0.6}>↓ AIR IN ↓</text>
-    <text x={10} y={cy} fill={C.green} fontSize={7} fontFamily="monospace" opacity={0.4}>→ AIR OUT</text>
-    <text x={cx+r2s+8} y={cy-4} fill={C.blade} fontSize={7} fontFamily="monospace">D₂</text>
-    <text x={cx+rU+4} y={cy+h2+14} fill={C.backplate} fontSize={7} fontFamily="monospace">D_u={Du}</text>
-    {Deye < D1 && <text x={cx+(rE+r1s)/2} y={cy-h1-3} fill={C.eye} fontSize={6} fontFamily="monospace" textAnchor="middle" opacity={0.5}>vaneless</text>}
+    <text x={cx} y={cy-h1-eyeH-18} fill={C.green} fontSize={8} fontFamily="'Noto Sans KR', sans-serif" textAnchor="middle" opacity={0.6}>↓ AIR IN ↓</text>
+    <text x={10} y={cy} fill={C.green} fontSize={7} fontFamily="'Noto Sans KR', sans-serif" opacity={0.4}>→ AIR OUT</text>
+    <text x={cx+r2s+8} y={cy-4} fill={C.blade} fontSize={7} fontFamily="'Noto Sans KR', sans-serif">D₂</text>
+    <text x={cx+rU+4} y={cy+h2+14} fill={C.backplate} fontSize={7} fontFamily="'Noto Sans KR', sans-serif">D_u={Du}</text>
+    {Deye < D1 && <text x={cx+(rE+r1s)/2} y={cy-h1-3} fill={C.eye} fontSize={6} fontFamily="'Noto Sans KR', sans-serif" textAnchor="middle" opacity={0.5}>vaneless</text>}
     {eyeRise > 0 && <>
       <line x1={cx-rE-6} y1={cy-h1} x2={cx-rE-6} y2={cy-h1-eyeH} stroke={C.shroud} strokeWidth={0.5} />
-      <text x={cx-rE-10} y={cy-h1-eyeH/2+3} fill={C.shroud} fontSize={6} fontFamily="monospace" textAnchor="end">{eyeRise}mm</text>
+      <text x={cx-rE-10} y={cy-h1-eyeH/2+3} fill={C.shroud} fontSize={6} fontFamily="'Noto Sans KR', sans-serif" textAnchor="end">{eyeRise}mm</text>
     </>}
     <line x1={cx+r1s+8} y1={cy-h1} x2={cx+r1s+8} y2={cy+h1} stroke={C.cyan} strokeWidth={0.5} />
-    <text x={cx+r1s+12} y={cy+3} fill={C.cyan} fontSize={7} fontFamily="monospace">b₁={b1}</text>
+    <text x={cx+r1s+12} y={cy+3} fill={C.cyan} fontSize={7} fontFamily="'Noto Sans KR', sans-serif">b₁={b1}</text>
     <line x1={cx+r2s+8} y1={cy-h2} x2={cx+r2s+8} y2={cy+h2} stroke={C.hub} strokeWidth={0.5} />
-    <text x={cx+r2s+12} y={cy+14} fill={C.hub} fontSize={7} fontFamily="monospace">b₂={b2}</text>
+    <text x={cx+r2s+12} y={cy+14} fill={C.hub} fontSize={7} fontFamily="'Noto Sans KR', sans-serif">b₂={b2}</text>
   </svg>;
 }
 
@@ -804,15 +804,15 @@ function BottomView({ D2, Du, Deye }) {
   const maxR = Math.max(D2, Du)/2; const sc = (Math.min(w, h)/2 - 25) / maxR;
   const hubR = Deye * 0.2;
   return <svg width={w} height={h} style={{ display: "block", margin: "0 auto" }}>
-    <text x={w/2} y={14} fill={C.dim} fontSize={9} fontFamily="monospace" textAnchor="middle">저면도 (Bottom — 주판 방향에서 본 모습)</text>
+    <text x={w/2} y={14} fill={C.dim} fontSize={9} fontFamily="'Noto Sans KR', sans-serif" textAnchor="middle">저면도 (Bottom — 주판 방향에서 본 모습)</text>
     <circle cx={cx} cy={cy} r={Du/2*sc} fill={C.backplate} fillOpacity={0.06} stroke={C.backplate} strokeWidth={1.5} />
     <circle cx={cx} cy={cy} r={D2/2*sc} fill="none" stroke={C.blade} strokeWidth={0.8} strokeDasharray="3,3" opacity={0.4} />
     <circle cx={cx} cy={cy} r={hubR*sc} fill={C.border} stroke={C.hub} strokeWidth={1.2} />
     <circle cx={cx} cy={cy} r={hubR*0.3*sc} fill={C.hub} opacity={0.7} />
-    <text x={cx} y={cy+3} fill={C.bg} fontSize={8} fontFamily="monospace" textAnchor="middle" fontWeight="bold">◎</text>
-    <text x={cx} y={cy+Du/2*sc+16} fill={C.backplate} fontSize={9} fontFamily="monospace" textAnchor="middle">D_u = {Du}mm</text>
-    {Du>D2 && <text x={cx} y={cy+Du/2*sc+28} fill={C.accent} fontSize={8} fontFamily="monospace" textAnchor="middle">주판 돌출: +{Du-D2}mm</text>}
-    <text x={cx+D2/2*sc+6} y={cy+4} fill={C.blade} fontSize={7} fontFamily="monospace" opacity={0.5}>D₂</text>
+    <text x={cx} y={cy+3} fill={C.bg} fontSize={8} fontFamily="'Noto Sans KR', sans-serif" textAnchor="middle" fontWeight="bold">◎</text>
+    <text x={cx} y={cy+Du/2*sc+16} fill={C.backplate} fontSize={9} fontFamily="'Noto Sans KR', sans-serif" textAnchor="middle">D_u = {Du}mm</text>
+    {Du>D2 && <text x={cx} y={cy+Du/2*sc+28} fill={C.accent} fontSize={8} fontFamily="'Noto Sans KR', sans-serif" textAnchor="middle">주판 돌출: +{Du-D2}mm</text>}
+    <text x={cx+D2/2*sc+6} y={cy+4} fill={C.blade} fontSize={7} fontFamily="'Noto Sans KR', sans-serif" opacity={0.5}>D₂</text>
   </svg>;
 }
 
@@ -1620,27 +1620,27 @@ export default function ImpellerViewer() {
       <div className="px-3 pt-3 pb-1">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-sm font-bold" style={{ fontFamily: "monospace" }}><span style={{ color: C.accent }}>◆</span> Impeller Design & Parametric Study</h1>
-            <p style={{ color: C.dim, fontFamily: "monospace", fontSize: 9 }}>3D + 2D + 성능·소음·구조 sweep</p>
+            <h1 className="text-sm font-bold" style={{ fontFamily: "'Noto Sans KR', sans-serif" }}><span style={{ color: C.accent }}>◆</span> Impeller Design & Parametric Study</h1>
+            <p style={{ color: C.dim, fontFamily: "'Noto Sans KR', sans-serif", fontSize: 9 }}>3D + 2D + 성능·소음·구조 sweep</p>
           </div>
         </div>
       </div>
       {/* Save/Load Panel */}
       {saveOpen && <div className="px-3 pb-1">
         <div className="rounded-lg p-2" style={{ background:C.card, border:`1px solid ${C.cyan}44` }}>
-          <div style={{ color:C.cyan, fontFamily:"monospace", fontSize:9, fontWeight:700, marginBottom:4 }}>SAVE / LOAD</div>
+          <div style={{ color:C.cyan, fontFamily: "'Noto Sans KR', sans-serif", fontSize:9, fontWeight:700, marginBottom:4 }}>SAVE / LOAD</div>
           <div className="flex gap-1 mb-2">
             <button onClick={exportJSON} className="flex-1 py-1 rounded text-xs"
-              style={{ background:C.bg, color:C.green, border:`1px solid ${C.green}44`, fontFamily:"monospace", fontSize:9 }}>📥 JSON 내보내기</button>
+              style={{ background:C.bg, color:C.green, border:`1px solid ${C.green}44`, fontFamily: "'Noto Sans KR', sans-serif", fontSize:9 }}>📥 JSON 내보내기</button>
             <button onClick={() => fileRef.current?.click()} className="flex-1 py-1 rounded text-xs"
-              style={{ background:C.bg, color:C.orange, border:`1px solid ${C.orange}44`, fontFamily:"monospace", fontSize:9 }}>📤 JSON 불러오기</button>
+              style={{ background:C.bg, color:C.orange, border:`1px solid ${C.orange}44`, fontFamily: "'Noto Sans KR', sans-serif", fontSize:9 }}>📤 JSON 불러오기</button>
             <input ref={fileRef} type="file" accept=".json" onChange={importJSON} style={{display:'none'}} />
           </div>
-          <div style={{ color:C.dim, fontFamily:"monospace", fontSize:8, marginBottom:3 }}>SAVE SLOTS</div>
+          <div style={{ color:C.dim, fontFamily: "'Noto Sans KR', sans-serif", fontSize:8, marginBottom:3 }}>SAVE SLOTS</div>
           <div className="flex flex-col gap-1">
             {[1,2,3,4,5].map(n => {
               const sv = saves[n], empty = !sv;
-              return <div key={n} className="flex items-center gap-1" style={{fontFamily:"monospace",fontSize:9}}>
+              return <div key={n} className="flex items-center gap-1" style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:9}}>
                 <span className="w-4" style={{color:C.dim}}>{n}.</span>
                 <div className="flex-1 py-0.5 px-1.5 rounded truncate" style={{ background:C.bg, color:empty?C.dim:C.text, fontSize:8,
                   border:`1px solid ${empty?C.border:C.cyan}33` }}>
@@ -1652,7 +1652,7 @@ export default function ImpellerViewer() {
               </div>;
             })}
           </div>
-          <div className="mt-1" style={{color:C.dim,fontFamily:"monospace",fontSize:7}}>
+          <div className="mt-1" style={{color:C.dim,fontFamily: "'Noto Sans KR', sans-serif",fontSize:7}}>
             전체 설계변수 저장 (임펠러+스크롤+Tongue+디퓨저+케이싱+재질)
           </div>
         </div>
@@ -1661,7 +1661,7 @@ export default function ImpellerViewer() {
         {[{l:"3D",c:C.blade},{l:"정면",c:C.eye},{l:"단면",c:C.shroud},{l:"저면",c:C.backplate},{l:"Sweep",c:C.pink},{l:"최적화",c:C.green},{l:"PQ",c:C.cyan}].map((t,i)=>
           <Tab key={i} active={viewTab===i} onClick={()=>setViewTab(i)} color={t.c}>{t.l}</Tab>)}
         <button onClick={() => setSaveOpen(!saveOpen)} className="px-1.5 py-0.5 rounded ml-auto flex-shrink-0"
-          style={{ fontFamily:"monospace", fontSize:9, background:saveOpen?C.card:"transparent", color:C.cyan, border:`1px solid ${saveOpen?C.cyan:C.border}` }}>
+          style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:9, background:saveOpen?C.card:"transparent", color:C.cyan, border:`1px solid ${saveOpen?C.cyan:C.border}` }}>
           💾
         </button>
       </div>
@@ -1670,12 +1670,12 @@ export default function ImpellerViewer() {
           {viewTab===0 && <>
             <div ref={mountRef} style={{ width:"100%", height:360 }} />
             <div className="px-2 py-1 flex gap-2 flex-wrap" style={{ borderTop:`1px solid ${C.border}` }}>
-              <label className="flex items-center gap-1 text-xs" style={{ fontFamily:"monospace",color:C.dim }}><input type="checkbox" checked={showShroud} onChange={e=>setShowShroud(e.target.checked)} /><span style={{color:C.shroud}}>측판</span></label>
-              <label className="flex items-center gap-1 text-xs" style={{ fontFamily:"monospace",color:C.dim }}><input type="checkbox" checked={showBackplate} onChange={e=>setShowBackplate(e.target.checked)} /><span style={{color:C.backplate}}>주판</span></label>
-              <label className="flex items-center gap-1 text-xs" style={{ fontFamily:"monospace",color:C.dim }}><input type="checkbox" checked={showScroll} onChange={e=>setShowScroll(e.target.checked)} /><span style={{color:"#d4a44a"}}>스크롤</span></label>
-              <label className="flex items-center gap-1 text-xs" style={{ fontFamily:"monospace",color:C.dim }}><input type="checkbox" checked={showCasing} onChange={e=>setShowCasing(e.target.checked)} /><span style={{color:"#4488aa"}}>케이싱</span></label>
-              <label className="flex items-center gap-1 text-xs" style={{ fontFamily:"monospace",color:C.dim }}><input type="checkbox" checked={autoRotate} onChange={e=>setAutoRotate(e.target.checked)} />회전</label>
-              <div className="flex items-center gap-1 ml-auto"><span style={{fontFamily:"monospace",fontSize:9,color:C.dim}}>분해</span>
+              <label className="flex items-center gap-1 text-xs" style={{ fontFamily: "'Noto Sans KR', sans-serif",color:C.dim }}><input type="checkbox" checked={showShroud} onChange={e=>setShowShroud(e.target.checked)} /><span style={{color:C.shroud}}>측판</span></label>
+              <label className="flex items-center gap-1 text-xs" style={{ fontFamily: "'Noto Sans KR', sans-serif",color:C.dim }}><input type="checkbox" checked={showBackplate} onChange={e=>setShowBackplate(e.target.checked)} /><span style={{color:C.backplate}}>주판</span></label>
+              <label className="flex items-center gap-1 text-xs" style={{ fontFamily: "'Noto Sans KR', sans-serif",color:C.dim }}><input type="checkbox" checked={showScroll} onChange={e=>setShowScroll(e.target.checked)} /><span style={{color:"#d4a44a"}}>스크롤</span></label>
+              <label className="flex items-center gap-1 text-xs" style={{ fontFamily: "'Noto Sans KR', sans-serif",color:C.dim }}><input type="checkbox" checked={showCasing} onChange={e=>setShowCasing(e.target.checked)} /><span style={{color:"#4488aa"}}>케이싱</span></label>
+              <label className="flex items-center gap-1 text-xs" style={{ fontFamily: "'Noto Sans KR', sans-serif",color:C.dim }}><input type="checkbox" checked={autoRotate} onChange={e=>setAutoRotate(e.target.checked)} />회전</label>
+              <div className="flex items-center gap-1 ml-auto"><span style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:9,color:C.dim}}>분해</span>
                 <input type="range" min={0} max={30} step={1} value={explode} onChange={e=>setExplode(+e.target.value)} className="w-16 h-1" style={{accentColor:C.accent}} /></div>
             </div>
           </>}
@@ -1686,10 +1686,10 @@ export default function ImpellerViewer() {
           {(() => {
             const sv = SWEEP_VARS.find(v => v.key === sweepVar);
             return <div className="p-2">
-              <div style={{ color: C.pink, fontFamily: "monospace", fontSize: 9, marginBottom: 3 }}>SWEEP 변수 선택</div>
+              <div style={{ color: C.pink, fontFamily: "'Noto Sans KR', sans-serif", fontSize: 9, marginBottom: 3 }}>SWEEP 변수 선택</div>
               <div className="flex gap-1 flex-wrap mb-2">
                 {SWEEP_VARS.map(v => <button key={v.key} onClick={() => { setSweepVar(v.key); setSweepMin(v.min); setSweepMax(v.max); }}
-                  className="px-2 py-0.5 rounded" style={{ fontFamily:"monospace", fontSize:7,
+                  className="px-2 py-0.5 rounded" style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:7,
                     background:sweepVar===v.key?C.card:"transparent", color:sweepVar===v.key?C.pink:C.dim,
                     border:`1px solid ${sweepVar===v.key?C.pink:C.border}` }}>{v.label}</button>)}
               </div>
@@ -1699,12 +1699,12 @@ export default function ImpellerViewer() {
                 <S label="Steps" value={sweepSteps} min={3} max={30} step={1} onChange={setSweepSteps} unit="" color={C.dim} />
               </div>
               {sweepResults.length > 0 && <>
-                <div style={{ color: C.dim, fontFamily: "monospace", fontSize: 8, marginBottom: 3 }}>출력 변수</div>
+                <div style={{ color: C.dim, fontFamily: "'Noto Sans KR', sans-serif", fontSize: 8, marginBottom: 3 }}>출력 변수</div>
                 <div className="flex gap-1 flex-wrap mb-2">
                   {[{k:'eta',l:'η 효율',c:C.green},{k:'Ps',l:'Ps 정압',c:C.cyan},{k:'Q',l:'Q 유량',c:C.amber},
                     {k:'SPL',l:'SPL 소음',c:C.purple},{k:'SF',l:'SF 안전율',c:C.orange},{k:'f_n',l:'f_n 고유진동수',c:C.cyan}
                   ].map(v => <button key={v.k} onClick={() => setSweepOut(v.k)} className="px-2 py-0.5 rounded"
-                    style={{ fontFamily:"monospace", fontSize:8, background:sweepOut===v.k?C.card:"transparent",
+                    style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:8, background:sweepOut===v.k?C.card:"transparent",
                       color:sweepOut===v.k?v.c:C.dim, border:`1px solid ${sweepOut===v.k?v.c:C.border}` }}>{v.l}</button>)}
                 </div>
                 {(() => {
@@ -1714,7 +1714,7 @@ export default function ImpellerViewer() {
                   return <MiniChart data={sweepResults} xKey="x" yKey={sweepOut} w={340} h={200} color={o.c} label={`${o.l}  vs  ${sv?.label||sweepVar}`} yUnit={o.u} />;
                 })()}
                 <div style={{ overflowX:"auto", maxHeight:200 }}>
-                  <table style={{ fontFamily:"monospace", fontSize:7, borderCollapse:"collapse", width:"100%" }}>
+                  <table style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:7, borderCollapse:"collapse", width:"100%" }}>
                     <thead><tr style={{ borderBottom:`1px solid ${C.border}` }}>
                       {[sv?.label||'X','Q','Ps','η%','SPL','σ','SF','f_n','f/B'].map(h => <th key={h} className="px-1 py-0.5 text-right" style={{color:C.dim}}>{h}</th>)}
                     </tr></thead>
@@ -1734,7 +1734,7 @@ export default function ImpellerViewer() {
                       </tr>;})}</tbody>
                   </table>
                 </div>
-                <div style={{ fontFamily:"monospace", fontSize:6, color:C.dim, marginTop:4 }}>
+                <div style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:6, color:C.dim, marginTop:4 }}>
                   <span style={{color:C.green}}>■</span> 최고효율 | <span style={{color:C.red}}>■</span> SF{"<"}2 / 공진위험 | 재질: {mat.name}
                 </div>
               </>}
@@ -1743,46 +1743,46 @@ export default function ImpellerViewer() {
           </div>
           <div style={{display:viewTab===5?'block':'none'}}><div className="p-2">
             <div className="flex items-center gap-2 mb-2">
-              <span style={{ color:C.green, fontFamily:"monospace", fontSize:10, fontWeight:700 }}>OPTIMIZER</span>
+              <span style={{ color:C.green, fontFamily: "'Noto Sans KR', sans-serif", fontSize:10, fontWeight:700 }}>OPTIMIZER</span>
               <div className="flex gap-1 ml-auto">
                 {[{k:'single',l:'단일 목적'},{k:'multi',l:'다목적 (Pareto)'}].map(m =>
                   <button key={m.k} onClick={() => setOptMode(m.k)} className="px-2 py-0.5 rounded"
-                    style={{ fontFamily:"monospace", fontSize:7, background:optMode===m.k?C.card:"transparent",
+                    style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:7, background:optMode===m.k?C.card:"transparent",
                       color:optMode===m.k?C.green:C.dim, border:`1px solid ${optMode===m.k?C.green:C.border}` }}>{m.l}</button>)}
               </div>
             </div>
             {/* Objectives */}
             <div className="mb-2 p-1.5 rounded" style={{ background:C.bg }}>
-              <div style={{ color:C.dim, fontFamily:"monospace", fontSize:8, marginBottom:3 }}>①목표함수</div>
+              <div style={{ color:C.dim, fontFamily: "'Noto Sans KR', sans-serif", fontSize:8, marginBottom:3 }}>①목표함수</div>
               <div className="flex gap-1 flex-wrap">
                 {OBJ_LIST.map(o => <button key={o.key} onClick={() => setOptObj1(o.key)} className="px-2 py-0.5 rounded"
-                  style={{ fontFamily:"monospace", fontSize:7, background:optObj1===o.key?C.card:"transparent",
+                  style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:7, background:optObj1===o.key?C.card:"transparent",
                     color:optObj1===o.key?o.color:C.dim, border:`1px solid ${optObj1===o.key?o.color:C.border}` }}>{o.label}</button>)}
               </div>
-              {optMode==='multi' && <><div className="mt-1" style={{ color:C.dim, fontFamily:"monospace", fontSize:8 }}>②목표함수</div>
+              {optMode==='multi' && <><div className="mt-1" style={{ color:C.dim, fontFamily: "'Noto Sans KR', sans-serif", fontSize:8 }}>②목표함수</div>
                 <div className="flex gap-1 flex-wrap mt-1">
                   {OBJ_LIST.filter(o=>o.key!==optObj1).map(o => <button key={o.key} onClick={() => setOptObj2(o.key)} className="px-2 py-0.5 rounded"
-                    style={{ fontFamily:"monospace", fontSize:7, background:optObj2===o.key?C.card:"transparent",
+                    style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:7, background:optObj2===o.key?C.card:"transparent",
                       color:optObj2===o.key?o.color:C.dim, border:`1px solid ${optObj2===o.key?o.color:C.border}` }}>{o.label}</button>)}
                 </div></>}
             </div>
             {/* Variables */}
             <div className="mb-2 p-1.5 rounded" style={{ background:C.bg }}>
-              <div style={{ color:C.dim, fontFamily:"monospace", fontSize:8, marginBottom:3 }}>설계변수 (☑최적화 / ☐고정)</div>
-              {OPT_VARS.map(v => <div key={v.key} className="flex items-center gap-1 py-px" style={{ fontFamily:"monospace", fontSize:8 }}>
+              <div style={{ color:C.dim, fontFamily: "'Noto Sans KR', sans-serif", fontSize:8, marginBottom:3 }}>설계변수 (☑최적화 / ☐고정)</div>
+              {OPT_VARS.map(v => <div key={v.key} className="flex items-center gap-1 py-px" style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:8 }}>
                 <label className="flex items-center gap-1 w-16">
                   <input type="checkbox" checked={optEnabled[v.key]} onChange={e => setOptEnabled({...optEnabled,[v.key]:e.target.checked})} />
                   <span style={{ color:optEnabled[v.key]?C.green:C.dim }}>{v.label}</span>
                 </label>
                 {optEnabled[v.key] ? <>
                   <input type="number" value={optRange[v.key].min} onChange={e => setOptRange({...optRange,[v.key]:{...optRange[v.key],min:+e.target.value}})}
-                    className="w-11 px-0.5 rounded text-right" style={{ background:C.card,color:C.text,fontSize:8,border:`1px solid ${C.border}`,fontFamily:"monospace" }} />
+                    className="w-11 px-0.5 rounded text-right" style={{ background:C.card,color:C.text,fontSize:8,border:`1px solid ${C.border}`,fontFamily: "'Noto Sans KR', sans-serif" }} />
                   <span style={{color:C.dim}}>~</span>
                   <input type="number" value={optRange[v.key].max} onChange={e => setOptRange({...optRange,[v.key]:{...optRange[v.key],max:+e.target.value}})}
-                    className="w-11 px-0.5 rounded text-right" style={{ background:C.card,color:C.text,fontSize:8,border:`1px solid ${C.border}`,fontFamily:"monospace" }} />
+                    className="w-11 px-0.5 rounded text-right" style={{ background:C.card,color:C.text,fontSize:8,border:`1px solid ${C.border}`,fontFamily: "'Noto Sans KR', sans-serif" }} />
                   <span style={{color:C.dim,fontSize:6}}>Δ</span>
                   <input type="number" value={optRange[v.key].step} onChange={e => setOptRange({...optRange,[v.key]:{...optRange[v.key],step:+e.target.value}})}
-                    className="w-9 px-0.5 rounded text-right" style={{ background:C.card,color:C.amber,fontSize:8,border:`1px solid ${C.border}33`,fontFamily:"monospace" }} />
+                    className="w-9 px-0.5 rounded text-right" style={{ background:C.card,color:C.amber,fontSize:8,border:`1px solid ${C.border}33`,fontFamily: "'Noto Sans KR', sans-serif" }} />
                   <span style={{color:C.dim,fontSize:6}}>{v.unit}</span>
                 </> : <span style={{color:C.dim,fontSize:7}}>고정</span>}
               </div>)}
@@ -1791,12 +1791,12 @@ export default function ImpellerViewer() {
             <div className="flex items-center gap-2 mb-2">
               <div className="flex-1"><S label="샘플" value={optSamples} min={50} max={1000} step={50} onChange={setOptSamples} unit="" color={C.green} /></div>
               <button onClick={runOptimization} disabled={optRunning} className="px-4 py-1.5 rounded font-bold"
-                style={{ fontFamily:"monospace", fontSize:10, background:optRunning?C.dim:C.green, color:C.bg }}>
+                style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:10, background:optRunning?C.dim:C.green, color:C.bg }}>
                 {optRunning?"계산 중...":"▶ 실행"}</button>
             </div>
             {/* Single result */}
             {optResults?.mode==='single' && <div className="p-1.5 rounded" style={{ background:C.bg }}>
-              <div style={{ color:C.green, fontFamily:"monospace", fontSize:9, marginBottom:4 }}>최적 결과 — {optResults.obj.label} ({optResults.all.length}샘플)</div>
+              <div style={{ color:C.green, fontFamily: "'Noto Sans KR', sans-serif", fontSize:9, marginBottom:4 }}>최적 결과 — {optResults.obj.label} ({optResults.all.length}샘플)</div>
               {/* Chart: objective vs first active variable */}
               {(() => {
                 const activeVars = OPT_VARS.filter(v=>optEnabled[v.key]);
@@ -1817,12 +1817,12 @@ export default function ImpellerViewer() {
                   {all.map((s,i)=>{const yv=objKey==='eta'?s[objKey]*100:s[objKey]; return <circle key={i} cx={sx(s.params[xKey])} cy={sy(yv)} r={1.5} fill={C.dim} opacity={0.15}/>;})}
                   {top.map((s,i)=>{const yv=objKey==='eta'?s[objKey]*100:s[objKey]; return <circle key={'t'+i} cx={sx(s.params[xKey])} cy={sy(yv)} r={3} fill={i===0?C.green:C.cyan} opacity={0.8}
                     style={{cursor:'pointer'}} onClick={()=>applyOptResult(s)}/>;})}
-                  <text x={p.l+pw/2} y={H-2} fill={C.dim} fontSize={7} fontFamily="monospace" textAnchor="middle">{xVar.label} ({xVar.unit})</text>
-                  <text x={4} y={p.t+ph/2} fill={C.dim} fontSize={6} fontFamily="monospace" textAnchor="middle" transform={`rotate(-90,4,${p.t+ph/2})`}>{optResults.obj.label.split(' ')[0]}</text>
-                  <text x={p.l-2} y={p.t+6} fill={C.dim} fontSize={6} fontFamily="monospace" textAnchor="end">{y2.toFixed(1)}</text>
-                  <text x={p.l-2} y={p.t+ph} fill={C.dim} fontSize={6} fontFamily="monospace" textAnchor="end">{y1.toFixed(1)}</text>
-                  <text x={p.l} y={p.t+ph+10} fill={C.dim} fontSize={6} fontFamily="monospace">{x1.toFixed(0)}</text>
-                  <text x={p.l+pw} y={p.t+ph+10} fill={C.dim} fontSize={6} fontFamily="monospace" textAnchor="end">{x2.toFixed(0)}</text>
+                  <text x={p.l+pw/2} y={H-2} fill={C.dim} fontSize={7} fontFamily="'Noto Sans KR', sans-serif" textAnchor="middle">{xVar.label} ({xVar.unit})</text>
+                  <text x={4} y={p.t+ph/2} fill={C.dim} fontSize={6} fontFamily="'Noto Sans KR', sans-serif" textAnchor="middle" transform={`rotate(-90,4,${p.t+ph/2})`}>{optResults.obj.label.split(' ')[0]}</text>
+                  <text x={p.l-2} y={p.t+6} fill={C.dim} fontSize={6} fontFamily="'Noto Sans KR', sans-serif" textAnchor="end">{y2.toFixed(1)}</text>
+                  <text x={p.l-2} y={p.t+ph} fill={C.dim} fontSize={6} fontFamily="'Noto Sans KR', sans-serif" textAnchor="end">{y1.toFixed(1)}</text>
+                  <text x={p.l} y={p.t+ph+10} fill={C.dim} fontSize={6} fontFamily="'Noto Sans KR', sans-serif">{x1.toFixed(0)}</text>
+                  <text x={p.l+pw} y={p.t+ph+10} fill={C.dim} fontSize={6} fontFamily="'Noto Sans KR', sans-serif" textAnchor="end">{x2.toFixed(0)}</text>
                 </svg>;
               })()}
               {/* Multi-variable: show small charts for each active var */}
@@ -1841,7 +1841,7 @@ export default function ImpellerViewer() {
                     return <svg key={xVar.key} width={W} height={H} style={{background:C.card,borderRadius:3}}>
                       {all.map((s,i)=>{const yv=objKey==='eta'?s[objKey]*100:s[objKey]; return <circle key={i} cx={sx(s.params[xVar.key])} cy={sy(yv)} r={1} fill={C.dim} opacity={0.15}/>;})}
                       {optResults.top10.slice(0,3).map((s,i)=>{const yv=objKey==='eta'?s[objKey]*100:s[objKey]; return <circle key={'t'+i} cx={sx(s.params[xVar.key])} cy={sy(yv)} r={2.5} fill={i===0?C.green:C.cyan} opacity={0.8}/>;})}
-                      <text x={p.l+pw/2} y={H-2} fill={C.dim} fontSize={6} fontFamily="monospace" textAnchor="middle">{xVar.label}</text>
+                      <text x={p.l+pw/2} y={H-2} fill={C.dim} fontSize={6} fontFamily="'Noto Sans KR', sans-serif" textAnchor="middle">{xVar.label}</text>
                     </svg>;
                   })}
                 </div>;
@@ -1852,16 +1852,16 @@ export default function ImpellerViewer() {
                     {l:'SPL',v:optResults.best.SPL.toFixed(1)+'dB',c:C.purple},{l:'SF',v:optResults.best.SF.toFixed(1),c:C.orange},
                     {l:'Q',v:optResults.best.Q.toFixed(1),c:C.amber},{l:'W',v:optResults.best.power.toFixed(1)+'W',c:C.red},
                     {l:'f_n',v:optResults.best.f_n.toFixed(0)+'Hz',c:C.cyan},{l:'σ',v:optResults.best.sigma.toFixed(1),c:C.orange},
-                  ].map(m => <div key={m.l} className="text-center" style={{fontSize:8,fontFamily:"monospace"}}>
+                  ].map(m => <div key={m.l} className="text-center" style={{fontSize:8,fontFamily: "'Noto Sans KR', sans-serif"}}>
                     <div style={{color:C.dim,fontSize:6}}>{m.l}</div><div style={{color:m.c}}>{m.v}</div></div>)}
                 </div>
-                <div style={{ fontSize:7, fontFamily:"monospace", color:C.muted }}>
+                <div style={{ fontSize:7, fontFamily: "'Noto Sans KR', sans-serif", color:C.muted }}>
                   {OPT_VARS.filter(v=>optEnabled[v.key]).map(v=>`${v.label}=${optResults.best.params[v.key]}`).join(' | ')}</div>
                 <button onClick={() => applyOptResult(optResults.best)} className="mt-1 px-3 py-0.5 rounded w-full"
-                  style={{ fontFamily:"monospace", fontSize:8, background:C.green+'22', color:C.green, border:`1px solid ${C.green}44` }}>🔧 적용</button>
+                  style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:8, background:C.green+'22', color:C.green, border:`1px solid ${C.green}44` }}>🔧 적용</button>
               </div>
               <div style={{ overflowX:"auto", maxHeight:140 }}>
-                <table style={{ fontFamily:"monospace", fontSize:7, borderCollapse:"collapse", width:"100%" }}>
+                <table style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:7, borderCollapse:"collapse", width:"100%" }}>
                   <thead><tr style={{ borderBottom:`1px solid ${C.border}` }}>
                     <th className="px-1" style={{color:C.dim}}>#</th>
                     {OPT_VARS.filter(v=>optEnabled[v.key]).map(v=><th key={v.key} className="px-1 text-right" style={{color:C.dim}}>{v.label}</th>)}
@@ -1881,7 +1881,7 @@ export default function ImpellerViewer() {
             </div>}
             {/* Multi-objective Pareto */}
             {optResults?.mode==='multi' && <div className="p-1.5 rounded" style={{ background:C.bg }}>
-              <div style={{ color:C.green, fontFamily:"monospace", fontSize:9, marginBottom:4 }}>
+              <div style={{ color:C.green, fontFamily: "'Noto Sans KR', sans-serif", fontSize:9, marginBottom:4 }}>
                 Pareto Front — {optResults.obj1.label} vs {optResults.obj2.label} ({optResults.pareto.length}개)
               </div>
               {(() => {
@@ -1898,13 +1898,13 @@ export default function ImpellerViewer() {
                   {all.map((s,i)=><circle key={i} cx={sx(s[k1])} cy={sy(s[k2])} r={1.5} fill={C.dim} opacity={0.15}/>)}
                   {pts.map((s,i)=><circle key={'p'+i} cx={sx(s[k1])} cy={sy(s[k2])} r={3.5} fill={C.green} opacity={0.8}
                     style={{cursor:'pointer'}} onClick={()=>applyOptResult(s)}/>)}
-                  <text x={p.l+pw/2} y={H-3} fill={C.dim} fontSize={8} fontFamily="monospace" textAnchor="middle">{optResults.obj1.label}</text>
-                  <text x={8} y={p.t+ph/2} fill={C.dim} fontSize={7} fontFamily="monospace" textAnchor="middle" transform={`rotate(-90,8,${p.t+ph/2})`}>{optResults.obj2.label}</text>
+                  <text x={p.l+pw/2} y={H-3} fill={C.dim} fontSize={8} fontFamily="'Noto Sans KR', sans-serif" textAnchor="middle">{optResults.obj1.label}</text>
+                  <text x={8} y={p.t+ph/2} fill={C.dim} fontSize={7} fontFamily="'Noto Sans KR', sans-serif" textAnchor="middle" transform={`rotate(-90,8,${p.t+ph/2})`}>{optResults.obj2.label}</text>
                 </svg>;
               })()}
-              <div style={{color:C.dim,fontFamily:"monospace",fontSize:7,marginTop:2}}>● Pareto 최적해 (클릭→적용) | ● 전체 샘플</div>
+              <div style={{color:C.dim,fontFamily: "'Noto Sans KR', sans-serif",fontSize:7,marginTop:2}}>● Pareto 최적해 (클릭→적용) | ● 전체 샘플</div>
               <div style={{ overflowX:"auto", maxHeight:110, marginTop:4 }}>
-                <table style={{ fontFamily:"monospace", fontSize:7, borderCollapse:"collapse", width:"100%" }}>
+                <table style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:7, borderCollapse:"collapse", width:"100%" }}>
                   <thead><tr style={{borderBottom:`1px solid ${C.border}`}}>
                     <th className="px-1" style={{color:C.dim}}>#</th>
                     <th className="px-1 text-right" style={{color:optResults.obj1.color}}>{optResults.obj1.label.split(' ')[0]}</th>
@@ -1925,27 +1925,27 @@ export default function ImpellerViewer() {
           </div></div>
           <div style={{display:viewTab===6?'block':'none'}}><div className="p-2">
             <div className="flex items-center gap-2 mb-2">
-              <span style={{ color:C.cyan, fontFamily:"monospace", fontSize:10, fontWeight:700 }}>PQ ANALYSIS</span>
+              <span style={{ color:C.cyan, fontFamily: "'Noto Sans KR', sans-serif", fontSize:10, fontWeight:700 }}>PQ ANALYSIS</span>
               <div className="flex gap-0.5 ml-auto">
                 {[{k:'on_design',l:'On-design'},{k:'semi_empirical',l:'Semi-emp'},{k:'off_design',l:'Off-design'}].map(m =>
                   <button key={m.k} onClick={() => setFanMode(m.k)} className="px-2 py-0.5 rounded"
-                    style={{ fontFamily:"monospace", fontSize:7, background:fanMode===m.k?C.card:"transparent",
+                    style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:7, background:fanMode===m.k?C.card:"transparent",
                       color:fanMode===m.k?C.cyan:C.dim, border:`1px solid ${fanMode===m.k?C.cyan:C.border}` }}>{m.l}</button>)}
               </div>
             </div>
             {/* Semi-empirical fitting panel */}
             {fanMode==='semi_empirical' && <div className="mb-2 p-1.5 rounded" style={{ background:C.bg, border:`1px solid ${C.green}33` }}>
               <div className="flex items-center gap-2 mb-2">
-                <span style={{ color:C.green, fontFamily:"monospace", fontSize:8 }}>피팅 자동 최적화</span>
+                <span style={{ color:C.green, fontFamily: "'Noto Sans KR', sans-serif", fontSize:8 }}>피팅 자동 최적화</span>
                 <button onClick={runFitting} disabled={fitRunning || expData.length < 3} className="ml-auto px-3 py-0.5 rounded"
-                  style={{ fontFamily:"monospace", fontSize:8, background:fitRunning?C.dim:C.green, color:C.bg, opacity:expData.length<3?0.4:1 }}>
+                  style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:8, background:fitRunning?C.dim:C.green, color:C.bg, opacity:expData.length<3?0.4:1 }}>
                   {fitRunning?"최적화 중...":"▶ 피팅 실행"}</button>
               </div>
-              {expData.length < 3 && <div style={{fontFamily:"monospace",fontSize:7,color:C.red}}>⚠ 실험 데이터 3개 이상 필요 (Off-design에서 업로드)</div>}
-              {expData.length >= 3 && !fitCoeffs && <div style={{fontFamily:"monospace",fontSize:7,color:C.dim}}>실험 데이터 {expData.length}점 로드됨. 피팅을 실행하세요.</div>}
+              {expData.length < 3 && <div style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:7,color:C.red}}>⚠ 실험 데이터 3개 이상 필요 (Off-design에서 업로드)</div>}
+              {expData.length >= 3 && !fitCoeffs && <div style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:7,color:C.dim}}>실험 데이터 {expData.length}점 로드됨. 피팅을 실행하세요.</div>}
               {fitCoeffs && <>
-                <div style={{fontFamily:"monospace",fontSize:7,color:C.dim,marginBottom:2}}>피팅된 손실 계수 (9개)</div>
-                <div className="grid grid-cols-3 gap-1" style={{fontFamily:"monospace",fontSize:7}}>
+                <div style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:7,color:C.dim,marginBottom:2}}>피팅된 손실 계수 (9개)</div>
+                <div className="grid grid-cols-3 gap-1" style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:7}}>
                   {[
                     {k:'k_inc',l:'Incidence',def:1.0},
                     {k:'k_fric',l:'Friction',def:1.0},
@@ -1966,65 +1966,65 @@ export default function ImpellerViewer() {
                     </div>;
                   })}
                 </div>
-                {fitResult && <div className="mt-2 flex gap-3" style={{fontFamily:"monospace",fontSize:7}}>
+                {fitResult && <div className="mt-2 flex gap-3" style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:7}}>
                   <div><span style={{color:C.dim}}>RMSE 전: </span><span style={{color:C.red}}>{fitResult.rmse_before.toFixed(1)}</span></div>
                   <div><span style={{color:C.dim}}>→ 후: </span><span style={{color:C.green}}>{fitResult.rmse_after.toFixed(1)}</span></div>
                   <div><span style={{color:C.dim}}>개선: </span><span style={{color:C.green}}>{((1-fitResult.rmse_after/Math.max(0.1,fitResult.rmse_before))*100).toFixed(0)}%</span></div>
                 </div>}
                 <div className="flex gap-1 mt-2">
                   <button onClick={() => { setFitCoeffs(null); setFitResult(null); }} className="flex-1 py-0.5 rounded"
-                    style={{fontFamily:"monospace",fontSize:7,color:C.red,background:C.card,border:`1px solid ${C.red}33`}}>초기화</button>
+                    style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:7,color:C.red,background:C.card,border:`1px solid ${C.red}33`}}>초기화</button>
                 </div>
               </>}
             </div>}
             {/* Experimental data upload */}
             {(fanMode==='off_design' || fanMode==='semi_empirical') && <div className="mb-2 p-1.5 rounded" style={{ background:C.bg, border:`1px solid ${C.orange}33` }}>
-              <div style={{ color:C.orange, fontFamily:"monospace", fontSize:8, marginBottom:3 }}>실험 PQ 데이터</div>
+              <div style={{ color:C.orange, fontFamily: "'Noto Sans KR', sans-serif", fontSize:8, marginBottom:3 }}>실험 PQ 데이터</div>
               <div className="flex gap-1 mb-1">
                 <button onClick={() => expFileRef.current?.click()} className="flex-1 py-1 rounded"
-                  style={{ fontFamily:"monospace", fontSize:8, background:C.card, color:C.orange, border:`1px solid ${C.orange}44` }}>📂 CSV 불러오기</button>
+                  style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:8, background:C.card, color:C.orange, border:`1px solid ${C.orange}44` }}>📂 CSV 불러오기</button>
                 <input ref={expFileRef} type="file" accept=".csv,.tsv,.txt" style={{display:'none'}}
                   onChange={e => { const f=e.target.files?.[0]; if(f){const r=new FileReader(); r.onload=ev=>parseExpCSV(ev.target.result); r.readAsText(f);} }} />
                 <button onClick={() => {
                   const txt = prompt('CSV 데이터 붙여넣기 (Q,Ps 또는 Q,Ps,eta)\n예: Q,Ps,eta\\n1.5,120,0.55\\n2.0,115,0.60');
                   if (txt) parseExpCSV(txt);
                 }} className="flex-1 py-1 rounded"
-                  style={{ fontFamily:"monospace", fontSize:8, background:C.card, color:C.amber, border:`1px solid ${C.amber}44` }}>📋 붙여넣기</button>
+                  style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:8, background:C.card, color:C.amber, border:`1px solid ${C.amber}44` }}>📋 붙여넣기</button>
                 {expData.length > 0 && <button onClick={() => setExpData([])} className="px-2 py-1 rounded"
-                  style={{ fontFamily:"monospace", fontSize:8, background:C.card, color:C.red, border:`1px solid ${C.red}44` }}>✕</button>}
+                  style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:8, background:C.card, color:C.red, border:`1px solid ${C.red}44` }}>✕</button>}
               </div>
-              {expData.length > 0 && <div style={{ fontFamily:"monospace", fontSize:7, color:C.dim }}>
+              {expData.length > 0 && <div style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:7, color:C.dim }}>
                 {expData.length}개 데이터 로드 | Q: {Math.min(...expData.map(d=>d.Q)).toFixed(1)}~{Math.max(...expData.map(d=>d.Q)).toFixed(1)} m³/min
                 {expData[0].eta > 0 && ` | η: ${Math.max(...expData.map(d=>d.eta)).toFixed(1)}`}
               </div>}
-              {expData.length === 0 && <div style={{ fontFamily:"monospace", fontSize:7, color:C.dim }}>
+              {expData.length === 0 && <div style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:7, color:C.dim }}>
                 CSV 형식: Q,Ps[,Pt,eta,RPM,W] (헤더 필수, 탭/콤마 구분)
               </div>}
             </div>}
             {/* System resistance curve */}
             <div className="mb-2 p-1.5 rounded" style={{ background:C.bg, border:`1px solid ${showSysCurve?'#f97316':'transparent'}33` }}>
               <div className="flex items-center gap-2">
-                <label className="flex items-center gap-1" style={{fontFamily:"monospace",fontSize:8}}>
+                <label className="flex items-center gap-1" style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:8}}>
                   <input type="checkbox" checked={showSysCurve} onChange={e=>setShowSysCurve(e.target.checked)} />
                   <span style={{color:showSysCurve?'#f97316':C.dim}}>시스템 저항 커브</span>
                 </label>
                 {showSysCurve && <button onClick={() => sysCurveFileRef.current?.click()} className="ml-auto px-2 py-0.5 rounded"
-                  style={{fontFamily:"monospace",fontSize:7,color:'#f97316',background:C.card,border:`1px solid #f9731644`}}>📂 저항 CSV</button>}
+                  style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:7,color:'#f97316',background:C.card,border:`1px solid #f9731644`}}>📂 저항 CSV</button>}
                 <input ref={sysCurveFileRef} type="file" accept=".csv,.tsv,.txt" style={{display:'none'}}
                   onChange={e => { const f=e.target.files?.[0]; if(f){const r=new FileReader(); r.onload=ev=>parseSysCurveCSV(ev.target.result); r.readAsText(f);} }} />
               </div>
               {showSysCurve && <div className="mt-1">
-                <div style={{fontFamily:"monospace",fontSize:7,color:C.dim,marginBottom:2}}>ΔP = a·Q² + b·Q + c (Pa, m³/min)</div>
+                <div style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:7,color:C.dim,marginBottom:2}}>ΔP = a·Q² + b·Q + c (Pa, m³/min)</div>
                 <div className="grid grid-cols-3 gap-1">
                   <S label="a" value={sysA} min={0} max={20} step={0.1} onChange={setSysA} unit="" color="#f97316" />
                   <S label="b" value={sysB} min={-10} max={10} step={0.1} onChange={setSysB} unit="" color="#f97316" />
                   <S label="c" value={sysC} min={0} max={100} step={1} onChange={setSysC} unit="Pa" color="#f97316" />
                 </div>
-                {sysCurveData.length > 0 && <div style={{fontFamily:"monospace",fontSize:6,color:C.dim,marginTop:1}}>
+                {sysCurveData.length > 0 && <div style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:6,color:C.dim,marginTop:1}}>
                   저항 데이터 {sysCurveData.length}점 → 자동 피팅 완료</div>}
                 {operatingPoint && <div className="mt-1 p-1 rounded" style={{background:C.card,border:`1px solid #f9731644`}}>
-                  <div style={{fontFamily:"monospace",fontSize:8,color:'#f97316',marginBottom:2}}>▸ 운전점</div>
-                  <div className="grid grid-cols-4 gap-1" style={{fontFamily:"monospace",fontSize:7}}>
+                  <div style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:8,color:'#f97316',marginBottom:2}}>▸ 운전점</div>
+                  <div className="grid grid-cols-4 gap-1" style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:7}}>
                     <div><span style={{color:C.dim}}>Q=</span><span style={{color:C.amber}}>{operatingPoint.Q.toFixed(1)}</span></div>
                     <div><span style={{color:C.dim}}>Ps=</span><span style={{color:C.cyan}}>{operatingPoint.Ps.toFixed(0)}</span></div>
                     <div><span style={{color:C.dim}}>η=</span><span style={{color:C.green}}>{(operatingPoint.eta*100).toFixed(1)}%</span></div>
@@ -2036,27 +2036,27 @@ export default function ImpellerViewer() {
             {/* Quasi-steady time-domain simulation */}
             {showSysCurve && <div className="mb-2 p-1.5 rounded" style={{ background:C.bg, border:`1px solid ${C.purple}33` }}>
               <div className="flex items-center gap-2">
-                <label className="flex items-center gap-1" style={{fontFamily:"monospace",fontSize:8}}>
+                <label className="flex items-center gap-1" style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:8}}>
                   <input type="checkbox" checked={qsShow} onChange={e=>setQsShow(e.target.checked)} />
                   <span style={{color:qsShow?C.purple:C.dim}}>Quasi-Steady 시간영역</span>
                 </label>
                 {qsShow && <button onClick={runQuasiSteady} className="ml-auto px-3 py-0.5 rounded"
-                  style={{fontFamily:"monospace",fontSize:8,background:C.purple,color:C.bg}}>▶ 시뮬레이션</button>}
+                  style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:8,background:C.purple,color:C.bg}}>▶ 시뮬레이션</button>}
               </div>
               {qsShow && <div className="mt-1">
-                <div style={{fontFamily:"monospace",fontSize:7,color:C.dim,marginBottom:2}}>건조 시간에 따른 시스템 저항 변화 → 운전점 이동</div>
+                <div style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:7,color:C.dim,marginBottom:2}}>건조 시간에 따른 시스템 저항 변화 → 운전점 이동</div>
                 <div className="grid grid-cols-2 gap-1 mb-1">
                   <S label="시간" value={qsDuration} min={10} max={180} step={5} onChange={setQsDuration} unit="min" color={C.purple} />
                   <S label="스텝" value={qsSteps} min={10} max={60} step={5} onChange={setQsSteps} unit="" color={C.purple} />
                 </div>
-                <div style={{fontFamily:"monospace",fontSize:7,color:C.dim,marginBottom:1}}>저항 변화 (시작 → 종료)</div>
+                <div style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:7,color:C.dim,marginBottom:1}}>저항 변화 (시작 → 종료)</div>
                 <div className="grid grid-cols-2 gap-1">
                   <S label="a₀" value={qsAStart} min={0.1} max={10} step={0.1} onChange={setQsAStart} unit="" color={C.purple} />
                   <S label="a₁" value={qsAEnd} min={0.1} max={10} step={0.1} onChange={setQsAEnd} unit="" color={C.purple} />
                   <S label="c₀" value={qsCStart} min={0} max={50} step={1} onChange={setQsCStart} unit="Pa" color={C.purple} />
                   <S label="c₁" value={qsCEnd} min={0} max={50} step={1} onChange={setQsCEnd} unit="Pa" color={C.purple} />
                 </div>
-                <div style={{fontFamily:"monospace",fontSize:6,color:C.dim,marginTop:1}}>a₀→a₁: 2차항 변화 (필터 막힘), c₀→c₁: 정적 손실 변화</div>
+                <div style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:6,color:C.dim,marginTop:1}}>a₀→a₁: 2차항 변화 (필터 막힘), c₀→c₁: 정적 손실 변화</div>
                 {qsResults && qsResults.length > 2 && (() => {
                   const W=310,H=120,p={l:34,r:28,t:8,b:16};
                   const pw=W-p.l-p.r,ph=H-p.t-p.b;
@@ -2077,26 +2077,26 @@ export default function ImpellerViewer() {
                       <path d={qsResults.map((r,i)=>`${i===0?'M':'L'}${sx(r.t)} ${syQ(r.Q)}`).join(' ')} fill="none" stroke={C.amber} strokeWidth={1.5}/>
                       <path d={qsResults.map((r,i)=>`${i===0?'M':'L'}${sx(r.t)} ${syPs(r.Ps)}`).join(' ')} fill="none" stroke={C.cyan} strokeWidth={1.5}/>
                       <path d={qsResults.map((r,i)=>`${i===0?'M':'L'}${sx(r.t)} ${syEta(r.eta)}`).join(' ')} fill="none" stroke={C.green} strokeWidth={1.5}/>
-                      <text x={p.l+pw/2} y={H-2} fill={C.dim} fontSize={6} fontFamily="monospace" textAnchor="middle">시간 (min)</text>
+                      <text x={p.l+pw/2} y={H-2} fill={C.dim} fontSize={6} fontFamily="'Noto Sans KR', sans-serif" textAnchor="middle">시간 (min)</text>
                       {/* Left axis labels */}
-                      <text x={p.l-2} y={p.t+5} fill={C.amber} fontSize={5} fontFamily="monospace" textAnchor="end">{qMax.toFixed(1)}</text>
-                      <text x={p.l-2} y={p.t+ph} fill={C.amber} fontSize={5} fontFamily="monospace" textAnchor="end">{qMin.toFixed(1)}</text>
+                      <text x={p.l-2} y={p.t+5} fill={C.amber} fontSize={5} fontFamily="'Noto Sans KR', sans-serif" textAnchor="end">{qMax.toFixed(1)}</text>
+                      <text x={p.l-2} y={p.t+ph} fill={C.amber} fontSize={5} fontFamily="'Noto Sans KR', sans-serif" textAnchor="end">{qMin.toFixed(1)}</text>
                       {/* Right axis labels */}
-                      <text x={p.l+pw+2} y={p.t+5} fill={C.cyan} fontSize={5} fontFamily="monospace">{psMax.toFixed(0)}</text>
-                      <text x={p.l+pw+2} y={p.t+ph} fill={C.cyan} fontSize={5} fontFamily="monospace">{psMin.toFixed(0)}</text>
+                      <text x={p.l+pw+2} y={p.t+5} fill={C.cyan} fontSize={5} fontFamily="'Noto Sans KR', sans-serif">{psMax.toFixed(0)}</text>
+                      <text x={p.l+pw+2} y={p.t+ph} fill={C.cyan} fontSize={5} fontFamily="'Noto Sans KR', sans-serif">{psMin.toFixed(0)}</text>
                       {/* Time labels */}
-                      <text x={p.l} y={H-8} fill={C.dim} fontSize={5} fontFamily="monospace">0</text>
-                      <text x={p.l+pw} y={H-8} fill={C.dim} fontSize={5} fontFamily="monospace" textAnchor="end">{tMax}</text>
+                      <text x={p.l} y={H-8} fill={C.dim} fontSize={5} fontFamily="'Noto Sans KR', sans-serif">0</text>
+                      <text x={p.l+pw} y={H-8} fill={C.dim} fontSize={5} fontFamily="'Noto Sans KR', sans-serif" textAnchor="end">{tMax}</text>
                       {/* Legend */}
                       <line x1={p.l+5} y1={p.t+3} x2={p.l+15} y2={p.t+3} stroke={C.amber} strokeWidth={1.5}/>
-                      <text x={p.l+17} y={p.t+6} fill={C.amber} fontSize={5} fontFamily="monospace">Q</text>
+                      <text x={p.l+17} y={p.t+6} fill={C.amber} fontSize={5} fontFamily="'Noto Sans KR', sans-serif">Q</text>
                       <line x1={p.l+30} y1={p.t+3} x2={p.l+40} y2={p.t+3} stroke={C.cyan} strokeWidth={1.5}/>
-                      <text x={p.l+42} y={p.t+6} fill={C.cyan} fontSize={5} fontFamily="monospace">Ps</text>
+                      <text x={p.l+42} y={p.t+6} fill={C.cyan} fontSize={5} fontFamily="'Noto Sans KR', sans-serif">Ps</text>
                       <line x1={p.l+55} y1={p.t+3} x2={p.l+65} y2={p.t+3} stroke={C.green} strokeWidth={1.5}/>
-                      <text x={p.l+67} y={p.t+6} fill={C.green} fontSize={5} fontFamily="monospace">η</text>
+                      <text x={p.l+67} y={p.t+6} fill={C.green} fontSize={5} fontFamily="'Noto Sans KR', sans-serif">η</text>
                     </svg>
                     {/* Summary */}
-                    <div className="mt-1 grid grid-cols-3 gap-1" style={{fontFamily:"monospace",fontSize:7}}>
+                    <div className="mt-1 grid grid-cols-3 gap-1" style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:7}}>
                       <div style={{textAlign:"center"}}>
                         <div style={{color:C.dim}}>Q</div>
                         <div style={{color:C.amber}}>{qMax.toFixed(1)} → {qMin.toFixed(1)}</div>
@@ -2170,18 +2170,18 @@ export default function ImpellerViewer() {
                   {fitPts.length > 2 && <path d={mkPath(fitPts, p=>syP(p.Ps))} fill="none" stroke={C.green} strokeWidth={1.5} strokeDasharray="4,2"/>}
                   <circle cx={sx(bep.Q)} cy={syP(bep.Ps)} r={4} fill="none" stroke={C.green} strokeWidth={2}/>
                   <line x1={sx(bep.Q)} y1={pad.t} x2={sx(bep.Q)} y2={pad.t+ph} stroke={C.green} strokeWidth={0.5} strokeDasharray="3,3" opacity={0.3}/>
-                  <text x={sx(bep.Q)+5} y={syP(bep.Ps)-5} fill={C.green} fontSize={7} fontFamily="monospace" fontWeight="bold">BEP</text>
-                  <text x={pad.l+pw/2} y={H-3} fill={C.dim} fontSize={7} fontFamily="monospace" textAnchor="middle">Q (m³/min)</text>
-                  <text x={4} y={pad.t+ph/2} fill={C.dim} fontSize={6} fontFamily="monospace" textAnchor="middle" transform={`rotate(-90,4,${pad.t+ph/2})`}>P (Pa)</text>
-                  <text x={pad.l-2} y={pad.t+6} fill={C.dim} fontSize={6} fontFamily="monospace" textAnchor="end">{maxP.toFixed(0)}</text>
-                  <text x={pad.l+pw} y={pad.t+ph+10} fill={C.dim} fontSize={6} fontFamily="monospace" textAnchor="end">{maxQ.toFixed(1)}</text>
+                  <text x={sx(bep.Q)+5} y={syP(bep.Ps)-5} fill={C.green} fontSize={7} fontFamily="'Noto Sans KR', sans-serif" fontWeight="bold">BEP</text>
+                  <text x={pad.l+pw/2} y={H-3} fill={C.dim} fontSize={7} fontFamily="'Noto Sans KR', sans-serif" textAnchor="middle">Q (m³/min)</text>
+                  <text x={4} y={pad.t+ph/2} fill={C.dim} fontSize={6} fontFamily="'Noto Sans KR', sans-serif" textAnchor="middle" transform={`rotate(-90,4,${pad.t+ph/2})`}>P (Pa)</text>
+                  <text x={pad.l-2} y={pad.t+6} fill={C.dim} fontSize={6} fontFamily="'Noto Sans KR', sans-serif" textAnchor="end">{maxP.toFixed(0)}</text>
+                  <text x={pad.l+pw} y={pad.t+ph+10} fill={C.dim} fontSize={6} fontFamily="'Noto Sans KR', sans-serif" textAnchor="end">{maxQ.toFixed(1)}</text>
                   {/* Legend */}
                   <line x1={pad.l+5} y1={pad.t+4} x2={pad.l+16} y2={pad.t+4} stroke={C.cyan} strokeWidth={2}/>
-                  <text x={pad.l+18} y={pad.t+7} fill={C.cyan} fontSize={6} fontFamily="monospace">Ps</text>
+                  <text x={pad.l+18} y={pad.t+7} fill={C.cyan} fontSize={6} fontFamily="'Noto Sans KR', sans-serif">Ps</text>
                   <line x1={pad.l+38} y1={pad.t+4} x2={pad.l+49} y2={pad.t+4} stroke={C.blade} strokeWidth={1.5}/>
-                  <text x={pad.l+51} y={pad.t+7} fill={C.blade} fontSize={6} fontFamily="monospace">Pt</text>
+                  <text x={pad.l+51} y={pad.t+7} fill={C.blade} fontSize={6} fontFamily="'Noto Sans KR', sans-serif">Pt</text>
                   <line x1={pad.l+68} y1={pad.t+4} x2={pad.l+79} y2={pad.t+4} stroke={C.amber} strokeWidth={1} opacity={0.6}/>
-                  <text x={pad.l+81} y={pad.t+7} fill={C.amber} fontSize={6} fontFamily="monospace">Pd</text>
+                  <text x={pad.l+81} y={pad.t+7} fill={C.amber} fontSize={6} fontFamily="'Noto Sans KR', sans-serif">Pd</text>
                   {/* Experimental data overlay */}
                   {expData.length > 0 && <>
                     {expData.map((d,i) => <circle key={'ep'+i} cx={sx(d.Q)} cy={syP(d.Ps||d.Pt||0)} r={3.5}
@@ -2189,10 +2189,10 @@ export default function ImpellerViewer() {
                     {expData.filter(d=>d.Pt>0).map((d,i) => <circle key={'ept'+i} cx={sx(d.Q)} cy={syP(d.Pt)} r={2.5}
                       fill="none" stroke={C.orange} strokeWidth={1} strokeDasharray="2,1" opacity={0.5}/>)}
                     <circle cx={pad.l+105} cy={pad.t+4} r={3} fill="none" stroke={C.orange} strokeWidth={1.5}/>
-                    <text x={pad.l+110} y={pad.t+7} fill={C.orange} fontSize={6} fontFamily="monospace">Exp</text>
+                    <text x={pad.l+110} y={pad.t+7} fill={C.orange} fontSize={6} fontFamily="'Noto Sans KR', sans-serif">Exp</text>
                     {fitPts.length > 0 && <>
                       <line x1={pad.l+128} y1={pad.t+4} x2={pad.l+139} y2={pad.t+4} stroke={C.green} strokeWidth={1.5} strokeDasharray="4,2"/>
-                      <text x={pad.l+141} y={pad.t+7} fill={C.green} fontSize={6} fontFamily="monospace">Fit</text>
+                      <text x={pad.l+141} y={pad.t+7} fill={C.green} fontSize={6} fontFamily="'Noto Sans KR', sans-serif">Fit</text>
                     </>}
                   </>}
                   {/* System resistance curve */}
@@ -2207,10 +2207,10 @@ export default function ImpellerViewer() {
                         <circle cx={sx(operatingPoint.Q)} cy={syP(operatingPoint.Ps)} r={6} fill="none" stroke="#f97316" strokeWidth={2.5}/>
                         <circle cx={sx(operatingPoint.Q)} cy={syP(operatingPoint.Ps)} r={2} fill="#f97316"/>
                         <line x1={sx(operatingPoint.Q)} y1={pad.t} x2={sx(operatingPoint.Q)} y2={pad.t+ph} stroke="#f97316" strokeWidth={0.5} strokeDasharray="2,3" opacity={0.4}/>
-                        <text x={sx(operatingPoint.Q)+5} y={syP(operatingPoint.Ps)+12} fill="#f97316" fontSize={7} fontFamily="monospace" fontWeight="bold">OP</text>
+                        <text x={sx(operatingPoint.Q)+5} y={syP(operatingPoint.Ps)+12} fill="#f97316" fontSize={7} fontFamily="'Noto Sans KR', sans-serif" fontWeight="bold">OP</text>
                       </>}
                       <line x1={pad.l+155} y1={pad.t+4} x2={pad.l+166} y2={pad.t+4} stroke="#f97316" strokeWidth={1.5} strokeDasharray="4,2"/>
-                      <text x={pad.l+168} y={pad.t+7} fill="#f97316" fontSize={6} fontFamily="monospace">Sys</text>
+                      <text x={pad.l+168} y={pad.t+7} fill="#f97316" fontSize={6} fontFamily="'Noto Sans KR', sans-serif">Sys</text>
                     </>;
                   })()}
                 </svg>
@@ -2223,11 +2223,11 @@ export default function ImpellerViewer() {
                   <path d={pts.map((p,i) => `${i===0?'M':'L'}${sx(p.Q)} ${10+100*(1-p.eta/Math.max(0.01,maxEta))}`).join(' ')} fill="none" stroke={C.green} strokeWidth={2}/>
                   <circle cx={sx(bep.Q)} cy={10+100*(1-bep.eta/Math.max(0.01,maxEta))} r={4} fill={C.green} opacity={0.8}/>
                   <line x1={sx(bep.Q)} y1={10} x2={sx(bep.Q)} y2={110} stroke={C.green} strokeWidth={0.5} strokeDasharray="3,3" opacity={0.3}/>
-                  <text x={sx(bep.Q)+5} y={10+100*(1-bep.eta/Math.max(0.01,maxEta))-5} fill={C.green} fontSize={7} fontFamily="monospace" fontWeight="bold">{(bep.eta*100).toFixed(1)}%</text>
-                  <text x={pad.l+pw/2} y={118} fill={C.dim} fontSize={7} fontFamily="monospace" textAnchor="middle">Q (m³/min)</text>
-                  <text x={4} y={60} fill={C.dim} fontSize={6} fontFamily="monospace" textAnchor="middle" transform="rotate(-90,4,60)">η</text>
-                  <text x={pad.l-2} y={16} fill={C.dim} fontSize={6} fontFamily="monospace" textAnchor="end">{(maxEta*100).toFixed(0)}%</text>
-                  <text x={pad.l-2} y={110} fill={C.dim} fontSize={6} fontFamily="monospace" textAnchor="end">0</text>
+                  <text x={sx(bep.Q)+5} y={10+100*(1-bep.eta/Math.max(0.01,maxEta))-5} fill={C.green} fontSize={7} fontFamily="'Noto Sans KR', sans-serif" fontWeight="bold">{(bep.eta*100).toFixed(1)}%</text>
+                  <text x={pad.l+pw/2} y={118} fill={C.dim} fontSize={7} fontFamily="'Noto Sans KR', sans-serif" textAnchor="middle">Q (m³/min)</text>
+                  <text x={4} y={60} fill={C.dim} fontSize={6} fontFamily="'Noto Sans KR', sans-serif" textAnchor="middle" transform="rotate(-90,4,60)">η</text>
+                  <text x={pad.l-2} y={16} fill={C.dim} fontSize={6} fontFamily="'Noto Sans KR', sans-serif" textAnchor="end">{(maxEta*100).toFixed(0)}%</text>
+                  <text x={pad.l-2} y={110} fill={C.dim} fontSize={6} fontFamily="'Noto Sans KR', sans-serif" textAnchor="end">0</text>
                   {/* Experimental η overlay */}
                   {expData.filter(d=>d.eta>0).map((d,i) => <circle key={'ee'+i} cx={sx(d.Q)} cy={10+100*(1-d.eta/Math.max(0.01,maxEta))} r={3.5}
                     fill="none" stroke={C.orange} strokeWidth={1.5} opacity={0.8}/>)}
@@ -2237,7 +2237,7 @@ export default function ImpellerViewer() {
                   {showSysCurve && operatingPoint && <>
                     <circle cx={sx(operatingPoint.Q)} cy={10+100*(1-operatingPoint.eta/Math.max(0.01,maxEta))} r={5} fill="none" stroke="#f97316" strokeWidth={2}/>
                     <line x1={sx(operatingPoint.Q)} y1={10} x2={sx(operatingPoint.Q)} y2={110} stroke="#f97316" strokeWidth={0.5} strokeDasharray="2,3" opacity={0.4}/>
-                    <text x={sx(operatingPoint.Q)+5} y={10+100*(1-operatingPoint.eta/Math.max(0.01,maxEta))+10} fill="#f97316" fontSize={6} fontFamily="monospace">{(operatingPoint.eta*100).toFixed(1)}%</text>
+                    <text x={sx(operatingPoint.Q)+5} y={10+100*(1-operatingPoint.eta/Math.max(0.01,maxEta))+10} fill="#f97316" fontSize={6} fontFamily="'Noto Sans KR', sans-serif">{(operatingPoint.eta*100).toFixed(1)}%</text>
                   </>}
                 </svg>
 
@@ -2253,22 +2253,22 @@ export default function ImpellerViewer() {
                     {l:'Ns',v:aero.Ns.toFixed(0),u:'',c:C.dim},
                     {l:'W',v:(bep.Qm3s>0?bep.Pt*bep.Qm3s/Math.max(0.01,bep.eta):0).toFixed(1),u:'W',c:C.red},
                   ].map(m => <div key={m.l} className="text-center py-1 rounded" style={{background:C.card}}>
-                    <div style={{color:C.dim,fontFamily:"monospace",fontSize:6}}>{m.l}</div>
-                    <div style={{color:m.c,fontFamily:"monospace",fontSize:11,fontWeight:700}}>{m.v}</div>
-                    <div style={{color:C.dim,fontFamily:"monospace",fontSize:5}}>{m.u}</div>
+                    <div style={{color:C.dim,fontFamily: "'Noto Sans KR', sans-serif",fontSize:6}}>{m.l}</div>
+                    <div style={{color:m.c,fontFamily: "'Noto Sans KR', sans-serif",fontSize:11,fontWeight:700}}>{m.v}</div>
+                    <div style={{color:C.dim,fontFamily: "'Noto Sans KR', sans-serif",fontSize:5}}>{m.u}</div>
                   </div>)}
                 </div>
 
                 {/* Loss breakdown at BEP */}
                 <div className="mt-2 p-1.5 rounded" style={{background:C.bg}}>
-                  <div style={{color:C.dim,fontFamily:"monospace",fontSize:8,marginBottom:3}}>손실 분해 @BEP (총 {totalLoss.toFixed(1)} Pa)</div>
+                  <div style={{color:C.dim,fontFamily: "'Noto Sans KR', sans-serif",fontSize:8,marginBottom:3}}>손실 분해 @BEP (총 {totalLoss.toFixed(1)} Pa)</div>
                   {/* Stacked bar */}
                   <div className="flex rounded overflow-hidden" style={{height:14,background:C.card}}>
                     {losses.map((l,i) => <div key={i} style={{width:`${l.v/totalLoss*100}%`,background:l.c,minWidth:1}} title={`${l.l}: ${l.v.toFixed(1)}Pa`}/>)}
                   </div>
                   {/* Loss items */}
                   <div className="grid grid-cols-2 gap-x-3 gap-y-0 mt-1">
-                    {losses.map((l,i) => <div key={i} className="flex items-center gap-1" style={{fontFamily:"monospace",fontSize:7}}>
+                    {losses.map((l,i) => <div key={i} className="flex items-center gap-1" style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:7}}>
                       <span style={{display:"inline-block",width:6,height:6,borderRadius:1,background:l.c}}/>
                       <span style={{color:C.dim,flex:1}}>{l.l}</span>
                       <span style={{color:C.text}}>{l.v.toFixed(1)}</span>
@@ -2276,20 +2276,20 @@ export default function ImpellerViewer() {
                       <span style={{color:C.dim}}>({(l.v/totalLoss*100).toFixed(0)}%)</span>
                     </div>)}
                   </div>
-                  {diffRecov > 0.1 && <div style={{fontFamily:"monospace",fontSize:7,color:C.green,marginTop:2}}>
+                  {diffRecov > 0.1 && <div style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:7,color:C.green,marginTop:2}}>
                     + 디퓨저 회복: +{diffRecov.toFixed(1)} Pa
                   </div>}
-                  {bepPt.Q_recirc > 0.0001 && <div style={{fontFamily:"monospace",fontSize:7,color:C.red,marginTop:1}}>
+                  {bepPt.Q_recirc > 0.0001 && <div style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:7,color:C.red,marginTop:1}}>
                     ↻ Tongue 재순환: {(bepPt.Q_recirc*60).toFixed(2)} m³/min ({(bepPt.Q_recirc/(bepPt.Qm3s+bepPt.Q_recirc)*100).toFixed(1)}%)
                   </div>}
-                  <div style={{fontFamily:"monospace",fontSize:7,color:C.dim,marginTop:2}}>
+                  <div style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:7,color:C.dim,marginTop:2}}>
                     Euler Pt_e={bepPt.Pt_e?.toFixed(0)||'—'}Pa → 손실 {totalLoss.toFixed(0)}Pa → Pt_fan={bep.Pt.toFixed(0)}Pa
                   </div>
                 </div>
 
                 {/* Experimental comparison metrics */}
                 {expData.length >= 2 && <div className="mt-2 p-1.5 rounded" style={{background:C.bg, border:`1px solid ${C.orange}33`}}>
-                  <div style={{color:C.orange,fontFamily:"monospace",fontSize:8,marginBottom:3}}>검증 프레임워크 — 실험 vs 모델</div>
+                  <div style={{color:C.orange,fontFamily: "'Noto Sans KR', sans-serif",fontSize:8,marginBottom:3}}>검증 프레임워크 — 실험 vs 모델</div>
                   {(() => {
                     // Compute errors for default model
                     const errors_Ps = [], errors_eta = [];
@@ -2333,7 +2333,7 @@ export default function ImpellerViewer() {
 
                     return <>
                       {/* Metrics table */}
-                      <div className="grid grid-cols-2 gap-x-3 mb-2" style={{fontFamily:"monospace",fontSize:7}}>
+                      <div className="grid grid-cols-2 gap-x-3 mb-2" style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:7}}>
                         <div>
                           <div style={{color:C.dim,marginBottom:1}}>정압 Ps — {m_fit?'기본':'모델'} ({errors_Ps.length}점)</div>
                           <div>RMSE: <span style={{color:m_def.rmse<10?C.green:m_def.rmse<20?C.amber:C.red}}>{m_def.rmse?.toFixed(1)} Pa</span></div>
@@ -2356,7 +2356,7 @@ export default function ImpellerViewer() {
 
                       {/* Residual plot */}
                       {errors_Ps.length >= 3 && <div>
-                        <div style={{color:C.dim,fontFamily:"monospace",fontSize:7,marginBottom:2}}>잔차 플롯 (Ps_mod - Ps_exp)</div>
+                        <div style={{color:C.dim,fontFamily: "'Noto Sans KR', sans-serif",fontSize:7,marginBottom:2}}>잔차 플롯 (Ps_mod - Ps_exp)</div>
                         <svg width={resW} height={resH} style={{display:"block",margin:"0 auto",background:C.card,borderRadius:3}}>
                           <line x1={rPad.l} y1={rPad.t+rph/2} x2={rPad.l+rpw} y2={rPad.t+rph/2} stroke={C.dim} strokeWidth={0.5}/>
                           <line x1={rPad.l} y1={rPad.t} x2={rPad.l} y2={rPad.t+rph} stroke={C.dim} strokeWidth={0.3}/>
@@ -2369,19 +2369,19 @@ export default function ImpellerViewer() {
                           {/* Fitted model residuals */}
                           {fit_errors_Ps.map((e,i) => <circle key={'rf'+i} cx={rsx(e.Q)} cy={rsy(e.err)} r={2}
                             fill={C.green} opacity={0.6} stroke={C.bg} strokeWidth={0.5}/>)}
-                          <text x={rPad.l+rpw/2} y={resH-1} fill={C.dim} fontSize={6} fontFamily="monospace" textAnchor="middle">Q (m³/min)</text>
-                          <text x={rPad.l-2} y={rPad.t+5} fill={C.dim} fontSize={5} fontFamily="monospace" textAnchor="end">+{eMax.toFixed(0)}</text>
-                          <text x={rPad.l-2} y={rPad.t+rph} fill={C.dim} fontSize={5} fontFamily="monospace" textAnchor="end">-{eMax.toFixed(0)}</text>
-                          <text x={rPad.l-2} y={rPad.t+rph/2+3} fill={C.dim} fontSize={5} fontFamily="monospace" textAnchor="end">0</text>
+                          <text x={rPad.l+rpw/2} y={resH-1} fill={C.dim} fontSize={6} fontFamily="'Noto Sans KR', sans-serif" textAnchor="middle">Q (m³/min)</text>
+                          <text x={rPad.l-2} y={rPad.t+5} fill={C.dim} fontSize={5} fontFamily="'Noto Sans KR', sans-serif" textAnchor="end">+{eMax.toFixed(0)}</text>
+                          <text x={rPad.l-2} y={rPad.t+rph} fill={C.dim} fontSize={5} fontFamily="'Noto Sans KR', sans-serif" textAnchor="end">-{eMax.toFixed(0)}</text>
+                          <text x={rPad.l-2} y={rPad.t+rph/2+3} fill={C.dim} fontSize={5} fontFamily="'Noto Sans KR', sans-serif" textAnchor="end">0</text>
                         </svg>
-                        <div style={{fontFamily:"monospace",fontSize:6,color:C.dim,textAlign:"center",marginTop:1}}>
+                        <div style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:6,color:C.dim,textAlign:"center",marginTop:1}}>
                           <span style={{color:C.cyan}}>●</span> 기본 {m_fit && <><span style={{color:C.green}}>●</span> 피팅</>} | 녹색 대역 = ±RMSE
                         </div>
                       </div>}
 
                       {/* Parity plot */}
                       {errors_Ps.length >= 3 && <div className="mt-2">
-                        <div style={{color:C.dim,fontFamily:"monospace",fontSize:7,marginBottom:2}}>패리티 플롯 (Ps_mod vs Ps_exp)</div>
+                        <div style={{color:C.dim,fontFamily: "'Noto Sans KR', sans-serif",fontSize:7,marginBottom:2}}>패리티 플롯 (Ps_mod vs Ps_exp)</div>
                         {(() => {
                           const pW=140,pH=140,pPad={l:28,r:6,t:6,b:16};
                           const ppw=pW-pPad.l-pPad.r, pph=pH-pPad.t-pPad.b;
@@ -2393,8 +2393,8 @@ export default function ImpellerViewer() {
                             <line x1={ps(pMin)} y1={py(pMin)} x2={ps(pMax)} y2={py(pMax)} stroke={C.dim} strokeWidth={0.5} strokeDasharray="4,3"/>
                             {errors_Ps.map((e,i) => <circle key={'pp'+i} cx={ps(e.exp)} cy={py(e.mod)} r={3} fill={C.cyan} opacity={0.7}/>)}
                             {fit_errors_Ps.map((e,i) => <circle key={'pf'+i} cx={ps(e.exp)} cy={py(e.mod)} r={2.5} fill={C.green} opacity={0.6}/>)}
-                            <text x={pPad.l+ppw/2} y={pH-2} fill={C.dim} fontSize={6} fontFamily="monospace" textAnchor="middle">Ps_exp (Pa)</text>
-                            <text x={4} y={pPad.t+pph/2} fill={C.dim} fontSize={6} fontFamily="monospace" textAnchor="middle" transform={`rotate(-90,4,${pPad.t+pph/2})`}>Ps_mod (Pa)</text>
+                            <text x={pPad.l+ppw/2} y={pH-2} fill={C.dim} fontSize={6} fontFamily="'Noto Sans KR', sans-serif" textAnchor="middle">Ps_exp (Pa)</text>
+                            <text x={4} y={pPad.t+pph/2} fill={C.dim} fontSize={6} fontFamily="'Noto Sans KR', sans-serif" textAnchor="middle" transform={`rotate(-90,4,${pPad.t+pph/2})`}>Ps_mod (Pa)</text>
                           </svg>;
                         })()}
                       </div>}
@@ -2402,7 +2402,7 @@ export default function ImpellerViewer() {
                   })()}
                   {/* Data table */}
                   <div style={{maxHeight:80,overflowY:'auto',marginTop:4}}>
-                    <table style={{fontFamily:"monospace",fontSize:6,borderCollapse:"collapse",width:"100%"}}>
+                    <table style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:6,borderCollapse:"collapse",width:"100%"}}>
                       <thead><tr style={{borderBottom:`1px solid ${C.border}`}}>
                         <th className="px-1 text-right" style={{color:C.dim}}>Q</th>
                         <th className="px-1 text-right" style={{color:C.dim}}>Ps_exp</th>
@@ -2426,8 +2426,8 @@ export default function ImpellerViewer() {
                   </div>
                 </div>}
                 <div className="mt-2 p-1.5 rounded" style={{background:C.bg}}>
-                  <div style={{color:C.dim,fontFamily:"monospace",fontSize:8,marginBottom:2}}>속도 삼각형 + 구조</div>
-                  <div className="grid grid-cols-4 gap-1" style={{fontFamily:"monospace",fontSize:8}}>
+                  <div style={{color:C.dim,fontFamily: "'Noto Sans KR', sans-serif",fontSize:8,marginBottom:2}}>속도 삼각형 + 구조</div>
+                  <div className="grid grid-cols-4 gap-1" style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:8}}>
                     <div><span style={{color:C.dim}}>U₂=</span><span style={{color:C.text}}>{aero.U2.toFixed(1)}</span></div>
                     <div><span style={{color:C.dim}}>C₂=</span><span style={{color:C.text}}>{bep.C2.toFixed(1)}</span></div>
                     <div><span style={{color:C.dim}}>W₁=</span><span style={{color:C.text}}>{bep.W1.toFixed(1)}</span></div>
@@ -2448,11 +2448,11 @@ export default function ImpellerViewer() {
           {/* Material + RPM */}
           <div className="mb-2 pb-1" style={{ borderBottom: `1px solid ${C.border}` }}>
             <div className="flex items-center gap-1 mb-1">
-              <span style={{ color: C.dim, fontFamily: "monospace", fontSize: 9 }}>재질</span>
+              <span style={{ color: C.dim, fontFamily: "'Noto Sans KR', sans-serif", fontSize: 9 }}>재질</span>
               <div className="flex gap-0.5 flex-wrap">
                 {Object.entries(MATERIALS).map(([k,m]) =>
                   <button key={k} onClick={() => setMatKey(k)} className="px-1.5 py-0.5 rounded"
-                    style={{ fontFamily:"monospace", fontSize:7, background:matKey===k?C.card:"transparent",
+                    style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:7, background:matKey===k?C.card:"transparent",
                       color:matKey===k?m.color:C.dim, border:`1px solid ${matKey===k?m.color:C.border}` }}>{k}</button>)}
               </div>
             </div>
@@ -2460,12 +2460,12 @@ export default function ImpellerViewer() {
           </div>
           <div className="grid grid-cols-2 gap-x-3">
             <div>
-              <div style={{ color: C.dim, fontFamily: "monospace", fontSize: 9, marginBottom: 2 }}>DIAMETERS</div>
+              <div style={{ color: C.dim, fontFamily: "'Noto Sans KR', sans-serif", fontSize: 9, marginBottom: 2 }}>DIAMETERS</div>
               <S label="D_eye" value={Deye} min={40} max={200} step={1} onChange={setDeye} unit="mm" color={C.eye} />
               <S label="D₁" value={D1} min={50} max={220} step={1} onChange={setD1} unit="mm" color={C.cyan} />
               <S label="D₂" value={D2} min={80} max={320} step={1} onChange={setD2} unit="mm" color={C.blade} />
               <S label="D_u" value={Du} min={80} max={350} step={1} onChange={setDu} unit="mm" color={C.backplate} />
-              <div style={{ color: C.dim, fontFamily: "monospace", fontSize: 9, marginTop: 4, marginBottom: 2 }}>WIDTH / SHAPE</div>
+              <div style={{ color: C.dim, fontFamily: "'Noto Sans KR', sans-serif", fontSize: 9, marginTop: 4, marginBottom: 2 }}>WIDTH / SHAPE</div>
               <S label="b₁" value={b1} min={15} max={120} step={1} onChange={setB1} unit="mm" color={C.text} />
               <S label="b₂" value={b2} min={15} max={120} step={1} onChange={setB2} unit="mm" color={C.hub} />
               <S label="Eye R" value={eyeRise} min={0} max={25} step={1} onChange={setEyeRise} unit="mm" color={C.shroud} />
@@ -2474,11 +2474,11 @@ export default function ImpellerViewer() {
             </div>
             <div>
               <div className="flex items-center gap-1 mb-1">
-                <span style={{ color: C.dim, fontFamily: "monospace", fontSize: 9 }}>BLADE</span>
+                <span style={{ color: C.dim, fontFamily: "'Noto Sans KR', sans-serif", fontSize: 9 }}>BLADE</span>
                 <div className="flex gap-0.5 ml-auto">
                   {[{k:'fc',l:'전곡',b2:145},{k:'rad',l:'방사',b2:90},{k:'bc',l:'후곡',b2:55}].map(m =>
                     <button key={m.k} onClick={() => setBeta2(m.b2)} className="px-1.5 py-0.5 rounded"
-                      style={{ fontFamily:"monospace", fontSize:6,
+                      style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:6,
                         background: (m.k==='fc'&&beta2>90)||(m.k==='rad'&&beta2===90)||(m.k==='bc'&&beta2<90) ? C.card : "transparent",
                         color: (m.k==='fc'&&beta2>90)||(m.k==='rad'&&beta2===90)||(m.k==='bc'&&beta2<90)
                           ? (m.k==='fc'?C.red:m.k==='rad'?C.amber:C.cyan) : C.dim,
@@ -2488,17 +2488,17 @@ export default function ImpellerViewer() {
               </div>
               <S label="β₁" value={beta1} min={0} max={90} step={1} onChange={setBeta1} unit="°" color={C.green} />
               <S label="β₂" value={beta2} min={20} max={180} step={1} onChange={setBeta2} unit="°" color={beta2>90?C.red:beta2===90?C.amber:C.cyan} />
-              <div className="mb-1" style={{ color: C.dim, fontFamily: "monospace", fontSize: 7 }}>
+              <div className="mb-1" style={{ color: C.dim, fontFamily: "'Noto Sans KR', sans-serif", fontSize: 7 }}>
                 {beta2 > 90 ? `전곡 (Forward-curved) β₂=${beta2}°` : beta2 === 90 ? '방사 (Radial) β₂=90°' : `후곡 (Backward-curved) β₂=${beta2}°`}
               </div>
               <S label="Z" value={Z} min={16} max={48} step={1} onChange={setZ} unit="" color={C.purple} />
               <S label="t" value={tBlade} min={0.3} max={3} step={0.1} onChange={setTBlade} unit="mm" color={C.blade} />
               <S label="Lean" value={bladeLean} min={-15} max={15} step={0.5} onChange={setBladeLean} unit="°" color={C.accent} />
-              <div style={{ color: C.dim, fontFamily: "monospace", fontSize: 9, marginTop: 4, marginBottom: 2 }}>PROFILE</div>
+              <div style={{ color: C.dim, fontFamily: "'Noto Sans KR', sans-serif", fontSize: 9, marginTop: 4, marginBottom: 2 }}>PROFILE</div>
               <div className="flex gap-1 mb-1">
                 {[{k:'sfs',l:'직선-필렛-직선'},{k:'arc',l:'단일 원호'},{k:'linear',l:'선형 β'}].map(m =>
                   <button key={m.k} onClick={() => setBladeType(m.k)} className="flex-1 py-0.5 rounded"
-                    style={{ fontFamily:"monospace", fontSize: 7,
+                    style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize: 7,
                       background: bladeType===m.k ? C.card : "transparent",
                       color: bladeType===m.k ? C.blade : C.dim,
                       border: `1px solid ${bladeType===m.k ? C.blade : C.border}` }}>{m.l}</button>)}
@@ -2508,24 +2508,24 @@ export default function ImpellerViewer() {
                 return <>
                   <S label="R" value={Rfillet} min={1} max={50} step={1} onChange={setRfillet} unit="mm" color={C.accent} />
                   <S label="Bend" value={bendPos} min={0.15} max={0.85} step={0.01} onChange={setBendPos} unit="" color={C.cyan} />
-                  <div style={{ color: C.dim, fontFamily: "monospace", fontSize: 7 }}>
+                  <div style={{ color: C.dim, fontFamily: "'Noto Sans KR', sans-serif", fontSize: 7 }}>
                     절곡 r={rBend.toFixed(1)}mm (D={rBend*2|0}mm) span {(bendPos*100)|0}%
                   </div>
                 </>;
               })()}
-              {bladeType === 'arc' && <div style={{ color: C.dim, fontFamily: "monospace", fontSize: 7 }}>β₁,β₂ 접선 유일 원호. 프레스 1회 성형.</div>}
-              {bladeType === 'linear' && <div style={{ color: C.dim, fontFamily: "monospace", fontSize: 7 }}>β가 r₁→r₂에서 선형 변화.</div>}
+              {bladeType === 'arc' && <div style={{ color: C.dim, fontFamily: "'Noto Sans KR', sans-serif", fontSize: 7 }}>β₁,β₂ 접선 유일 원호. 프레스 1회 성형.</div>}
+              {bladeType === 'linear' && <div style={{ color: C.dim, fontFamily: "'Noto Sans KR', sans-serif", fontSize: 7 }}>β가 r₁→r₂에서 선형 변화.</div>}
             </div>
           </div>
 
           {/* SCROLL parameters */}
           <div className="mt-2 pt-2" style={{ borderTop: `1px solid ${C.border}` }}>
             <div className="flex items-center gap-2 mb-1">
-              <span style={{ color: "#d4a44a", fontFamily: "monospace", fontSize: 9, fontWeight: 700 }}>SCROLL</span>
+              <span style={{ color: "#d4a44a", fontFamily: "'Noto Sans KR', sans-serif", fontSize: 9, fontWeight: 700 }}>SCROLL</span>
               <div className="flex gap-1">
                 {[{k:'cv',l:'등속팽창'},{k:'fv',l:'자유와류'}].map(m =>
                   <button key={m.k} onClick={() => setScrollType(m.k)} className="px-2 py-0.5 rounded"
-                    style={{ fontFamily:"monospace", fontSize: 7,
+                    style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize: 7,
                       background: scrollType===m.k ? C.card : "transparent",
                       color: scrollType===m.k ? "#d4a44a" : C.dim,
                       border: `1px solid ${scrollType===m.k ? "#d4a44a" : C.border}` }}>{m.l}</button>)}
@@ -2533,7 +2533,7 @@ export default function ImpellerViewer() {
               <div className="flex gap-1 ml-auto">
                 {[{k:'rect',l:'사각'},{k:'circular',l:'원형'}].map(m =>
                   <button key={m.k} onClick={() => setScrollCross(m.k)} className="px-2 py-0.5 rounded"
-                    style={{ fontFamily:"monospace", fontSize: 7,
+                    style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize: 7,
                       background: scrollCross===m.k ? C.card : "transparent",
                       color: scrollCross===m.k ? "#d4a44a" : C.dim,
                       border: `1px solid ${scrollCross===m.k ? "#d4a44a" : C.border}` }}>{m.l}</button>)}
@@ -2552,34 +2552,34 @@ export default function ImpellerViewer() {
             {/* Expansion rate mode */}
             <div className="mt-1 p-1 rounded" style={{ background: C.bg }}>
               <div className="flex items-center gap-2 mb-1">
-                <span style={{ color: "#d4a44a", fontFamily: "monospace", fontSize: 7 }}>팽창률</span>
+                <span style={{ color: "#d4a44a", fontFamily: "'Noto Sans KR', sans-serif", fontSize: 7 }}>팽창률</span>
                 <div className="flex gap-0.5 ml-auto">
                   {[{k:'uniform',l:'균일'},{k:'variable',l:'가변'}].map(m =>
                     <button key={m.k} onClick={() => setScrollExpMode(m.k)} className="px-1.5 py-0.5 rounded"
-                      style={{ fontFamily:"monospace", fontSize:6,
+                      style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:6,
                         background:scrollExpMode===m.k?C.card:"transparent", color:scrollExpMode===m.k?"#d4a44a":C.dim,
                         border:`1px solid ${scrollExpMode===m.k?"#d4a44a":C.border}` }}>{m.l}</button>)}
                 </div>
               </div>
               {scrollExpMode==='uniform' && <S label="k" value={scrollExpRate} min={0.02} max={0.3} step={0.01} onChange={setScrollExpRate} unit="" color="#d4a44a" />}
               {scrollExpMode==='variable' && <>
-                <div style={{ color:C.dim, fontFamily:"monospace", fontSize:7, marginBottom:2 }}>각도별 팽창률 제어점 (spline 보간)</div>
-                {scrollExpPts.map((pt, i) => <div key={i} className="flex items-center gap-1 mb-0.5" style={{ fontFamily:"monospace", fontSize:8 }}>
+                <div style={{ color:C.dim, fontFamily: "'Noto Sans KR', sans-serif", fontSize:7, marginBottom:2 }}>각도별 팽창률 제어점 (spline 보간)</div>
+                {scrollExpPts.map((pt, i) => <div key={i} className="flex items-center gap-1 mb-0.5" style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:8 }}>
                   <span style={{ color:C.dim, width:12 }}>{i+1}</span>
                   <input type="number" value={pt.a} onChange={e => { const nxt=[...scrollExpPts]; nxt[i]={...nxt[i],a:+e.target.value}; setScrollExpPts(nxt); }}
-                    className="w-12 px-0.5 rounded text-right" style={{ background:C.card,color:C.text,fontSize:8,border:`1px solid ${C.border}`,fontFamily:"monospace" }} />
+                    className="w-12 px-0.5 rounded text-right" style={{ background:C.card,color:C.text,fontSize:8,border:`1px solid ${C.border}`,fontFamily: "'Noto Sans KR', sans-serif" }} />
                   <span style={{color:C.dim,fontSize:6}}>°</span>
                   <input type="number" value={pt.k} step={0.01} onChange={e => { const nxt=[...scrollExpPts]; nxt[i]={...nxt[i],k:+e.target.value}; setScrollExpPts(nxt); }}
-                    className="w-12 px-0.5 rounded text-right" style={{ background:C.card,color:C.amber,fontSize:8,border:`1px solid ${C.border}33`,fontFamily:"monospace" }} />
+                    className="w-12 px-0.5 rounded text-right" style={{ background:C.card,color:C.amber,fontSize:8,border:`1px solid ${C.border}33`,fontFamily: "'Noto Sans KR', sans-serif" }} />
                   <span style={{color:C.dim,fontSize:6}}>k</span>
                   {scrollExpPts.length > 2 && <button onClick={() => { const nxt=[...scrollExpPts]; nxt.splice(i,1); setScrollExpPts(nxt); }}
-                    style={{color:C.red,fontSize:8,fontFamily:"monospace"}}>✕</button>}
+                    style={{color:C.red,fontSize:8,fontFamily: "'Noto Sans KR', sans-serif"}}>✕</button>}
                 </div>)}
                 <button onClick={() => {
                   const last = scrollExpPts[scrollExpPts.length-1];
                   setScrollExpPts([...scrollExpPts, {a: Math.min(720, last.a + 90), k: last.k}]);
                 }} className="mt-1 px-2 py-0.5 rounded w-full"
-                  style={{fontFamily:"monospace",fontSize:7,color:"#d4a44a",background:C.card,border:`1px solid #d4a44a44`}}>+ 제어점 추가</button>
+                  style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:7,color:"#d4a44a",background:C.card,border:`1px solid #d4a44a44`}}>+ 제어점 추가</button>
                 {/* Mini preview of k(θ) */}
                 {(() => {
                   const W=160,H=50,pad={l:20,r:4,t:4,b:12};
@@ -2598,26 +2598,26 @@ export default function ImpellerViewer() {
                   return <svg width={W} height={H} style={{display:"block",margin:"4px auto 0",background:C.card,borderRadius:3}}>
                     <path d={curvePts.map((p,i)=>`${i===0?'M':'L'}${p.x} ${p.y}`).join(' ')} fill="none" stroke="#d4a44a" strokeWidth={1.5}/>
                     {sorted.map((p,i)=><circle key={i} cx={sx(p.a)} cy={sy(p.k)} r={3} fill="#d4a44a" stroke={C.bg} strokeWidth={1}/>)}
-                    <text x={pad.l} y={H-1} fill={C.dim} fontSize={5} fontFamily="monospace">{aMin}°</text>
-                    <text x={pad.l+pw} y={H-1} fill={C.dim} fontSize={5} fontFamily="monospace" textAnchor="end">{aMax}°</text>
-                    <text x={pad.l-2} y={pad.t+5} fill={C.dim} fontSize={5} fontFamily="monospace" textAnchor="end">{kMax.toFixed(2)}</text>
+                    <text x={pad.l} y={H-1} fill={C.dim} fontSize={5} fontFamily="'Noto Sans KR', sans-serif">{aMin}°</text>
+                    <text x={pad.l+pw} y={H-1} fill={C.dim} fontSize={5} fontFamily="'Noto Sans KR', sans-serif" textAnchor="end">{aMax}°</text>
+                    <text x={pad.l-2} y={pad.t+5} fill={C.dim} fontSize={5} fontFamily="'Noto Sans KR', sans-serif" textAnchor="end">{kMax.toFixed(2)}</text>
                   </svg>;
                 })()}
               </>}
             </div>
             {/* Tongue */}
             <div className="mt-1 pt-1" style={{ borderTop: `1px solid ${C.border}33` }}>
-              <div style={{ color: C.red, fontFamily: "monospace", fontSize: 8, marginBottom: 2 }}>TONGUE</div>
+              <div style={{ color: C.red, fontFamily: "'Noto Sans KR', sans-serif", fontSize: 8, marginBottom: 2 }}>TONGUE</div>
               <div className="grid grid-cols-3 gap-x-2">
                 <S label="Gap" value={cutoffGap} min={2} max={30} step={0.5} onChange={setCutoffGap} unit="mm" color={C.red} />
                 <S label="θ_cut" value={cutoffAngle} min={0} max={360} step={1} onChange={setCutoffAngle} unit="°" color={C.red} />
                 <S label="R" value={Rtongue} min={1} max={20} step={0.5} onChange={setRtongue} unit="mm" color={C.red} />
               </div>
-              <div style={{ color: C.dim, fontFamily: "monospace", fontSize: 7, marginTop: 2 }}>θ_cut: 0°=→ 90°=↑ 180°=← 270°=↓</div>
-              <div style={{ color: "#d4a44a", fontFamily: "monospace", fontSize: 8, marginTop: 4, marginBottom: 1 }}>출구 방향 (절대축)</div>
+              <div style={{ color: C.dim, fontFamily: "'Noto Sans KR', sans-serif", fontSize: 7, marginTop: 2 }}>θ_cut: 0°=→ 90°=↑ 180°=← 270°=↓</div>
+              <div style={{ color: "#d4a44a", fontFamily: "'Noto Sans KR', sans-serif", fontSize: 8, marginTop: 4, marginBottom: 1 }}>출구 방향 (절대축)</div>
               <S label="θ_exit" value={exitAngle} min={0} max={360} step={1} onChange={setExitAngle} unit="°" color="#d4a44a" />
-              <div style={{ color: C.dim, fontFamily: "monospace", fontSize: 7 }}>θ_exit: 출구 덕트 방향. α_out, Diff α는 이 축 기준</div>
-              <div style={{ color: C.dim, fontFamily: "monospace", fontSize: 7, marginTop: 2, marginBottom: 1 }}>외면 (θ_exit 기준 상대각)</div>
+              <div style={{ color: C.dim, fontFamily: "'Noto Sans KR', sans-serif", fontSize: 7 }}>θ_exit: 출구 덕트 방향. α_out, Diff α는 이 축 기준</div>
+              <div style={{ color: C.dim, fontFamily: "'Noto Sans KR', sans-serif", fontSize: 7, marginTop: 2, marginBottom: 1 }}>외면 (θ_exit 기준 상대각)</div>
               <div className="grid grid-cols-2 gap-x-2">
                 <S label="L_out" value={tongueOutLen} min={0} max={200} step={1} onChange={setTongueOutLen} unit="mm" color={C.red} />
                 <S label="α_out" value={tongueOutAngle} min={-90} max={90} step={0.5} onChange={setTongueOutAngle} unit="°" color={C.red} />
@@ -2626,11 +2626,11 @@ export default function ImpellerViewer() {
             {/* Diffuser */}
             <div className="mt-1 pt-1" style={{ borderTop: `1px solid ${C.border}33` }}>
               <div className="flex items-center gap-2 mb-1">
-                <span style={{ color: "#d4a44a", fontFamily: "monospace", fontSize: 8 }}>DIFFUSER</span>
+                <span style={{ color: "#d4a44a", fontFamily: "'Noto Sans KR', sans-serif", fontSize: 8 }}>DIFFUSER</span>
                 <div className="flex gap-0.5 ml-auto">
                   {[{k:'single',l:'단일'},{k:'stepped',l:'단계'},{k:'round',l:'Round'}].map(m =>
                     <button key={m.k} onClick={() => setDiffType(m.k)} className="px-1.5 py-0.5 rounded"
-                      style={{ fontFamily:"monospace", fontSize:6,
+                      style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:6,
                         background:diffType===m.k?C.card:"transparent", color:diffType===m.k?"#d4a44a":C.dim,
                         border:`1px solid ${diffType===m.k?"#d4a44a":C.border}` }}>{m.l}</button>)}
                 </div>
@@ -2639,12 +2639,12 @@ export default function ImpellerViewer() {
                 <S label="Angle" value={diffAngle} min={-90} max={90} step={0.5} onChange={setDiffAngle} unit="°" color="#d4a44a" />
                 <S label="Length" value={diffLength} min={0} max={300} step={1} onChange={setDiffLength} unit="mm" color="#d4a44a" />
               </div>
-              <label className="flex items-center gap-1 mt-1" style={{ fontFamily:"monospace", fontSize:8, color:C.dim }}>
+              <label className="flex items-center gap-1 mt-1" style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:8, color:C.dim }}>
                 <input type="checkbox" checked={diffInnerWall} onChange={e => setDiffInnerWall(e.target.checked)} />
                 <span style={{ color: diffInnerWall ? "#d4a44a" : C.dim }}>내벽 {diffInnerWall ? "있음" : "없음 (개방)"}</span>
               </label>
             </div>
-            <div style={{ color: C.dim, fontFamily: "monospace", fontSize: 7, marginTop: 2 }}>
+            <div style={{ color: C.dim, fontFamily: "'Noto Sans KR', sans-serif", fontSize: 7, marginTop: 2 }}>
               {scrollType==='cv'?'아르키메데스':'로그나선'} | {scrollCross==='rect'?'사각':'원형'} | θ_cut={cutoffAngle}° → θ_end={scrollEndAngle}° (Wrap {wrapAngle}°) |
               Tongue δ={cutoffGap} R={Rtongue} 외면 L={tongueOutLen} α={tongueOutAngle}° |
               Diff {diffType} {diffAngle}° L={diffLength}mm {diffInnerWall?'':'(내벽 개방)'}
@@ -2654,12 +2654,12 @@ export default function ImpellerViewer() {
           {/* CASING */}
           <div className="mt-2 pt-2" style={{ borderTop: `1px solid ${C.border}` }}>
             <div className="flex items-center gap-2 mb-1">
-              <label className="flex items-center gap-1" style={{ fontFamily:"monospace", fontSize:9, color:"#4488aa" }}>
+              <label className="flex items-center gap-1" style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:9, color:"#4488aa" }}>
                 <input type="checkbox" checked={showCasing} onChange={e=>setShowCasing(e.target.checked)} />
                 CASING
               </label>
               {showCasing && <button onClick={autoFitScroll} className="px-2 py-0.5 rounded ml-auto"
-                style={{ fontFamily:"monospace", fontSize:7, background:C.card, color:C.green,
+                style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:7, background:C.card, color:C.green,
                   border:`1px solid ${C.green}66` }}>🔧 Auto-Fit Scroll</button>}
             </div>
             {showCasing && <>
@@ -2668,12 +2668,12 @@ export default function ImpellerViewer() {
                 <S label="H" value={casingH} min={100} max={500} step={5} onChange={setCasingH} unit="mm" color="#4488aa" />
                 <S label="D" value={casingD} min={30} max={200} step={1} onChange={setCasingD} unit="mm" color="#4488aa" />
               </div>
-              <div style={{ color: C.dim, fontFamily: "monospace", fontSize: 8, marginTop: 2, marginBottom: 1 }}>임펠러 중심 오프셋</div>
+              <div style={{ color: C.dim, fontFamily: "'Noto Sans KR', sans-serif", fontSize: 8, marginTop: 2, marginBottom: 1 }}>임펠러 중심 오프셋</div>
               <div className="grid grid-cols-2 gap-x-2">
                 <S label="X" value={casingCX} min={-100} max={100} step={1} onChange={setCasingCX} unit="mm" color="#4488aa" />
                 <S label="Y" value={casingCY} min={-100} max={100} step={1} onChange={setCasingCY} unit="mm" color="#4488aa" />
               </div>
-              <div style={{ color: C.dim, fontFamily: "monospace", fontSize: 7, marginTop: 2 }}>
+              <div style={{ color: C.dim, fontFamily: "'Noto Sans KR', sans-serif", fontSize: 7, marginTop: 2 }}>
                 케이싱 {casingW}×{casingH}×{casingD}mm | 중심 오프셋 ({casingCX},{casingCY})mm
                 {' | '}Auto-Fit: 케이싱 내부에 맞게 Wrap/디퓨저 자동 조정
               </div>
@@ -2683,8 +2683,8 @@ export default function ImpellerViewer() {
           <div className="mt-2 pt-2 grid grid-cols-5 gap-1" style={{ borderTop: `1px solid ${C.border}` }}>
             {[{l:"D₁/D₂",v:ratios.D1D2,ok:D1/D2>=0.65&&D1/D2<=0.8},{l:"Deye/D₁",v:ratios.DeyeD1,ok:Deye<=D1},{l:"Du/D₂",v:ratios.DuD2,ok:Du>=D2},{l:"b₂/D₂",v:ratios.b2D2,ok:b2/D2>=0.2&&b2/D2<=0.5},{l:"b₁/b₂",v:ratios.b1b2,ok:b1>=b2}].map(m=>
               <div key={m.l} className="text-center py-1 rounded" style={{background:C.bg}}>
-                <div style={{color:C.dim,fontFamily:"monospace",fontSize:7}}>{m.l}</div>
-                <div className="font-bold" style={{color:m.ok?C.green:C.hub,fontFamily:"monospace",fontSize:11}}>{m.v}</div>
+                <div style={{color:C.dim,fontFamily: "'Noto Sans KR', sans-serif",fontSize:7}}>{m.l}</div>
+                <div className="font-bold" style={{color:m.ok?C.green:C.hub,fontFamily: "'Noto Sans KR', sans-serif",fontSize:11}}>{m.v}</div>
               </div>)}
           </div>
 
@@ -2700,12 +2700,12 @@ export default function ImpellerViewer() {
               { l:"f_n", v:baseStruc.f_n.toFixed(0), u:"Hz", c:baseStruc.res_ok?C.cyan:C.red },
               { l:"BPF", v:baseAero.BPF.toFixed(0), u:"Hz", c:C.purple },
             ].map(m => <div key={m.l} className="text-center py-1 rounded" style={{background:C.bg}}>
-              <div style={{color:C.dim,fontFamily:"monospace",fontSize:6}}>{m.l}</div>
-              <div className="font-bold" style={{color:m.c,fontFamily:"monospace",fontSize:10}}>{m.v}<span style={{fontSize:6,color:C.dim}}>{m.u}</span></div>
+              <div style={{color:C.dim,fontFamily: "'Noto Sans KR', sans-serif",fontSize:6}}>{m.l}</div>
+              <div className="font-bold" style={{color:m.c,fontFamily: "'Noto Sans KR', sans-serif",fontSize:10}}>{m.v}<span style={{fontSize:6,color:C.dim}}>{m.u}</span></div>
             </div>)}
           </div>
 
-          <div className="mt-1 p-1 rounded" style={{ background: C.bg, fontFamily: "monospace", fontSize: 7, color: C.muted }}>
+          <div className="mt-1 p-1 rounded" style={{ background: C.bg, fontFamily: "'Noto Sans KR', sans-serif", fontSize: 7, color: C.muted }}>
             {mat.name} | σ_c={baseStruc.sigma_c.toFixed(1)}+σ_b={baseStruc.sigma_b.toFixed(1)}={baseStruc.sigma_total.toFixed(1)}MPa |
             f_n/BPF={(baseAero.BPF>0?(baseStruc.f_n/baseAero.BPF).toFixed(2):"—")} {baseStruc.res_ok?"✓":"⚠공진"} |
             질량:{baseStruc.bladeMass.toFixed(1)}g |
@@ -2713,7 +2713,7 @@ export default function ImpellerViewer() {
           </div>
         </div>
       </div>
-      <div className="text-center pb-3" style={{color:C.border,fontFamily:"monospace",fontSize:9}}>Impeller Design & Parametric Study v1.0</div>
+      <div className="text-center pb-3" style={{color:C.border,fontFamily: "'Noto Sans KR', sans-serif",fontSize:9}}>Impeller Design & Parametric Study v1.0</div>
     </div>
   );
 }
