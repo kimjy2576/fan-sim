@@ -2758,12 +2758,12 @@ export default function ImpellerViewer() {
         background: C.card, flexShrink: 0, zIndex: 50
       }}>
         {[
-          { l: "Q_BEP", v: baseAero.bep.Q.toFixed(1), u: "m³/min" },
-          { l: "Ps", v: baseAero.bep.Ps.toFixed(0), u: "Pa" },
-          { l: "η", v: (baseAero.bep.eta*100).toFixed(1), u: "%" },
-          { l: "SPL", v: baseAero.SPL.toFixed(1), u: "dB" },
-          { l: "P_shaft", v: baseAero.bep.Pshaft.toFixed(1), u: "W" },
-          { l: "SF", v: baseStruc.SF.toFixed(1), u: "" },
+          { l: "Q_BEP", v: (baseAero?.bep?.Q ?? 0).toFixed(1), u: "m³/min" },
+          { l: "Ps", v: (baseAero?.bep?.Ps ?? 0).toFixed(0), u: "Pa" },
+          { l: "η", v: ((baseAero?.bep?.eta ?? 0)*100).toFixed(1), u: "%" },
+          { l: "SPL", v: (baseAero?.SPL ?? 0).toFixed(1), u: "dB" },
+          { l: "BPF", v: (baseAero?.BPF ?? 0).toFixed(0), u: "Hz" },
+          { l: "SF", v: (baseStruc?.SF ?? 0).toFixed(1), u: "" },
         ].map((k, i, arr) => (
           <div key={k.l} style={{
             flex: 1, textAlign: "center", padding: "8px 6px",
