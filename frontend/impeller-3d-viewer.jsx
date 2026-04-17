@@ -1695,6 +1695,9 @@ export default function ImpellerViewer() {
           </div>
         </div>
       </div>}
+      {/* ═══ HPWD Sidebar Layout (flex on desktop, stack on mobile) ═══ */}
+      <div className="hpwd-body">
+      <div className="hpwd-main">
       <div className="px-3 flex items-center gap-0.5" style={{overflowX:"auto",WebkitOverflowScrolling:"touch"}}>
         {[{l:"3D",c:C.blade},{l:"정면",c:C.eye},{l:"단면",c:C.shroud},{l:"저면",c:C.backplate},{l:"Sweep",c:C.pink},{l:"최적화",c:C.green},{l:"PQ",c:C.cyan}].map((t,i)=>
           <Tab key={i} active={viewTab===i} onClick={()=>setViewTab(i)} color={t.c}>{t.l}</Tab>)}
@@ -2481,6 +2484,8 @@ export default function ImpellerViewer() {
           </div></div>
         </div>
       </div>
+      </div>{/* /hpwd-main */}
+      <aside className="hpwd-side">
       <div className="px-3 pb-2">
         <div className="rounded-lg p-2" style={{ background: C.card, border: `1px solid ${C.border}` }}>
           {/* Material + RPM */}
@@ -2751,6 +2756,8 @@ export default function ImpellerViewer() {
           </div>
         </div>
       </div>
+      </aside>{/* /hpwd-side */}
+      </div>{/* /hpwd-body */}
       {/* ═══ HPWD Standard KPI Bar (sticky bottom) ═══ */}
       <div style={{
         position: "sticky", bottom: 0,
