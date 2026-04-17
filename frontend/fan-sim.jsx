@@ -2335,7 +2335,7 @@ function App() {
               {/* Sweep */}
               <div className="vc full">
                 <div className="vt">Parameter sweep</div>
-                <div style={{display:'flex',gap:8,alignItems:'center',marginBottom:8}}>
+                <div style={{display:'flex',gap:8,alignItems:'center',marginBottom:8,flexWrap:'wrap'}}>
                   <select value={sweepVar} onChange={e=>setSweepVar(e.target.value)} style={{padding:'6px 10px',fontSize:13,border:'1px solid var(--bd)',borderRadius:6,background:'var(--bg2)',color:'var(--tx)',fontFamily:'var(--font)'}}>
                     {SWEEP_VARS.map(v=><option key={v.key} value={v.key}>{v.label} ({v.unit})</option>)}
                   </select>
@@ -2343,99 +2343,111 @@ function App() {
                   <SR label="Max" value={sweepMax} onChange={setSweepMax} min={0} max={9999} step={1}/>
                   <SR label="Steps" value={sweepSteps} onChange={setSweepSteps} min={3} max={30} step={1}/>
                 </div>
-                {sweepData.length>0&&(() => {
-                  const W=500,H=200,pad={l:50,r:50,t:20,b:30};
-                  const pw=W-pad.l-pad.r,ph=H-pad.t-pad.b;
-                  const xArr=sweepData.map(d=>d.x),psArr=sweepData.map(d=>d.Ps),etaArr=sweepData.map(d=>d.eta*100);
-                  const xMin=Math.min(...xArr),xMax=Math.max(...xArr);
-                  const psMin=Math.min(...psArr),psMax=Math.max(...psArr);
-                  const etaMin=Math.min(...etaArr),etaMax=Math.max(...etaArr);
-                  const sx=x=>pad.l+(x-xMin)/((xMax-xMin)||1)*pw;
-                  const syPs=p=>pad.t+ph-(p-psMin)/((psMax-psMin)||1)*ph;
-                  const syEta=e=>pad.t+ph-(e-etaMin)/((etaMax-etaMin)||1)*ph;
-                  return <svg viewBox={`0 0 ${W} ${H}`} style={{width:'100%',display:'block',margin:'0 auto'}}>
-                    <path d={sweepData.map((d,i)=>`${i===0?'M':'L'}${sx(d.x)} ${syPs(d.Ps)}`).join(' ')} fill="none" stroke="var(--accent)" strokeWidth={2}/>
-                    <path d={sweepData.map((d,i)=>`${i===0?'M':'L'}${sx(d.x)} ${syEta(d.eta*100)}`).join(' ')} fill="none" stroke="var(--ok)" strokeWidth={2}/>
-                    <text x={pad.l+pw/2} y={H-4} fill="var(--tx2)" fontSize={11} textAnchor="middle">{sweepVar}</text>
-                    <text x={pad.l-6} y={pad.t+8} fill="var(--accent)" fontSize={9} textAnchor="end">{psMax.toFixed(0)}</text>
-                    <text x={pad.l+pw+6} y={pad.t+8} fill="var(--ok)" fontSize={9}>{etaMax.toFixed(0)}%</text>
-                    <line x1={pad.l+5} y1={pad.t+6} x2={pad.l+18} y2={pad.t+6} stroke="var(--accent)" strokeWidth={2}/>
-                    <text x={pad.l+22} y={pad.t+10} fill="var(--accent)" fontSize={9}>Ps</text>
-                    <line x1={pad.l+50} y1={pad.t+6} x2={pad.l+63} y2={pad.t+6} stroke="var(--ok)" strokeWidth={2}/>
-                    <text x={pad.l+67} y={pad.t+10} fill="var(--ok)" fontSize={9}>η</text>
-                  </svg>;
-                })()}
+                {/* Output variable selector */}
+                <div style={{display:'flex',gap:4,marginBottom:8}}>
+                  {[{k:'eta',l:'η',c:'var(--ok)'},{k:'Ps',l:'Ps',c:'var(--accent)'},{k:'Pt',l:'Pt',c:'var(--purple)'},
+                    {k:'SPL',l:'SPL',c:'#8b5cf6'},{k:'Q',l:'Q',c:'var(--warn)'},{k:'power',l:'W',c:'var(--err)'}].map(v=>
+                    <button key={v.k} onClick={()=>setSweepOut(v.k)}
+                      style={{padding:'4px 10px',fontSize:11,border:`1px solid ${sweepOut===v.k?v.c:'var(--bd)'}`,borderRadius:4,
+                        background:sweepOut===v.k?'var(--bg3)':'transparent',color:sweepOut===v.k?v.c:'var(--tx3)',cursor:'pointer',fontFamily:'var(--font)'}}>{v.l}</button>)}
+                </div>
+                {sweepResults.length>0&&<MiniChart data={sweepResults} xKey="x" yKey={sweepOut} w={460} h={220}
+                  color={({eta:'var(--ok)',Ps:'var(--accent)',Pt:'var(--purple)',SPL:'#8b5cf6',Q:'var(--warn)',power:'var(--err)'})[sweepOut]||'var(--accent)'}
+                  label={`${sweepOut} vs ${sweepVar}`} yUnit={({eta:'%',Ps:'Pa',Pt:'Pa',SPL:'dB',Q:'m³/min',power:'W'})[sweepOut]||''}/>}
               </div>
 
               {/* Optimization */}
               <div className="vc full">
                 <div className="vt">Multi-variable optimization</div>
-                <div style={{display:'flex',gap:8,alignItems:'center',marginBottom:8}}>
-                  <label style={{fontSize:13,color:'var(--tx2)',display:'flex',alignItems:'center',gap:6}}>
-                    <input type="checkbox" checked={optEnabled} onChange={e=>setOptEnabled(e.target.checked)}/> 최적화 활성화</label>
+                {/* Variable enable/disable checkboxes */}
+                <div style={{display:'flex',flexWrap:'wrap',gap:6,marginBottom:8}}>
+                  {OPT_VARS.map(v=><label key={v.key} style={{fontSize:12,color:optEnabled[v.key]?'var(--tx)':'var(--tx3)',display:'flex',alignItems:'center',gap:3}}>
+                    <input type="checkbox" checked={!!optEnabled[v.key]} onChange={e=>{const n={...optEnabled};n[v.key]=e.target.checked;setOptEnabled(n);}}/>
+                    {v.label}</label>)}
                 </div>
-                {optEnabled && <div>
-                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:8}}>
-                    <div className="ir"><span className="il">Mode</span>
-                      <select className="nf" style={{width:100}} value={optMode} onChange={e=>setOptMode(e.target.value)}>
-                        <option value="single">Single obj</option><option value="pareto">Pareto</option>
-                      </select></div>
-                    <div className="ir"><span className="il">Objective</span>
-                      <select className="nf" style={{width:100}} value={optObj1} onChange={e=>setOptObj1(e.target.value)}>
-                        <option value="eta">η (max)</option><option value="Ps">Ps (max)</option><option value="SPL">SPL (min)</option>
-                      </select></div>
-                    <SR label="Samples" value={optSamples} onChange={setOptSamples} min={20} max={500} step={10}/>
-                  </div>
-                  <div style={{fontSize:12,color:'var(--tx2)',marginBottom:4}}>최적화 변수 범위</div>
-                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:4,fontSize:11,marginBottom:8}}>
-                    {optRange.map((r,i)=><div key={i} style={{padding:4,border:'1px solid var(--bd)',borderRadius:4}}>
-                      <div style={{color:'var(--tx2)'}}>{r.key}</div>
-                      <div style={{display:'flex',gap:4}}>
-                        <input className="nf" style={{width:50,fontSize:10}} type="number" value={r.min} onChange={e=>{const n=[...optRange];n[i]={...r,min:+e.target.value};setOptRange(n);}}/>
-                        <span style={{color:'var(--tx3)'}}>~</span>
-                        <input className="nf" style={{width:50,fontSize:10}} type="number" value={r.max} onChange={e=>{const n=[...optRange];n[i]={...r,max:+e.target.value};setOptRange(n);}}/>
-                      </div>
-                    </div>)}
-                  </div>
+                {/* Range settings for enabled vars */}
+                <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(130px,1fr))',gap:4,marginBottom:8}}>
+                  {OPT_VARS.filter(v=>optEnabled[v.key]).map(v=><div key={v.key} style={{padding:4,border:'1px solid var(--bd)',borderRadius:4,fontSize:11}}>
+                    <div style={{color:'var(--tx2)',marginBottom:2}}>{v.label} [{v.unit}]</div>
+                    <div style={{display:'flex',gap:3}}>
+                      <input className="nf" style={{width:50,fontSize:10}} type="number" value={optRange[v.key]?.min??v.min}
+                        onChange={e=>{const n={...optRange};n[v.key]={...(n[v.key]||{}),min:+e.target.value,max:n[v.key]?.max??v.max};setOptRange(n);}}/>
+                      <span style={{color:'var(--tx3)'}}>~</span>
+                      <input className="nf" style={{width:50,fontSize:10}} type="number" value={optRange[v.key]?.max??v.max}
+                        onChange={e=>{const n={...optRange};n[v.key]={...(n[v.key]||{}),max:+e.target.value,min:n[v.key]?.min??v.min};setOptRange(n);}}/>
+                    </div>
+                  </div>)}
+                </div>
+                <div style={{display:'flex',gap:8,alignItems:'center',marginBottom:8}}>
+                  <div className="ir"><span className="il">Objective</span>
+                    <select className="nf" style={{width:100}} value={optObj1} onChange={e=>setOptObj1(e.target.value)}>
+                      <option value="eta">η (max)</option><option value="Ps">Ps (max)</option><option value="SPL">SPL (min)</option>
+                    </select></div>
+                  <SR label="Samples" value={optSamples} onChange={setOptSamples} min={20} max={500} step={10}/>
                   <button onClick={() => {
                     if(optRunning) return;
                     setOptRunning(true);
                     setTimeout(()=>{
+                      const activeVars = OPT_VARS.filter(v => optEnabled[v.key]);
+                      if(activeVars.length===0){setOptRunning(false);return;}
                       const results=[];
                       for(let s=0;s<optSamples;s++){
-                        const trial={};
-                        optRange.forEach(r=>{trial[r.key]=r.min+Math.random()*(r.max-r.min);});
+                        const params={};
+                        activeVars.forEach(v=>{
+                          const r=optRange[v.key]||{min:v.min,max:v.max};
+                          params[v.key]=r.min+Math.random()*(r.max-r.min);
+                          if(v.step>=1)params[v.key]=Math.round(params[v.key]);
+                        });
                         const p={...baseParams};
-                        optRange.forEach(r=>{if(r.key in p)p[r.key]=trial[r.key];});
+                        activeVars.forEach(v=>{if(v.key in p)p[v.key]=params[v.key];});
                         try{
                           const a=computeAero(p);
-                          results.push({...trial,eta:a.bep.eta,Ps:a.bep.Ps,Q:a.bep.Q,SPL:a.SPL,Pshaft:a.bep.Pshaft});
+                          const st=computeStructure(p,a,mat);
+                          results.push({params,eta:a.bep.eta,Ps:a.bep.Ps,Q:a.bep.Q,SPL:a.SPL,power:a.bep.Pshaft,SF:st.SF,sigma:st.sigma_max,f_n:st.f_n});
                         }catch(e){}
                       }
                       results.sort((a,b)=>optObj1==='SPL'?a.SPL-b.SPL:b[optObj1]-a[optObj1]);
-                      setOptResults(results.slice(0,20));
+                      setOptResults({mode:'single',obj:{key:optObj1},best:results[0],top10:results.slice(0,10),all:results});
                       setOptRunning(false);
                     },50);
                   }} style={{padding:'10px 24px',fontSize:14,fontWeight:500,border:'none',borderRadius:8,
-                    background:optRunning?'var(--bd)':'var(--purple)',color:'#fff',cursor:optRunning?'wait':'pointer',fontFamily:'var(--font)',marginBottom:8}}>
+                    background:optRunning?'var(--bd)':'var(--purple)',color:'#fff',cursor:optRunning?'wait':'pointer',fontFamily:'var(--font)'}}>
                     {optRunning?'최적화 중...':'▶ 최적화 실행'}</button>
-                  {optResults&&optResults.length>0&&<div style={{maxHeight:200,overflowY:'auto'}}>
+                </div>
+                {/* Results */}
+                {optResults?.best&&<div>
+                  <div style={{padding:8,borderRadius:6,background:'var(--ok-bg)',marginBottom:8}}>
+                    <div style={{fontSize:12,fontWeight:500,color:'var(--ok)',marginBottom:4}}>최적 결과 ({optResults.all.length}샘플)</div>
+                    <div style={{display:'flex',gap:12,fontSize:12,flexWrap:'wrap'}}>
+                      {[{l:'η',v:(optResults.best.eta*100).toFixed(1)+'%'},{l:'Ps',v:optResults.best.Ps?.toFixed(0)+'Pa'},
+                        {l:'SPL',v:optResults.best.SPL?.toFixed(1)+'dB'},{l:'SF',v:optResults.best.SF?.toFixed(1)},
+                        {l:'Q',v:optResults.best.Q?.toFixed(1)},{l:'W',v:optResults.best.power?.toFixed(1)+'W'},
+                      ].map(k=><span key={k.l} style={{color:'var(--tx)'}}><span style={{color:'var(--tx2)'}}>{k.l}=</span>{k.v}</span>)}
+                    </div>
+                    <div style={{fontSize:11,color:'var(--tx2)',marginTop:4}}>
+                      {OPT_VARS.filter(v=>optEnabled[v.key]).map(v=>`${v.label}=${optResults.best.params[v.key]?.toFixed?.(1)??optResults.best.params[v.key]}`).join(' | ')}</div>
+                    <button onClick={()=>applyOptResult(optResults.best)} style={{marginTop:6,padding:'6px 16px',fontSize:12,border:'none',borderRadius:6,background:'var(--accent)',color:'#fff',cursor:'pointer',fontFamily:'var(--font)'}}>✓ 최적해 적용</button>
+                  </div>
+                  {/* Top 10 table */}
+                  <div style={{maxHeight:200,overflowY:'auto'}}>
                     <table className="dtbl"><thead><tr style={{borderBottom:'2px solid var(--bd)'}}>
                       <th style={{textAlign:'center',fontSize:10,color:'var(--tx3)'}}>#</th>
-                      {optRange.map(r=><th key={r.key} style={{textAlign:'right',fontSize:10,color:'var(--tx3)'}}>{r.key}</th>)}
-                      <th style={{textAlign:'right',fontSize:10,color:'var(--ok)'}}>η%</th>
-                      <th style={{textAlign:'right',fontSize:10,color:'var(--accent)'}}>Ps</th>
-                      <th style={{textAlign:'right',fontSize:10,color:'var(--purple)'}}>SPL</th>
+                      {OPT_VARS.filter(v=>optEnabled[v.key]).map(v=><th key={v.key} style={{textAlign:'right',fontSize:10,color:'var(--tx3)',padding:'2px 4px'}}>{v.label}</th>)}
+                      <th style={{textAlign:'right',fontSize:10,color:'var(--ok)',padding:'2px 4px'}}>η%</th>
+                      <th style={{textAlign:'right',fontSize:10,color:'var(--accent)',padding:'2px 4px'}}>Ps</th>
+                      <th style={{textAlign:'right',fontSize:10,padding:'2px 4px'}}>SPL</th>
+                      <th style={{fontSize:10,padding:'2px 4px'}}></th>
                     </tr></thead><tbody>
-                      {optResults.slice(0,10).map((r,i)=><tr key={i} style={{background:i===0?'var(--ok-bg)':'transparent'}}>
+                      {optResults.top10.map((r,i)=><tr key={i} style={{background:i===0?'var(--ok-bg)':'transparent'}}>
                         <td style={{textAlign:'center',fontSize:11,color:'var(--tx2)'}}>{i+1}</td>
-                        {optRange.map(rg=><td key={rg.key} className="vl" style={{fontSize:11}}>{r[rg.key]?.toFixed(1)}</td>)}
-                        <td className="vl" style={{fontSize:11,color:'var(--ok)'}}>{(r.eta*100).toFixed(1)}</td>
-                        <td className="vl" style={{fontSize:11}}>{r.Ps.toFixed(0)}</td>
-                        <td className="vl" style={{fontSize:11}}>{r.SPL?.toFixed(1)}</td>
+                        {OPT_VARS.filter(v=>optEnabled[v.key]).map(v=><td key={v.key} className="vl" style={{fontSize:11,padding:'2px 4px'}}>{typeof r.params[v.key]==='number'&&r.params[v.key]%1!==0?r.params[v.key].toFixed(1):r.params[v.key]}</td>)}
+                        <td className="vl" style={{fontSize:11,color:'var(--ok)',padding:'2px 4px'}}>{(r.eta*100).toFixed(1)}</td>
+                        <td className="vl" style={{fontSize:11,padding:'2px 4px'}}>{r.Ps?.toFixed(0)}</td>
+                        <td className="vl" style={{fontSize:11,padding:'2px 4px'}}>{r.SPL?.toFixed(1)}</td>
+                        <td><button onClick={()=>applyOptResult(r)} style={{fontSize:10,color:'var(--accent)',background:'none',border:'none',cursor:'pointer'}}>적용</button></td>
                       </tr>)}
                     </tbody></table>
-                  </div>}
+                  </div>
                 </div>}
               </div>
             </div>}
