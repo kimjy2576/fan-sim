@@ -1617,16 +1617,54 @@ export default function ImpellerViewer() {
 
   return (
     <div style={{ background: C.bg, minHeight: "100vh", color: C.text }} className="font-sans">
-      <div className="px-3 pt-3 pb-1">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-sm font-bold" style={{ fontFamily: "'Noto Sans KR', sans-serif" }}><span style={{ color: C.accent }}>◆</span> Impeller Design & Parametric Study</h1>
-            <p style={{ color: C.dim, fontFamily: "'Noto Sans KR', sans-serif", fontSize: 9 }}>3D + 2D + 성능·소음·구조 sweep</p>
-          </div>
+      {/* ═══ HPWD Standard Header ═══ */}
+      <div style={{
+        display: "flex", alignItems: "center", gap: 16, padding: "10px 24px",
+        borderBottom: `1px solid ${C.border}`, background: C.card, flexShrink: 0
+      }}>
+        <a href="#" onClick={e => e.preventDefault()} style={{
+          fontSize: 14, color: C.cyan, textDecoration: "none", cursor: "pointer"
+        }}>← System</a>
+        <span style={{ fontSize: 16, fontWeight: 500, color: C.text }}>
+          <span style={{ color: C.accent, marginRight: 4 }}>◆</span>Fan
+        </span>
+        <div style={{
+          display: "flex", gap: 4, marginLeft: "auto",
+          background: C.bg, borderRadius: 8, padding: 4
+        }}>
+          {[{k:'off_design',n:'Off-design'},{k:'semi_empirical',n:'Semi-empirical'},{k:'on_design',n:'On-design'}].map(m =>
+            <button key={m.k} onClick={() => setFanMode(m.k)} style={{
+              fontSize: 13, padding: "7px 18px", border: "none",
+              background: fanMode===m.k ? C.card : "transparent",
+              color: fanMode===m.k ? C.text : C.muted,
+              fontWeight: fanMode===m.k ? 500 : 400,
+              cursor: "pointer", borderRadius: 6,
+              boxShadow: fanMode===m.k ? `0 0 0 1px ${C.border}` : "none",
+              fontFamily: "'Noto Sans KR', sans-serif"
+            }}>{m.n}</button>)}
+        </div>
+        <div style={{ display: "flex", gap: 8, marginLeft: 16 }}>
+          <button onClick={() => setSaveOpen(!saveOpen)} title="Save/Load" style={{
+            fontSize: 14, width: 36, height: 36, border: `1px solid ${C.border}`,
+            background: saveOpen ? C.bg : "transparent", borderRadius: 8,
+            cursor: "pointer", color: C.muted, display: "flex",
+            alignItems: "center", justifyContent: "center"
+          }}>💾</button>
+          <button title="STEP Export" onClick={() => {
+            const body = { D1, D2, beta1, beta2, Z, b1, b2, tBlade, bladeType };
+            fetch('/api/generate-step', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+              .then(r => r.blob()).then(b => { const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = `fan_D${D2}_Z${Z}.step`; a.click(); })
+              .catch(() => alert('STEP 생성 실패'));
+          }} style={{
+            fontSize: 14, width: 36, height: 36, border: `1px solid ${C.border}`,
+            background: "transparent", borderRadius: 8,
+            cursor: "pointer", color: C.muted, display: "flex",
+            alignItems: "center", justifyContent: "center"
+          }}>⚙</button>
         </div>
       </div>
       {/* Save/Load Panel */}
-      {saveOpen && <div className="px-3 pb-1">
+      {saveOpen && <div className="px-3 pb-1 pt-2">
         <div className="rounded-lg p-2" style={{ background:C.card, border:`1px solid ${C.cyan}44` }}>
           <div style={{ color:C.cyan, fontFamily: "'Noto Sans KR', sans-serif", fontSize:9, fontWeight:700, marginBottom:4 }}>SAVE / LOAD</div>
           <div className="flex gap-1 mb-2">
