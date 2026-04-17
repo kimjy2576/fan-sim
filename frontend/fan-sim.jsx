@@ -1,6 +1,37 @@
 const { useState, useEffect, useRef, useMemo } = React;
-// THREE.js guard — allows running without Three.js (artifact viewer)
-if (typeof THREE === 'undefined') { window.THREE = { Scene:function(){this.add=()=>{};this.background=null}, PerspectiveCamera:function(){this.position={set:()=>{}};this.lookAt=()=>{}}, WebGLRenderer:function(){this.setSize=()=>{};this.setPixelRatio=()=>{};this.render=()=>{};this.domElement=document.createElement('canvas');this.dispose=()=>{}}, AmbientLight:function(){}, DirectionalLight:function(){this.position={set:()=>{}}}, Group:function(){this.add=()=>{};this.rotation={x:0,y:0,z:0};this.position={x:0,y:0,z:0,set:()=>{}}}, Mesh:function(){this.position={set:()=>{},x:0,y:0,z:0};this.rotation={x:0,y:0,z:0}}, CylinderGeometry:function(){this.dispose=()=>{}}, LatheGeometry:function(){this.dispose=()=>{}}, ExtrudeGeometry:function(){this.dispose=()=>{}}, Shape:function(){this.moveTo=()=>{};this.lineTo=()=>{};this.quadraticCurveTo=()=>{}}, Vector2:function(x,y){this.x=x;this.y=y}, MeshStandardMaterial:function(){this.dispose=()=>{}}, MeshPhongMaterial:function(){this.dispose=()=>{}}, DoubleSide:2, Color:function(){}, Box3:function(){this.setFromObject=()=>this;this.getCenter=()=>({x:0,y:0,z:0});this.getSize=()=>({x:1,y:1,z:1})}, Vector3:function(){this.x=0;this.y=0;this.z=0} }; }
+// THREE.js guard — stub all 28 classes for artifact viewer compatibility
+if (typeof THREE === 'undefined') {
+  const noop = () => {};
+  const mkVec = () => ({ x:0, y:0, z:0, set:noop, copy:()=>mkVec(), add:()=>mkVec(), sub:()=>mkVec(), normalize:()=>mkVec(), multiplyScalar:()=>mkVec(), clone:()=>mkVec() });
+  const mkGeo = function(){ this.dispose=noop; this.setAttribute=noop; this.attributes={}; };
+  const mkMat = function(){ this.dispose=noop; this.color={set:noop}; };
+  const mkObj = function(){ this.add=noop; this.remove=noop; this.position=mkVec(); this.rotation={x:0,y:0,z:0}; this.scale=mkVec(); this.children=[]; };
+  window.THREE = {
+    Scene: function(){ mkObj.call(this); this.background=null; },
+    PerspectiveCamera: function(){ mkObj.call(this); this.aspect=1; this.updateProjectionMatrix=noop; this.lookAt=noop; },
+    WebGLRenderer: function(){ this.setSize=noop; this.setPixelRatio=noop; this.render=noop; this.dispose=noop; this.domElement=document.createElement('canvas'); },
+    AmbientLight: function(){ mkObj.call(this); },
+    DirectionalLight: function(){ mkObj.call(this); },
+    Group: function(){ mkObj.call(this); },
+    Mesh: function(){ mkObj.call(this); },
+    LineSegments: function(){ mkObj.call(this); },
+    GridHelper: function(){ mkObj.call(this); },
+    ArrowHelper: function(){ mkObj.call(this); },
+    CylinderGeometry: mkGeo, LatheGeometry: mkGeo, ExtrudeGeometry: mkGeo,
+    BoxGeometry: mkGeo, RingGeometry: mkGeo, TorusGeometry: mkGeo,
+    BufferGeometry: function(){ mkGeo.call(this); this.setFromPoints=noop; },
+    EdgesGeometry: mkGeo,
+    MeshStandardMaterial: mkMat, MeshPhongMaterial: mkMat, MeshBasicMaterial: mkMat, LineBasicMaterial: mkMat,
+    Shape: function(){ this.moveTo=noop; this.lineTo=noop; this.quadraticCurveTo=noop; this.absarc=noop; this.curves=[]; },
+    Path: function(){ this.moveTo=noop; this.lineTo=noop; this.quadraticCurveTo=noop; this.absarc=noop; this.curves=[]; },
+    Vector2: function(x,y){ this.x=x||0; this.y=y||0; },
+    Vector3: function(x,y,z){ this.x=x||0; this.y=y||0; this.z=z||0; this.set=noop; this.normalize=()=>this; },
+    Color: function(){ this.set=noop; },
+    Box3: function(){ this.setFromObject=()=>this; this.getCenter=()=>mkVec(); this.getSize=()=>mkVec(); },
+    Float32BufferAttribute: function(){},
+    DoubleSide: 2,
+  };
+}
 
 // ═══ HPWD STANDARD CSS INJECTION ═══
 const HPWD_CSS = `
