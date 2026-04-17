@@ -948,6 +948,7 @@ function App() {
     showCasing,casingW,casingH,casingD,casingCX,casingCY,casingFace,
     fanMode,expData,fitCoeffs,showSysCurve,sysA,sysB,sysC,sysCurveData,
     qsShow,qsDuration,qsSteps,qsAStart,qsAEnd,qsCStart,qsCEnd,
+    T_in,RH_in,
   });
   const restore = (d) => {
     if (!d || typeof d !== 'object') return false;
@@ -971,6 +972,7 @@ function App() {
     s('showSysCurve',setShowSysCurve);s('sysA',setSysA);s('sysB',setSysB);s('sysC',setSysC);if(d.sysCurveData)setSysCurveData(d.sysCurveData);
     s('qsShow',setQsShow);s('qsDuration',setQsDuration);s('qsSteps',setQsSteps);
     s('qsAStart',setQsAStart);s('qsAEnd',setQsAEnd);s('qsCStart',setQsCStart);s('qsCEnd',setQsCEnd);
+    s('T_in',setTIn);s('RH_in',setRHIn);
     return true;
   };
   const exportJSON = () => {
@@ -1785,6 +1787,7 @@ function App() {
             <div className="st">Impeller geometry</div>
             <SR label="D₁" unit="mm" value={D1} onChange={setD1} min={60} max={200} step={1} />
             <SR label="D₂" unit="mm" value={D2} onChange={setD2} min={100} max={300} step={1} />
+            <SR label="D_u" unit="mm" value={Du} onChange={setDu} min={100} max={350} step={1} />
             <SR label="D_eye" unit="mm" value={Deye} onChange={setDeye} min={60} max={200} step={1} />
             <SR label="b₁" unit="mm" value={b1} onChange={setB1} min={15} max={120} step={1} />
             <SR label="b₂" unit="mm" value={b2} onChange={setB2} min={20} max={100} step={1} />
@@ -1792,20 +1795,90 @@ function App() {
             <SR label="β₂" unit="°" value={beta2} onChange={setBeta2} min={20} max={180} step={1} />
             <SR label="Z" value={Z} onChange={setZ} min={16} max={48} step={1} />
             <SR label="t" unit="mm" value={tBlade} onChange={setTBlade} min={0.3} max={3} step={0.1} />
+            <SR label="R_fillet" unit="mm" value={Rfillet} onChange={setRfillet} min={0} max={50} step={1} />
+            <div className="ir"><span className="il">Blade type</span>
+              <select className="nf" style={{width:80}} value={bladeType} onChange={e=>setBladeType(e.target.value)}>
+                <option value="sfs">SFS</option><option value="arc">Arc</option><option value="linear">Linear</option>
+              </select></div>
+            <SR label="Bend pos" value={bendPos} onChange={setBendPos} min={0} max={1} step={0.05} />
+            <SR label="Lean" unit="°" value={bladeLean} onChange={setBladeLean} min={-30} max={30} step={1} />
+            <SR label="Eye rise" unit="mm" value={eyeRise} onChange={setEyeRise} min={0} max={30} step={1} />
+            <SR label="Hub depth" unit="mm" value={hubDepth} onChange={setHubDepth} min={0} max={40} step={1} />
+            <SR label="Hub fillet" unit="mm" value={hubFillet} onChange={setHubFillet} min={0} max={20} step={1} />
           </div>
           <div className="dv"/>
 
           {/* Scroll & Tongue */}
           <div className="ss">
             <div className="st">Scroll & Tongue</div>
+            <div className="ir"><span className="il">Scroll type</span>
+              <select className="nf" style={{width:80}} value={scrollType} onChange={e=>setScrollType(e.target.value)}>
+                <option value="cv">CV (Archimedes)</option><option value="fv">FV (Log spiral)</option>
+              </select></div>
             <SR label="θ_end" unit="°" value={scrollEndAngle} onChange={setScrollEndAngle} min={180} max={720} step={5} />
             <SR label="θ_cut" unit="°" value={cutoffAngle} onChange={setCutoffAngle} min={0} max={360} step={5} />
             <div style={{fontSize:10,color:C.dim,marginBottom:6}}>Wrap = {wrapAngle.toFixed(0)}° (자동)</div>
             <SR label="Exp rate" value={scrollExpRate} onChange={setScrollExpRate} min={0.02} max={0.3} step={0.01} />
+            <div className="ir"><span className="il">Exp mode</span>
+              <select className="nf" style={{width:80}} value={scrollExpMode} onChange={e=>setScrollExpMode(e.target.value)}>
+                <option value="uniform">Uniform</option><option value="variable">Variable</option>
+              </select></div>
+            <div className="ir"><span className="il">Cross section</span>
+              <select className="nf" style={{width:80}} value={scrollCross} onChange={e=>setScrollCross(e.target.value)}>
+                <option value="rect">Rect</option><option value="circular">Circular</option>
+              </select></div>
+            <SR label="폭 (b_sc)" unit="mm" value={bScroll} onChange={setBScroll} min={30} max={120} step={1} />
+            <SR label="δ_f (front)" unit="mm" value={scrollGapF} onChange={setScrollGapF} min={0} max={10} step={0.5} />
+            <SR label="δ_b (back)" unit="mm" value={scrollGapB} onChange={setScrollGapB} min={0} max={10} step={0.5} />
             <SR label="δ (gap)" unit="mm" value={cutoffGap} onChange={setCutoffGap} min={2} max={30} step={0.5} />
             <SR label="R_tongue" unit="mm" value={Rtongue} onChange={setRtongue} min={1} max={20} step={0.5} />
+            <SR label="θ_exit" unit="°" value={exitAngle} onChange={setExitAngle} min={0} max={360} step={5} />
+            <SR label="L_out" unit="mm" value={tongueOutLen} onChange={setTongueOutLen} min={10} max={80} step={1} />
+            <SR label="α_out" unit="°" value={tongueOutAngle} onChange={setTongueOutAngle} min={0} max={20} step={1} />
+          </div>
+          <div className="dv"/>
+
+          {/* Diffuser */}
+          <div className="ss">
+            <div className="st">Diffuser</div>
             <SR label="Diff α" unit="°" value={diffAngle} onChange={setDiffAngle} min={0} max={30} step={1} />
             <SR label="Diff L" unit="mm" value={diffLength} onChange={setDiffLength} min={0} max={200} step={5} />
+            <div className="ir"><span className="il">Type</span>
+              <select className="nf" style={{width:80}} value={diffType} onChange={e=>setDiffType(e.target.value)}>
+                <option value="single">Single</option><option value="stepped">Stepped</option><option value="round">Round</option>
+              </select></div>
+            <div className="ir"><span className="il">Inner wall</span>
+              <input type="checkbox" checked={diffInnerWall} onChange={e=>setDiffInnerWall(e.target.checked)}/></div>
+          </div>
+          <div className="dv"/>
+
+          {/* Casing */}
+          <div className="ss">
+            <div className="st">Casing</div>
+            <div className="ir"><span className="il">Show casing</span>
+              <input type="checkbox" checked={showCasing} onChange={e=>setShowCasing(e.target.checked)}/></div>
+            {showCasing && <>
+              <SR label="W" unit="mm" value={casingW} onChange={setCasingW} min={100} max={500} step={5} />
+              <SR label="H" unit="mm" value={casingH} onChange={setCasingH} min={100} max={500} step={5} />
+              <SR label="D" unit="mm" value={casingD} onChange={setCasingD} min={30} max={200} step={5} />
+              <SR label="X offset" unit="mm" value={casingCX} onChange={setCasingCX} min={-100} max={100} step={1} />
+              <SR label="Y offset" unit="mm" value={casingCY} onChange={setCasingCY} min={-100} max={100} step={1} />
+              <div className="ir"><span className="il">Face</span>
+                <select className="nf" style={{width:80}} value={casingFace} onChange={e=>setCasingFace(e.target.value)}>
+                  <option value="top">Top (XY)</option><option value="front">Front (XZ)</option><option value="side">Side (YZ)</option>
+                </select></div>
+            </>}
+          </div>
+          <div className="dv"/>
+
+          {/* 3D View Controls */}
+          <div className="ss">
+            <div className="st">3D View</div>
+            <div className="ir"><span className="il">Shroud</span><input type="checkbox" checked={showShroud} onChange={e=>setShowShroud(e.target.checked)}/></div>
+            <div className="ir"><span className="il">Backplate</span><input type="checkbox" checked={showBackplate} onChange={e=>setShowBackplate(e.target.checked)}/></div>
+            <div className="ir"><span className="il">Scroll</span><input type="checkbox" checked={showScroll} onChange={e=>setShowScroll(e.target.checked)}/></div>
+            <div className="ir"><span className="il">Auto-rotate</span><input type="checkbox" checked={autoRotate} onChange={e=>setAutoRotate(e.target.checked)}/></div>
+            <SR label="Explode" value={explode} onChange={setExplode} min={0} max={30} step={1} />
           </div>
           <div className="dv"/>
 
