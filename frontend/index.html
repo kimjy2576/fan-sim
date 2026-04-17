@@ -17,10 +17,6 @@
     .spinner { width: 24px; height: 24px; border: 2px solid #e5e7eb;
       border-top: 2px solid #2563eb; border-radius: 50%; animation: spin 0.8s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
-    .tool-switcher { position: fixed; top: 8px; right: 8px; z-index: 999; display: flex; gap: 4px; }
-    .tool-btn { padding: 4px 10px; border-radius: 4px; border: 1px solid #e5e7eb; background: #f8f9fa;
-      color: #6b7280; font-family: monospace; font-size: 10px; cursor: pointer; }
-    .tool-btn.active { color: #2563eb; border-color: #2563eb; }
 
     /* ═══ HPWD Sidebar Layout (desktop only) ═══ */
     @media (min-width: 1024px) {
@@ -36,14 +32,10 @@
   </style>
 </head>
 <body>
-  <div class="tool-switcher">
-    <button class="tool-btn active" onclick="loadTool('impeller-3d-viewer')">3D Design</button>
-    <button class="tool-btn" onclick="loadTool('fan-sim-pro')">PQ Analysis</button>
-  </div>
   <div id="root">
     <div id="loading">
       <div class="spinner"></div>
-      <span>Fan-Sim Pro 로딩 중...</span>
+      <span>Fan 로딩 중...</span>
     </div>
   </div>
 
@@ -51,11 +43,6 @@
     const { useState, useMemo, useCallback, useEffect, useRef } = React;
 
     function loadTool(name) {
-      // Update button states
-      document.querySelectorAll('.tool-btn').forEach(btn => {
-        btn.classList.toggle('active', btn.textContent.includes(name === 'impeller-3d-viewer' ? '3D' : 'PQ'));
-      });
-
       document.getElementById('root').innerHTML = '<div id="loading"><div class="spinner"></div><span>로딩 중...</span></div>';
 
       fetch('/static/' + name + '.jsx?v=' + Date.now())
