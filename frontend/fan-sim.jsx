@@ -1823,6 +1823,20 @@ function App() {
               <select className="nf" style={{width:80}} value={scrollExpMode} onChange={e=>setScrollExpMode(e.target.value)}>
                 <option value="uniform">Uniform</option><option value="variable">Variable</option>
               </select></div>
+            {scrollExpMode==='variable'&&<div style={{padding:6,border:'1px solid var(--bd)',borderRadius:6,marginBottom:8,background:'var(--bg3)'}}>
+              <div style={{fontSize:10,color:'var(--tx2)',marginBottom:4}}>가변 팽창률 제어점</div>
+              {scrollExpPts.map((pt,i)=><div key={i} style={{display:'flex',gap:4,alignItems:'center',marginBottom:3}}>
+                <span style={{fontSize:10,color:'var(--tx3)',width:14}}>#{i+1}</span>
+                <input className="nf" style={{width:50,fontSize:10}} type="number" placeholder="θ°" value={pt.a}
+                  onChange={e=>{const n=[...scrollExpPts];n[i]={...pt,a:+e.target.value};setScrollExpPts(n);}}/>
+                <input className="nf" style={{width:50,fontSize:10}} type="number" step="0.01" placeholder="k" value={pt.k}
+                  onChange={e=>{const n=[...scrollExpPts];n[i]={...pt,k:+e.target.value};setScrollExpPts(n);}}/>
+                {scrollExpPts.length>2&&<button onClick={()=>{const n=scrollExpPts.filter((_,j)=>j!==i);setScrollExpPts(n);}}
+                  style={{fontSize:10,color:'var(--err)',background:'none',border:'none',cursor:'pointer'}}>✕</button>}
+              </div>)}
+              <button onClick={()=>setScrollExpPts([...scrollExpPts,{a:scrollExpPts[scrollExpPts.length-1].a+90,k:0.12}])}
+                style={{fontSize:10,padding:'3px 8px',border:'1px solid var(--bd)',borderRadius:4,background:'var(--bg)',color:'var(--accent)',cursor:'pointer'}}>+ 추가</button>
+            </div>}
             <div className="ir"><span className="il">Cross section</span>
               <select className="nf" style={{width:80}} value={scrollCross} onChange={e=>setScrollCross(e.target.value)}>
                 <option value="rect">Rect</option><option value="circular">Circular</option>
@@ -1925,93 +1939,32 @@ function App() {
                   <div ref={mountRef} style={{width:'100%',height:400,borderRadius:8,background:'var(--bg3)'}} />
                 </div>}
 
-                {/* Front View */}
+                {/* Front View — using existing component */}
                 {viewTab === 1 && <div className="vc full">
-                  <div className="vt">Front view — 2D cross-section</div>
-                  {(() => {
-                    const W=500,H=500,cx=W/2,cy=H/2;
-                    const sc = (W-60)/(D2*1.3);
-                    const blades=[];
-                    for(let i=0;i<Z;i++){
-                      const a0=(2*Math.PI*i)/Z;
-                      const pts=[];
-                      const n=20;
-                      for(let j=0;j<=n;j++){
-                        const t=j/n;
-                        const r=D1/2+t*(D2/2-D1/2);
-                        const bA=(beta1+(beta2-beta1)*t)*Math.PI/180;
-                        const da=t>0?(-1/(r*Math.tan(bA)))*(r-(D1/2+(j-1)/n*(D2/2-D1/2))):0;
-                        pts.push({r,a:a0+(pts.length>0?pts[pts.length-1].da+da:0),da:pts.length>0?pts[pts.length-1].da+da:0});
-                      }
-                      const d='M'+pts.map(p=>`${cx+p.r*sc*Math.cos(a0+p.da)} ${cy-p.r*sc*Math.sin(a0+p.da)}`).join('L');
-                      blades.push(<path key={i} d={d} fill="none" stroke="var(--accent)" strokeWidth={1.2} opacity={0.7}/>);
-                    }
-                    return <svg viewBox={`0 0 ${W} ${H}`} style={{width:'100%',maxWidth:500,display:'block',margin:'0 auto'}}>
-                      <circle cx={cx} cy={cy} r={D2/2*sc} fill="none" stroke="var(--accent)" strokeWidth={1.5}/>
-                      <circle cx={cx} cy={cy} r={D1/2*sc} fill="none" stroke="var(--tx2)" strokeWidth={0.8} strokeDasharray="4,4"/>
-                      <circle cx={cx} cy={cy} r={Deye/2*sc} fill="none" stroke="var(--ok)" strokeWidth={1.5}/>
-                      {blades}
-                      <text x={cx} y={cy+4} fill="var(--tx3)" fontSize={12} textAnchor="middle">D₂={D2}mm Z={Z}</text>
-                    </svg>;
-                  })()}
+                  <div className="vt">Front view — plan view with scroll</div>
+                  <FrontView Deye={Deye} D1={D1} D2={D2} Du={Du} bladePts={bladePts} Z={Z}
+                    bladeType={bladeType} bendPos={bendPos} showScroll={showScroll}
+                    scrollType={scrollType} wrapAngle={wrapAngle} cutoffGap={cutoffGap}
+                    cutoffAngle={cutoffAngle} Rtongue={Rtongue} tongueOutLen={tongueOutLen}
+                    tongueOutAngle={tongueOutAngle} diffAngle={diffAngle} diffLength={diffLength}
+                    diffType={diffType} diffInnerWall={diffInnerWall} showCasing={showCasing}
+                    casingW={casingW} casingH={casingH} casingCX={casingCX} casingCY={casingCY}
+                    scrollExpRate={scrollExpRate} exitAngle={exitAngle}
+                    scrollExpMode={scrollExpMode} scrollExpPts={scrollExpPts} />
                 </div>}
 
-                {/* Section View */}
+                {/* Section View — using existing component */}
                 {viewTab === 2 && <div className="vc full">
                   <div className="vt">Section view — axial cross-section</div>
-                  {(() => {
-                    const W=500,H=300,cx=W/2,cy=H*0.6,sc=1.2;
-                    const r1=D1/2*sc,r2=D2/2*sc,re=Deye/2*sc;
-                    const h1=b1/2*sc,h2=b2/2*sc;
-                    return <svg viewBox={`0 0 ${W} ${H}`} style={{width:'100%',maxWidth:500,display:'block',margin:'0 auto'}}>
-                      {/* Hub */}
-                      <line x1={cx+r1} y1={cy} x2={cx+r2} y2={cy} stroke="var(--warn)" strokeWidth={2}/>
-                      <line x1={cx-r1} y1={cy} x2={cx-r2} y2={cy} stroke="var(--warn)" strokeWidth={2}/>
-                      {/* Shroud */}
-                      <path d={`M${cx+re} ${cy-h1*1.3} Q${cx+r1} ${cy-h1*1.1} ${cx+r1} ${cy-h1} L${cx+r2} ${cy-h2}`} fill="none" stroke="var(--tx2)" strokeWidth={1.5}/>
-                      <path d={`M${cx-re} ${cy-h1*1.3} Q${cx-r1} ${cy-h1*1.1} ${cx-r1} ${cy-h1} L${cx-r2} ${cy-h2}`} fill="none" stroke="var(--tx2)" strokeWidth={1.5}/>
-                      {/* Blades */}
-                      <rect x={cx+r1} y={cy-h1} width={r2-r1} height={h1} fill="var(--accent)" opacity={0.15} stroke="var(--accent)" strokeWidth={0.5}/>
-                      <rect x={cx-r2} y={cy-h2} width={r2-r1} height={h2} fill="var(--accent)" opacity={0.15} stroke="var(--accent)" strokeWidth={0.5}/>
-                      {/* Dims */}
-                      <line x1={cx+r1} y1={cy+20} x2={cx+r2} y2={cy+20} stroke="var(--tx3)" strokeWidth={0.5} markerEnd="url(#arr)"/>
-                      <text x={cx+(r1+r2)/2} y={cy+35} fill="var(--tx3)" fontSize={10} textAnchor="middle">b₁={b1} b₂={b2}mm</text>
-                      <text x={cx} y={30} fill="var(--tx3)" fontSize={10} textAnchor="middle">D₁={D1} D₂={D2} D_eye={Deye}mm</text>
-                    </svg>;
-                  })()}
+                  <SectionView Deye={Deye} D1={D1} D2={D2} Du={Du} b1={b1} b2={b2}
+                    eyeRise={eyeRise} showScroll={showScroll} scrollGapF={scrollGapF}
+                    scrollGapB={scrollGapB} bScroll={bScroll} hubDepth={hubDepth} hubFillet={hubFillet} />
                 </div>}
 
-                {/* Scroll / Bottom View */}
+                {/* Bottom View — using existing component */}
                 {viewTab === 3 && <div className="vc full">
-                  <div className="vt">Scroll — plan view</div>
-                  {(() => {
-                    const W=500,H=500,cx=W/2,cy=H/2;
-                    const sc=0.8, r2=D2/2000*sc*1000;
-                    const gap=cutoffGap*sc;
-                    const rStart=r2+gap;
-                    const wrapRad=wrapAngle*Math.PI/180;
-                    const cutRad=cutoffAngle*Math.PI/180;
-                    // Scroll spiral
-                    const nPts=100;
-                    const scrollPath=[];
-                    for(let i=0;i<=nPts;i++){
-                      const f=i/nPts;
-                      const theta=cutRad+f*wrapRad;
-                      const rE=rStart+r2*scrollExpRate*f*wrapRad;
-                      scrollPath.push(`${i===0?'M':'L'}${cx+rE*Math.cos(theta)} ${cy-rE*Math.sin(theta)}`);
-                    }
-                    // Tongue position
-                    const tx=cx+rStart*Math.cos(cutRad), ty=cy-rStart*Math.sin(cutRad);
-                    return <svg viewBox={`0 0 ${W} ${H}`} style={{width:'100%',maxWidth:500,display:'block',margin:'0 auto'}}>
-                      <circle cx={cx} cy={cy} r={r2} fill="none" stroke="var(--accent)" strokeWidth={1.5}/>
-                      <circle cx={cx} cy={cy} r={D1/2*sc} fill="none" stroke="var(--bd)" strokeWidth={0.5} strokeDasharray="3,3"/>
-                      <path d={scrollPath.join(' ')} fill="none" stroke="var(--warn)" strokeWidth={2}/>
-                      <circle cx={tx} cy={ty} r={Rtongue*sc*0.5} fill="var(--err)" opacity={0.6}/>
-                      <text x={tx+10} y={ty-5} fill="var(--err)" fontSize={10}>Tongue</text>
-                      <text x={cx} y={cy} fill="var(--tx3)" fontSize={10} textAnchor="middle">Wrap={wrapAngle}°</text>
-                      <text x={cx} y={cy+14} fill="var(--tx3)" fontSize={9} textAnchor="middle">δ={cutoffGap}mm R_t={Rtongue}mm</text>
-                    </svg>;
-                  })()}
+                  <div className="vt">Bottom view</div>
+                  <BottomView D2={D2} Du={Du} Deye={Deye} />
                 </div>}
               </div>
             </div>}
@@ -2123,7 +2076,40 @@ function App() {
                         <span style={{width:60,textAlign:'right',fontFamily:'var(--mono)',color:'var(--tx)'}}>{l.v.toFixed(1)} Pa</span>
                       </div>)}
                     <div style={{fontSize:11,color:'var(--tx3)',marginTop:4}}>총 손실: {total.toFixed(1)} Pa | Euler: {(b.Pt_e||0).toFixed(1)} Pa</div>
+                    {/* Diffuser recovery + Tongue recirculation */}
+                    {(b.dPs_diff||0)>0.1&&<div style={{fontSize:11,color:'var(--ok)',marginTop:4}}>+ 디퓨저 회복: +{(b.dPs_diff||0).toFixed(1)} Pa</div>}
+                    {b.Q_recirc>0&&<div style={{fontSize:11,color:'var(--warn)',marginTop:2}}>↻ Tongue 재순환: {(b.Q_recirc*60).toFixed(2)} m³/min ({(b.Q_recirc/(b.Qm3s+b.Q_recirc)*100).toFixed(1)}%)</div>}
                   </div>;
+                })()}
+              </div>
+
+              {/* Velocity Triangle */}
+              <div className="vc">
+                <div className="vt">Velocity triangle at D₂</div>
+                {(() => {
+                  const U2=baseAero?.U2||0, Ct2=bep.Ct2||0, Cr2=bep.C2?Math.sqrt(Math.max(0,bep.C2**2-Ct2**2)):0;
+                  const W1=bep.W1||0, W2=bep.W2||0, C2=bep.C2||0;
+                  const sc=Math.max(1,Math.max(U2,C2,W2))/80;
+                  const W=260,H=180,cx=W/2,cy=H-30;
+                  // U₂ (horizontal)
+                  const ux=U2/sc;
+                  // Ct₂, Cr₂ → C₂ vector
+                  const ctx=Ct2/sc, cry=Cr2/sc;
+                  return <svg viewBox={`0 0 ${W} ${H}`} style={{width:'100%',maxWidth:280,display:'block',margin:'0 auto'}}>
+                    {/* U₂ */}
+                    <line x1={cx} y1={cy} x2={cx+ux} y2={cy} stroke="var(--warn)" strokeWidth={2}/>
+                    <text x={cx+ux/2} y={cy+14} fill="var(--warn)" fontSize={10} textAnchor="middle">U₂={U2.toFixed(1)}</text>
+                    {/* C₂ (absolute velocity) */}
+                    <line x1={cx} y1={cy} x2={cx+ctx} y2={cy-cry} stroke="var(--accent)" strokeWidth={2}/>
+                    <text x={cx+ctx/2-15} y={cy-cry/2} fill="var(--accent)" fontSize={10}>C₂={C2.toFixed(1)}</text>
+                    {/* W₂ (relative velocity) = C₂ - U₂ */}
+                    <line x1={cx+ux} y1={cy} x2={cx+ctx} y2={cy-cry} stroke="var(--err)" strokeWidth={2} strokeDasharray="4,2"/>
+                    <text x={cx+(ux+ctx)/2+5} y={cy-cry/2+5} fill="var(--err)" fontSize={10}>W₂={W2.toFixed(1)}</text>
+                    {/* Labels */}
+                    <circle cx={cx} cy={cy} r={2} fill="var(--tx)"/>
+                    <text x={10} y={16} fill="var(--tx3)" fontSize={10}>W₁ = {W1.toFixed(1)} m/s</text>
+                    <text x={10} y={30} fill="var(--tx3)" fontSize={10}>Ct₂ = {Ct2.toFixed(1)} m/s</text>
+                  </svg>;
                 })()}
               </div>
 
@@ -2213,6 +2199,45 @@ function App() {
                         <div>RMSE: <span style={{fontFamily:'var(--mono)'}}>{(Math.sqrt(errEta.reduce((s,e)=>s+e.err**2,0)/errEta.length)*100).toFixed(1)}%p</span></div>
                       </div>}
                     </div>
+                    {/* Residual plot */}
+                    {errPs.length>=3&&<div style={{marginTop:12}}>
+                      <div style={{fontSize:12,color:'var(--tx2)',marginBottom:4}}>잔차 플롯 (Ps_mod - Ps_exp)</div>
+                      {(()=>{
+                        const rW=460,rH=120,rp={l:40,r:10,t:10,b:20};
+                        const rpw=rW-rp.l-rp.r,rph=rH-rp.t-rp.b;
+                        const qMin=Math.min(...errPs.map(e=>e.Q)),qMax=Math.max(...errPs.map(e=>e.Q));
+                        const eMax=Math.max(1,Math.max(...errPs.map(e=>Math.abs(e.err))));
+                        const rsx=q=>rp.l+(q-qMin)/((qMax-qMin)||1)*rpw;
+                        const rsy=e=>rp.t+rph/2-e/eMax*(rph/2);
+                        return <svg viewBox={`0 0 ${rW} ${rH}`} style={{width:'100%',display:'block',margin:'0 auto',background:'var(--bg3)',borderRadius:6}}>
+                          <line x1={rp.l} y1={rp.t+rph/2} x2={rp.l+rpw} y2={rp.t+rph/2} stroke="var(--tx3)" strokeWidth={0.5}/>
+                          <rect x={rp.l} y={rsy(rmse)} width={rpw} height={rsy(-rmse)-rsy(rmse)} fill="var(--ok)" opacity={0.08}/>
+                          {errPs.map((e,i)=><circle key={i} cx={rsx(e.Q)} cy={rsy(e.err)} r={4}
+                            fill={Math.abs(e.err)<rmse?'var(--accent)':'var(--err)'} opacity={0.7}/>)}
+                          <text x={rp.l+rpw/2} y={rH-4} fill="var(--tx3)" fontSize={10} textAnchor="middle">Q (m³/min)</text>
+                          <text x={rp.l-4} y={rp.t+6} fill="var(--tx3)" fontSize={9} textAnchor="end">+{eMax.toFixed(0)}</text>
+                          <text x={rp.l-4} y={rp.t+rph} fill="var(--tx3)" fontSize={9} textAnchor="end">-{eMax.toFixed(0)}</text>
+                        </svg>;
+                      })()}
+                    </div>}
+                    {/* Parity plot */}
+                    {errPs.length>=3&&<div style={{marginTop:8}}>
+                      <div style={{fontSize:12,color:'var(--tx2)',marginBottom:4}}>패리티 플롯 (Ps_mod vs Ps_exp)</div>
+                      {(()=>{
+                        const pW=200,pH=200,pp={l:34,r:10,t:10,b:22};
+                        const ppw=pW-pp.l-pp.r,pph=pH-pp.t-pp.b;
+                        const pMin=Math.min(...errPs.map(e=>Math.min(e.exp,e.mod)));
+                        const pMax=Math.max(...errPs.map(e=>Math.max(e.exp,e.mod)));
+                        const ps=v=>pp.l+(v-pMin)/((pMax-pMin)||1)*ppw;
+                        const py=v=>pp.t+pph-(v-pMin)/((pMax-pMin)||1)*pph;
+                        return <svg viewBox={`0 0 ${pW} ${pH}`} style={{width:'100%',maxWidth:220,display:'block',margin:'0 auto',background:'var(--bg3)',borderRadius:6}}>
+                          <line x1={ps(pMin)} y1={py(pMin)} x2={ps(pMax)} y2={py(pMax)} stroke="var(--tx3)" strokeWidth={0.5} strokeDasharray="4,3"/>
+                          {errPs.map((e,i)=><circle key={i} cx={ps(e.exp)} cy={py(e.mod)} r={4} fill="var(--accent)" opacity={0.7}/>)}
+                          <text x={pp.l+ppw/2} y={pH-4} fill="var(--tx3)" fontSize={10} textAnchor="middle">Ps_exp</text>
+                          <text x={6} y={pp.t+pph/2} fill="var(--tx3)" fontSize={10} textAnchor="middle" transform={`rotate(-90,6,${pp.t+pph/2})`}>Ps_mod</text>
+                        </svg>;
+                      })()}
+                    </div>}
                     {/* Data table */}
                     <div style={{maxHeight:200,overflowY:'auto'}}>
                       <table className="dtbl"><thead><tr style={{borderBottom:'1px solid var(--bd)'}}>
@@ -2340,6 +2365,78 @@ function App() {
                     <text x={pad.l+67} y={pad.t+10} fill="var(--ok)" fontSize={9}>η</text>
                   </svg>;
                 })()}
+              </div>
+
+              {/* Optimization */}
+              <div className="vc full">
+                <div className="vt">Multi-variable optimization</div>
+                <div style={{display:'flex',gap:8,alignItems:'center',marginBottom:8}}>
+                  <label style={{fontSize:13,color:'var(--tx2)',display:'flex',alignItems:'center',gap:6}}>
+                    <input type="checkbox" checked={optEnabled} onChange={e=>setOptEnabled(e.target.checked)}/> 최적화 활성화</label>
+                </div>
+                {optEnabled && <div>
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:8}}>
+                    <div className="ir"><span className="il">Mode</span>
+                      <select className="nf" style={{width:100}} value={optMode} onChange={e=>setOptMode(e.target.value)}>
+                        <option value="single">Single obj</option><option value="pareto">Pareto</option>
+                      </select></div>
+                    <div className="ir"><span className="il">Objective</span>
+                      <select className="nf" style={{width:100}} value={optObj1} onChange={e=>setOptObj1(e.target.value)}>
+                        <option value="eta">η (max)</option><option value="Ps">Ps (max)</option><option value="SPL">SPL (min)</option>
+                      </select></div>
+                    <SR label="Samples" value={optSamples} onChange={setOptSamples} min={20} max={500} step={10}/>
+                  </div>
+                  <div style={{fontSize:12,color:'var(--tx2)',marginBottom:4}}>최적화 변수 범위</div>
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:4,fontSize:11,marginBottom:8}}>
+                    {optRange.map((r,i)=><div key={i} style={{padding:4,border:'1px solid var(--bd)',borderRadius:4}}>
+                      <div style={{color:'var(--tx2)'}}>{r.key}</div>
+                      <div style={{display:'flex',gap:4}}>
+                        <input className="nf" style={{width:50,fontSize:10}} type="number" value={r.min} onChange={e=>{const n=[...optRange];n[i]={...r,min:+e.target.value};setOptRange(n);}}/>
+                        <span style={{color:'var(--tx3)'}}>~</span>
+                        <input className="nf" style={{width:50,fontSize:10}} type="number" value={r.max} onChange={e=>{const n=[...optRange];n[i]={...r,max:+e.target.value};setOptRange(n);}}/>
+                      </div>
+                    </div>)}
+                  </div>
+                  <button onClick={() => {
+                    if(optRunning) return;
+                    setOptRunning(true);
+                    setTimeout(()=>{
+                      const results=[];
+                      for(let s=0;s<optSamples;s++){
+                        const trial={};
+                        optRange.forEach(r=>{trial[r.key]=r.min+Math.random()*(r.max-r.min);});
+                        const p={...baseParams};
+                        optRange.forEach(r=>{if(r.key in p)p[r.key]=trial[r.key];});
+                        try{
+                          const a=computeAero(p);
+                          results.push({...trial,eta:a.bep.eta,Ps:a.bep.Ps,Q:a.bep.Q,SPL:a.SPL,Pshaft:a.bep.Pshaft});
+                        }catch(e){}
+                      }
+                      results.sort((a,b)=>optObj1==='SPL'?a.SPL-b.SPL:b[optObj1]-a[optObj1]);
+                      setOptResults(results.slice(0,20));
+                      setOptRunning(false);
+                    },50);
+                  }} style={{padding:'10px 24px',fontSize:14,fontWeight:500,border:'none',borderRadius:8,
+                    background:optRunning?'var(--bd)':'var(--purple)',color:'#fff',cursor:optRunning?'wait':'pointer',fontFamily:'var(--font)',marginBottom:8}}>
+                    {optRunning?'최적화 중...':'▶ 최적화 실행'}</button>
+                  {optResults&&optResults.length>0&&<div style={{maxHeight:200,overflowY:'auto'}}>
+                    <table className="dtbl"><thead><tr style={{borderBottom:'2px solid var(--bd)'}}>
+                      <th style={{textAlign:'center',fontSize:10,color:'var(--tx3)'}}>#</th>
+                      {optRange.map(r=><th key={r.key} style={{textAlign:'right',fontSize:10,color:'var(--tx3)'}}>{r.key}</th>)}
+                      <th style={{textAlign:'right',fontSize:10,color:'var(--ok)'}}>η%</th>
+                      <th style={{textAlign:'right',fontSize:10,color:'var(--accent)'}}>Ps</th>
+                      <th style={{textAlign:'right',fontSize:10,color:'var(--purple)'}}>SPL</th>
+                    </tr></thead><tbody>
+                      {optResults.slice(0,10).map((r,i)=><tr key={i} style={{background:i===0?'var(--ok-bg)':'transparent'}}>
+                        <td style={{textAlign:'center',fontSize:11,color:'var(--tx2)'}}>{i+1}</td>
+                        {optRange.map(rg=><td key={rg.key} className="vl" style={{fontSize:11}}>{r[rg.key]?.toFixed(1)}</td>)}
+                        <td className="vl" style={{fontSize:11,color:'var(--ok)'}}>{(r.eta*100).toFixed(1)}</td>
+                        <td className="vl" style={{fontSize:11}}>{r.Ps.toFixed(0)}</td>
+                        <td className="vl" style={{fontSize:11}}>{r.SPL?.toFixed(1)}</td>
+                      </tr>)}
+                    </tbody></table>
+                  </div>}
+                </div>}
               </div>
             </div>}
 
