@@ -1701,10 +1701,6 @@ export default function ImpellerViewer() {
       <div className="px-3 flex items-center gap-0.5" style={{overflowX:"auto",WebkitOverflowScrolling:"touch"}}>
         {[{l:"3D",c:C.blade},{l:"정면",c:C.eye},{l:"단면",c:C.shroud},{l:"저면",c:C.backplate},{l:"Sweep",c:C.pink},{l:"최적화",c:C.green},{l:"PQ",c:C.cyan}].map((t,i)=>
           <Tab key={i} active={viewTab===i} onClick={()=>setViewTab(i)} color={t.c}>{t.l}</Tab>)}
-        <button onClick={() => setSaveOpen(!saveOpen)} className="px-1.5 py-0.5 rounded ml-auto flex-shrink-0"
-          style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:9, background:saveOpen?C.card:"transparent", color:C.cyan, border:`1px solid ${saveOpen?C.cyan:C.border}` }}>
-          💾
-        </button>
       </div>
       <div className="px-3 py-1">
         <div className="rounded-lg overflow-hidden" style={{ background: C.bg, border: `1px solid ${C.border}` }}>
@@ -2798,7 +2794,7 @@ export default function ImpellerViewer() {
         <span>{mat.name}</span>
       </div>
 
-      <div className="text-center pb-3 pt-2" style={{color:C.border,fontFamily: "'Noto Sans KR', sans-serif",fontSize:9}}>Impeller Design & Parametric Study v1.0</div>
+      <div className="text-center pb-3 pt-2" style={{color:C.border,fontFamily: "'Noto Sans KR', sans-serif",fontSize:9}}>Fan · HPWD Integration v5.1</div>
     </div>
   );
 }
