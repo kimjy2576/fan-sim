@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import * as THREE from "three";
 
+// Light theme colors (compressor-sim compatible palette)
 const C = {
-  bg: "#0a0e17", card: "#111827", border: "#1e2d4a", text: "#e2e8f0", dim: "#4a5568", muted: "#718096",
-  blade: "#60a5fa", shroud: "#94a3b8", hub: "#f59e0b",
-  backplate: "#a78bfa", eye: "#34d399", accent: "#f472b6",
-  red: "#ef4444", green: "#4ade80", cyan: "#22d3ee", purple: "#a855f7", orange: "#f59e0b", amber: "#fbbf24", pink: "#f472b6",
+  bg: "#ffffff", card: "#f8f9fa", border: "#e5e7eb", text: "#1a1a1a", dim: "#9ca3af", muted: "#6b7280",
+  blade: "#2563eb", shroud: "#6b7280", hub: "#d97706",
+  backplate: "#7c3aed", eye: "#059669", accent: "#ec4899",
+  red: "#dc2626", green: "#059669", cyan: "#2563eb", purple: "#7c3aed", orange: "#ea580c", amber: "#d97706", pink: "#ec4899",
 };
 
 // ═══ MATERIAL DATABASE ═══
