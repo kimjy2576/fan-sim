@@ -56,8 +56,7 @@
       fetch('/static/' + name + '.jsx?v=' + Date.now())
         .then(r => r.text())
         .then(jsx => {
-          const prefix = `const { useState, useMemo, useCallback, useEffect, useRef } = React;\n`;
-          const code = prefix + jsx
+          const code = jsx
             .replace(/^import\s+\{[^}]*\}\s+from\s+["']react["'];?\s*$/gm, '')
             .replace(/^import\s+\*\s+as\s+THREE\s+from\s+["']three["'];?\s*$/gm, '')
             .replace(/^import\s+.*$/gm, '')

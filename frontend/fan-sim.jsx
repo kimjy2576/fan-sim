@@ -6,6 +6,8 @@
  * Matches compressor-sim UI/UX
  * ═══════════════════════════════════════════════════════════════ */
 
+const { useState, useMemo, useCallback, useEffect, useRef } = React;
+
 // ═══ STYLES (inline to match compressor-sim) ═══
 const CSS_TOKENS = {
   // Light theme tokens (same variable names as compressor-sim)
