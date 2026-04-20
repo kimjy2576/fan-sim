@@ -268,7 +268,7 @@ function S({ label, value, min, max, step, onChange, unit, color }) {
   return (
     <div className="sr">
       <div className="sr-t">
-        <span className="sr-l">{label}{unit ? <span style={{fontSize:11,color:'var(--tx3)',marginLeft:2}}> [{unit}]</span> : ''}</span>
+        <span className="sr-l">{label}{unit ? <span style={{fontSize:13,color:'var(--tx3)',marginLeft:2}}> [{unit}]</span> : ''}</span>
         <input className="sr-i" type="number" value={value} step={step}
           onChange={e => { const v = parseFloat(e.target.value); if (!isNaN(v)) onChange(Math.max(min, Math.min(max, v))); }} />
       </div>
@@ -522,7 +522,7 @@ function buildScrollMesh(scrollPts, bScroll, scrollGapF, scrollGapB, crossSectio
 }
 
 function Tab({ active, onClick, children, color }) {
-  return <button onClick={onClick} className="px-3 py-1 text-xs rounded-t" style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize: 10,
+  return <button onClick={onClick} className="px-3 py-1 text-xs rounded-t" style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:13,
     background: active ? C.card : "transparent", color: active ? (color || C.text) : C.dim,
     borderBottom: active ? `2px solid ${color || C.blade}` : "2px solid transparent" }}>{children}</button>;
 }
@@ -1623,9 +1623,9 @@ export default function ImpellerViewer() {
         flexWrap: "nowrap", overflowX: "auto"
       }}>
         <a href="#" onClick={e => e.preventDefault()} style={{
-          fontSize: 13, color: C.cyan, textDecoration: "none", cursor: "pointer", whiteSpace: "nowrap"
+          fontSize:13, color: C.cyan, textDecoration: "none", cursor: "pointer", whiteSpace: "nowrap"
         }}>← System</a>
-        <span style={{ fontSize: 15, fontWeight: 500, color: C.text, whiteSpace: "nowrap" }}>
+        <span style={{ fontSize:14, fontWeight: 500, color: C.text, whiteSpace: "nowrap" }}>
           <span style={{ color: C.accent, marginRight: 4 }}>◆</span>Fan
         </span>
         <div style={{
@@ -1634,7 +1634,7 @@ export default function ImpellerViewer() {
         }}>
           {[{k:'off_design',n:'Off',full:'Off-design'},{k:'semi_empirical',n:'Semi',full:'Semi-empirical'},{k:'on_design',n:'On',full:'On-design'}].map(m =>
             <button key={m.k} onClick={() => setFanMode(m.k)} title={m.full} style={{
-              fontSize: 12, padding: "6px 10px", border: "none",
+              fontSize:13, padding: "6px 10px", border: "none",
               background: fanMode===m.k ? C.card : "transparent",
               color: fanMode===m.k ? C.text : C.muted,
               fontWeight: fanMode===m.k ? 500 : 400,
@@ -1645,7 +1645,7 @@ export default function ImpellerViewer() {
         </div>
         <div style={{ display: "flex", gap: 6, marginLeft: 8, flexShrink: 0 }}>
           <button onClick={() => setSaveOpen(!saveOpen)} title="Save/Load" style={{
-            fontSize: 13, width: 32, height: 32, border: `1px solid ${C.border}`,
+            fontSize:13, width: 32, height: 32, border: `1px solid ${C.border}`,
             background: saveOpen ? C.bg : "transparent", borderRadius: 8,
             cursor: "pointer", color: C.muted, display: "flex",
             alignItems: "center", justifyContent: "center"
@@ -1656,7 +1656,7 @@ export default function ImpellerViewer() {
               .then(r => r.blob()).then(b => { const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = `fan_D${D2}_Z${Z}.step`; a.click(); })
               .catch(() => alert('STEP 생성 실패'));
           }} style={{
-            fontSize: 13, width: 32, height: 32, border: `1px solid ${C.border}`,
+            fontSize:13, width: 32, height: 32, border: `1px solid ${C.border}`,
             background: "transparent", borderRadius: 8,
             cursor: "pointer", color: C.muted, display: "flex",
             alignItems: "center", justifyContent: "center"
@@ -1666,31 +1666,31 @@ export default function ImpellerViewer() {
       {/* Save/Load Panel */}
       {saveOpen && <div className="px-3 pb-1 pt-2">
         <div className="rounded-lg p-2" style={{ background:C.card, border:`1px solid ${C.cyan}44` }}>
-          <div style={{ color:C.cyan, fontFamily: "'Noto Sans KR', sans-serif", fontSize:9, fontWeight:700, marginBottom:4 }}>SAVE / LOAD</div>
+          <div style={{ color:C.cyan, fontFamily: "'Noto Sans KR', sans-serif", fontSize:12, fontWeight:700, marginBottom:4 }}>SAVE / LOAD</div>
           <div className="flex gap-1 mb-2">
             <button onClick={exportJSON} className="flex-1 py-1 rounded text-xs"
-              style={{ background:C.bg, color:C.green, border:`1px solid ${C.green}44`, fontFamily: "'Noto Sans KR', sans-serif", fontSize:9 }}>📥 JSON 내보내기</button>
+              style={{ background:C.bg, color:C.green, border:`1px solid ${C.green}44`, fontFamily: "'Noto Sans KR', sans-serif", fontSize:12 }}>📥 JSON 내보내기</button>
             <button onClick={() => fileRef.current?.click()} className="flex-1 py-1 rounded text-xs"
-              style={{ background:C.bg, color:C.orange, border:`1px solid ${C.orange}44`, fontFamily: "'Noto Sans KR', sans-serif", fontSize:9 }}>📤 JSON 불러오기</button>
+              style={{ background:C.bg, color:C.orange, border:`1px solid ${C.orange}44`, fontFamily: "'Noto Sans KR', sans-serif", fontSize:12 }}>📤 JSON 불러오기</button>
             <input ref={fileRef} type="file" accept=".json" onChange={importJSON} style={{display:'none'}} />
           </div>
-          <div style={{ color:C.dim, fontFamily: "'Noto Sans KR', sans-serif", fontSize:8, marginBottom:3 }}>SAVE SLOTS</div>
+          <div style={{ color:C.dim, fontFamily: "'Noto Sans KR', sans-serif", fontSize:12, marginBottom:3 }}>SAVE SLOTS</div>
           <div className="flex flex-col gap-1">
             {[1,2,3,4,5].map(n => {
               const sv = saves[n], empty = !sv;
-              return <div key={n} className="flex items-center gap-1" style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:9}}>
+              return <div key={n} className="flex items-center gap-1" style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:12}}>
                 <span className="w-4" style={{color:C.dim}}>{n}.</span>
-                <div className="flex-1 py-0.5 px-1.5 rounded truncate" style={{ background:C.bg, color:empty?C.dim:C.text, fontSize:8,
+                <div className="flex-1 py-0.5 px-1.5 rounded truncate" style={{ background:C.bg, color:empty?C.dim:C.text, fontSize:12,
                   border:`1px solid ${empty?C.border:C.cyan}33` }}>
                   {empty ? "— 비어 있음 —" : <span>{sv._name} <span style={{color:C.dim}}>{sv._t?.slice(5,16)}</span></span>}
                 </div>
-                <button onClick={() => saveSlot(n)} className="px-1.5 py-0.5 rounded" style={{background:C.bg,color:C.green,border:`1px solid ${C.green}33`,fontSize:8}}>저장</button>
-                <button onClick={() => loadSlot(n)} disabled={empty} className="px-1.5 py-0.5 rounded" style={{background:C.bg,color:empty?C.dim:C.cyan,border:`1px solid ${empty?C.border:C.cyan}33`,fontSize:8,opacity:empty?0.4:1}}>로드</button>
-                {!empty && <button onClick={() => delSlot(n)} className="px-1 py-0.5 rounded" style={{background:C.bg,color:C.red,border:`1px solid ${C.red}33`,fontSize:8}}>✕</button>}
+                <button onClick={() => saveSlot(n)} className="px-3 py-1.5 rounded" style={{background:C.bg,color:C.green,border:`1px solid ${C.green}33`,fontSize:12}}>저장</button>
+                <button onClick={() => loadSlot(n)} disabled={empty} className="px-3 py-1.5 rounded" style={{background:C.bg,color:empty?C.dim:C.cyan,border:`1px solid ${empty?C.border:C.cyan}33`,fontSize:12,opacity:empty?0.4:1}}>로드</button>
+                {!empty && <button onClick={() => delSlot(n)} className="px-3 py-1.5 rounded" style={{background:C.bg,color:C.red,border:`1px solid ${C.red}33`,fontSize:12}}>✕</button>}
               </div>;
             })}
           </div>
-          <div className="mt-1" style={{color:C.dim,fontFamily: "'Noto Sans KR', sans-serif",fontSize:7}}>
+          <div className="mt-1" style={{color:C.dim,fontFamily: "'Noto Sans KR', sans-serif",fontSize:11}}>
             전체 설계변수 저장 (임펠러+스크롤+Tongue+디퓨저+케이싱+재질)
           </div>
         </div>
@@ -1715,10 +1715,10 @@ export default function ImpellerViewer() {
 
       {/* Analysis sub-tabs (only inside Tab 3) */}
       {activeTab === 3 && <div className="px-3 py-2 flex items-center gap-1" style={{borderBottom:`1px solid var(--bd)`,background:'var(--bg2)'}}>
-        <span style={{fontSize:11,color:'var(--tx3)',marginRight:8}}>Tool:</span>
+        <span style={{fontSize:13,color:'var(--tx3)',marginRight:8}}>Tool:</span>
         {[{i:4,l:'Sweep'},{i:5,l:'Optimizer'}].map(t =>
           <button key={t.i} onClick={()=>setViewTab(t.i)}
-            style={{padding:'4px 12px',fontSize:12,border:`1px solid ${viewTab===t.i?'var(--accent)':'var(--bd)'}`,
+            style={{padding:'4px 12px',fontSize:13,border:`1px solid ${viewTab===t.i?'var(--accent)':'var(--bd)'}`,
               borderRadius:6,background:viewTab===t.i?'var(--accent)':'transparent',
               color:viewTab===t.i?'#fff':'var(--tx2)',cursor:'pointer'}}>{t.l}</button>)}
       </div>}
@@ -1729,8 +1729,8 @@ export default function ImpellerViewer() {
           <div className="vt">Fitting — Semi-empirical 계수 피팅</div>
           <div style={{padding:16,color:'var(--tx2)',fontSize:13,lineHeight:1.6}}>
             <p>실험 데이터를 업로드하면 9개 손실 계수를 자동 피팅합니다.</p>
-            <p style={{marginTop:8,fontSize:12,color:'var(--tx3)'}}>현재 피팅 기능은 헤더의 <strong>Semi-empirical</strong> 모드에서 사용할 수 있습니다.</p>
-            <p style={{marginTop:8,fontSize:12,color:'var(--tx3)'}}>→ 향후 이 탭으로 분리 예정</p>
+            <p style={{marginTop:8,fontSize:13,color:'var(--tx3)'}}>현재 피팅 기능은 헤더의 <strong>Semi-empirical</strong> 모드에서 사용할 수 있습니다.</p>
+            <p style={{marginTop:8,fontSize:13,color:'var(--tx3)'}}>→ 향후 이 탭으로 분리 예정</p>
           </div>
         </div>
       </div>}
@@ -1742,16 +1742,16 @@ export default function ImpellerViewer() {
           <div className="vc full">
             <div className="vt">3D Model <span className="sub">— drag to rotate, scroll to zoom</span></div>
             <div ref={mountRef} style={{ width:"100%", height:320, borderRadius:8, background:'var(--bg3)' }} />
-            <div style={{padding:'10px 0 0',display:'flex',gap:12,flexWrap:'wrap',fontSize:12,color:'var(--tx2)'}}>
+            <div style={{padding:'10px 0 0',display:'flex',gap:12,flexWrap:'wrap',fontSize:13,color:'var(--tx2)'}}>
               <label style={{display:'flex',alignItems:'center',gap:4,cursor:'pointer'}}><input type="checkbox" checked={showShroud} onChange={e=>setShowShroud(e.target.checked)} />측판</label>
               <label style={{display:'flex',alignItems:'center',gap:4,cursor:'pointer'}}><input type="checkbox" checked={showBackplate} onChange={e=>setShowBackplate(e.target.checked)} />주판</label>
               <label style={{display:'flex',alignItems:'center',gap:4,cursor:'pointer'}}><input type="checkbox" checked={showScroll} onChange={e=>setShowScroll(e.target.checked)} />스크롤</label>
               <label style={{display:'flex',alignItems:'center',gap:4,cursor:'pointer'}}><input type="checkbox" checked={showCasing} onChange={e=>setShowCasing(e.target.checked)} />케이싱</label>
               <label style={{display:'flex',alignItems:'center',gap:4,cursor:'pointer'}}><input type="checkbox" checked={autoRotate} onChange={e=>setAutoRotate(e.target.checked)} />자동회전</label>
               <div style={{marginLeft:'auto',display:'flex',alignItems:'center',gap:6}}>
-                <span style={{fontSize:11,color:'var(--tx3)'}}>분해</span>
+                <span style={{fontSize:13,color:'var(--tx3)'}}>분해</span>
                 <input type="range" min={0} max={30} step={1} value={explode} onChange={e=>setExplode(+e.target.value)} style={{width:100}} />
-                <span style={{fontSize:11,fontFamily:'var(--mono)',color:'var(--tx2)',minWidth:24}}>{explode}</span>
+                <span style={{fontSize:13,fontFamily:'var(--mono)',color:'var(--tx2)',minWidth:24}}>{explode}</span>
               </div>
             </div>
           </div>
@@ -1784,7 +1784,7 @@ export default function ImpellerViewer() {
 
       {/* ═══ Legacy hidden pass-through (renders chosen viewTab content for non-Viz tabs) ═══ */}
       <div style={{display: activeTab === 2 || activeTab === 0 ? 'none' : 'block'}}>
-        <div className="px-3 py-1">
+        <div className="px-4 py-2">
         <div className="rounded-lg overflow-hidden" style={{ background: C.bg, border: `1px solid ${C.border}` }}>
           {viewTab===0 && <>
             <div style={{display:'none'}} />
@@ -1794,7 +1794,7 @@ export default function ImpellerViewer() {
               <label className="flex items-center gap-1 text-xs" style={{ fontFamily: "'Noto Sans KR', sans-serif",color:C.dim }}><input type="checkbox" checked={showScroll} onChange={e=>setShowScroll(e.target.checked)} /><span style={{color:"#d4a44a"}}>스크롤</span></label>
               <label className="flex items-center gap-1 text-xs" style={{ fontFamily: "'Noto Sans KR', sans-serif",color:C.dim }}><input type="checkbox" checked={showCasing} onChange={e=>setShowCasing(e.target.checked)} /><span style={{color:"#4488aa"}}>케이싱</span></label>
               <label className="flex items-center gap-1 text-xs" style={{ fontFamily: "'Noto Sans KR', sans-serif",color:C.dim }}><input type="checkbox" checked={autoRotate} onChange={e=>setAutoRotate(e.target.checked)} />회전</label>
-              <div className="flex items-center gap-1 ml-auto"><span style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:9,color:C.dim}}>분해</span>
+              <div className="flex items-center gap-1 ml-auto"><span style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:12,color:C.dim}}>분해</span>
                 <input type="range" min={0} max={30} step={1} value={explode} onChange={e=>setExplode(+e.target.value)} className="w-16 h-1" style={{accentColor:C.accent}} /></div>
             </div>
           </>}
@@ -1805,10 +1805,10 @@ export default function ImpellerViewer() {
           {(() => {
             const sv = SWEEP_VARS.find(v => v.key === sweepVar);
             return <div className="p-2">
-              <div style={{ color: C.pink, fontFamily: "'Noto Sans KR', sans-serif", fontSize: 9, marginBottom: 3 }}>SWEEP 변수 선택</div>
+              <div style={{ color: C.pink, fontFamily: "'Noto Sans KR', sans-serif", fontSize:12, marginBottom: 3 }}>SWEEP 변수 선택</div>
               <div className="flex gap-1 flex-wrap mb-2">
                 {SWEEP_VARS.map(v => <button key={v.key} onClick={() => { setSweepVar(v.key); setSweepMin(v.min); setSweepMax(v.max); }}
-                  className="px-2 py-0.5 rounded" style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:7,
+                  className="px-3 py-1.5 rounded" style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:11,
                     background:sweepVar===v.key?C.card:"transparent", color:sweepVar===v.key?C.pink:C.dim,
                     border:`1px solid ${sweepVar===v.key?C.pink:C.border}` }}>{v.label}</button>)}
               </div>
@@ -1818,12 +1818,12 @@ export default function ImpellerViewer() {
                 <S label="Steps" value={sweepSteps} min={3} max={30} step={1} onChange={setSweepSteps} unit="" color={C.dim} />
               </div>
               {sweepResults.length > 0 && <>
-                <div style={{ color: C.dim, fontFamily: "'Noto Sans KR', sans-serif", fontSize: 8, marginBottom: 3 }}>출력 변수</div>
+                <div style={{ color: C.dim, fontFamily: "'Noto Sans KR', sans-serif", fontSize:12, marginBottom: 3 }}>출력 변수</div>
                 <div className="flex gap-1 flex-wrap mb-2">
                   {[{k:'eta',l:'η 효율',c:C.green},{k:'Ps',l:'Ps 정압',c:C.cyan},{k:'Q',l:'Q 유량',c:C.amber},
                     {k:'SPL',l:'SPL 소음',c:C.purple},{k:'SF',l:'SF 안전율',c:C.orange},{k:'f_n',l:'f_n 고유진동수',c:C.cyan}
-                  ].map(v => <button key={v.k} onClick={() => setSweepOut(v.k)} className="px-2 py-0.5 rounded"
-                    style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:8, background:sweepOut===v.k?C.card:"transparent",
+                  ].map(v => <button key={v.k} onClick={() => setSweepOut(v.k)} className="px-3 py-1.5 rounded"
+                    style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:12, background:sweepOut===v.k?C.card:"transparent",
                       color:sweepOut===v.k?v.c:C.dim, border:`1px solid ${sweepOut===v.k?v.c:C.border}` }}>{v.l}</button>)}
                 </div>
                 {(() => {
@@ -1833,27 +1833,27 @@ export default function ImpellerViewer() {
                   return <MiniChart data={sweepResults} xKey="x" yKey={sweepOut} w={340} h={200} color={o.c} label={`${o.l}  vs  ${sv?.label||sweepVar}`} yUnit={o.u} />;
                 })()}
                 <div style={{ overflowX:"auto", maxHeight:200 }}>
-                  <table style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:7, borderCollapse:"collapse", width:"100%" }}>
+                  <table style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:11, borderCollapse:"collapse", width:"100%" }}>
                     <thead><tr style={{ borderBottom:`1px solid ${C.border}` }}>
-                      {[sv?.label||'X','Q','Ps','η%','SPL','σ','SF','f_n','f/B'].map(h => <th key={h} className="px-1 py-0.5 text-right" style={{color:C.dim}}>{h}</th>)}
+                      {[sv?.label||'X','Q','Ps','η%','SPL','σ','SF','f_n','f/B'].map(h => <th key={h} className="px-3 py-1.5 text-right" style={{color:C.dim}}>{h}</th>)}
                     </tr></thead>
                     <tbody>{sweepResults.map((r,i) => {
                       const fnB = r.BPF>0?r.f_n/r.BPF:0;
                       const best = r.eta===Math.max(...sweepResults.map(d=>d.eta));
                       return <tr key={i} style={{ borderBottom:`1px solid ${C.border}11`, background:best?`${C.green}11`:"transparent" }}>
-                        <td className="px-1 py-0.5 text-right" style={{color:C.pink}}>{r.x.toFixed(sv?.step<1?1:0)}</td>
-                        <td className="px-1 py-0.5 text-right" style={{color:C.amber}}>{r.Q.toFixed(1)}</td>
-                        <td className="px-1 py-0.5 text-right" style={{color:C.cyan}}>{r.Ps.toFixed(0)}</td>
-                        <td className="px-1 py-0.5 text-right" style={{color:C.green}}>{(r.eta*100).toFixed(1)}</td>
-                        <td className="px-1 py-0.5 text-right" style={{color:r.SPL>70?C.red:C.purple}}>{r.SPL.toFixed(1)}</td>
-                        <td className="px-1 py-0.5 text-right" style={{color:C.orange}}>{r.sigma.toFixed(1)}</td>
-                        <td className="px-1 py-0.5 text-right" style={{color:r.SF>2?C.green:C.red}}>{r.SF.toFixed(1)}</td>
-                        <td className="px-1 py-0.5 text-right" style={{color:C.cyan}}>{r.f_n.toFixed(0)}</td>
-                        <td className="px-1 py-0.5 text-right" style={{color:Math.abs(fnB-1)<0.15?C.red:C.dim}}>{fnB.toFixed(2)}</td>
+                        <td className="px-3 py-1.5 text-right" style={{color:C.pink}}>{r.x.toFixed(sv?.step<1?1:0)}</td>
+                        <td className="px-3 py-1.5 text-right" style={{color:C.amber}}>{r.Q.toFixed(1)}</td>
+                        <td className="px-3 py-1.5 text-right" style={{color:C.cyan}}>{r.Ps.toFixed(0)}</td>
+                        <td className="px-3 py-1.5 text-right" style={{color:C.green}}>{(r.eta*100).toFixed(1)}</td>
+                        <td className="px-3 py-1.5 text-right" style={{color:r.SPL>70?C.red:C.purple}}>{r.SPL.toFixed(1)}</td>
+                        <td className="px-3 py-1.5 text-right" style={{color:C.orange}}>{r.sigma.toFixed(1)}</td>
+                        <td className="px-3 py-1.5 text-right" style={{color:r.SF>2?C.green:C.red}}>{r.SF.toFixed(1)}</td>
+                        <td className="px-3 py-1.5 text-right" style={{color:C.cyan}}>{r.f_n.toFixed(0)}</td>
+                        <td className="px-3 py-1.5 text-right" style={{color:Math.abs(fnB-1)<0.15?C.red:C.dim}}>{fnB.toFixed(2)}</td>
                       </tr>;})}</tbody>
                   </table>
                 </div>
-                <div style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:6, color:C.dim, marginTop:4 }}>
+                <div style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:11, color:C.dim, marginTop:4 }}>
                   <span style={{color:C.green}}>■</span> 최고효율 | <span style={{color:C.red}}>■</span> SF{"<"}2 / 공진위험 | 재질: {mat.name}
                 </div>
               </>}
@@ -1862,60 +1862,60 @@ export default function ImpellerViewer() {
           </div>
           <div style={{display:viewTab===5?'block':'none'}}><div className="p-2">
             <div className="flex items-center gap-2 mb-2">
-              <span style={{ color:C.green, fontFamily: "'Noto Sans KR', sans-serif", fontSize:10, fontWeight:700 }}>OPTIMIZER</span>
+              <span style={{ color:C.green, fontFamily: "'Noto Sans KR', sans-serif", fontSize:13, fontWeight:700 }}>OPTIMIZER</span>
               <div className="flex gap-1 ml-auto">
                 {[{k:'single',l:'단일 목적'},{k:'multi',l:'다목적 (Pareto)'}].map(m =>
-                  <button key={m.k} onClick={() => setOptMode(m.k)} className="px-2 py-0.5 rounded"
-                    style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:7, background:optMode===m.k?C.card:"transparent",
+                  <button key={m.k} onClick={() => setOptMode(m.k)} className="px-3 py-1.5 rounded"
+                    style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:11, background:optMode===m.k?C.card:"transparent",
                       color:optMode===m.k?C.green:C.dim, border:`1px solid ${optMode===m.k?C.green:C.border}` }}>{m.l}</button>)}
               </div>
             </div>
             {/* Objectives */}
             <div className="mb-2 p-1.5 rounded" style={{ background:C.bg }}>
-              <div style={{ color:C.dim, fontFamily: "'Noto Sans KR', sans-serif", fontSize:8, marginBottom:3 }}>①목표함수</div>
+              <div style={{ color:C.dim, fontFamily: "'Noto Sans KR', sans-serif", fontSize:12, marginBottom:3 }}>①목표함수</div>
               <div className="flex gap-1 flex-wrap">
-                {OBJ_LIST.map(o => <button key={o.key} onClick={() => setOptObj1(o.key)} className="px-2 py-0.5 rounded"
-                  style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:7, background:optObj1===o.key?C.card:"transparent",
+                {OBJ_LIST.map(o => <button key={o.key} onClick={() => setOptObj1(o.key)} className="px-3 py-1.5 rounded"
+                  style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:11, background:optObj1===o.key?C.card:"transparent",
                     color:optObj1===o.key?o.color:C.dim, border:`1px solid ${optObj1===o.key?o.color:C.border}` }}>{o.label}</button>)}
               </div>
-              {optMode==='multi' && <><div className="mt-1" style={{ color:C.dim, fontFamily: "'Noto Sans KR', sans-serif", fontSize:8 }}>②목표함수</div>
+              {optMode==='multi' && <><div className="mt-1" style={{ color:C.dim, fontFamily: "'Noto Sans KR', sans-serif", fontSize:12 }}>②목표함수</div>
                 <div className="flex gap-1 flex-wrap mt-1">
-                  {OBJ_LIST.filter(o=>o.key!==optObj1).map(o => <button key={o.key} onClick={() => setOptObj2(o.key)} className="px-2 py-0.5 rounded"
-                    style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:7, background:optObj2===o.key?C.card:"transparent",
+                  {OBJ_LIST.filter(o=>o.key!==optObj1).map(o => <button key={o.key} onClick={() => setOptObj2(o.key)} className="px-3 py-1.5 rounded"
+                    style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:11, background:optObj2===o.key?C.card:"transparent",
                       color:optObj2===o.key?o.color:C.dim, border:`1px solid ${optObj2===o.key?o.color:C.border}` }}>{o.label}</button>)}
                 </div></>}
             </div>
             {/* Variables */}
             <div className="mb-2 p-1.5 rounded" style={{ background:C.bg }}>
-              <div style={{ color:C.dim, fontFamily: "'Noto Sans KR', sans-serif", fontSize:8, marginBottom:3 }}>설계변수 (☑최적화 / ☐고정)</div>
-              {OPT_VARS.map(v => <div key={v.key} className="flex items-center gap-1 py-px" style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:8 }}>
+              <div style={{ color:C.dim, fontFamily: "'Noto Sans KR', sans-serif", fontSize:12, marginBottom:3 }}>설계변수 (☑최적화 / ☐고정)</div>
+              {OPT_VARS.map(v => <div key={v.key} className="flex items-center gap-1 py-px" style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:12 }}>
                 <label className="flex items-center gap-1 w-16">
                   <input type="checkbox" checked={optEnabled[v.key]} onChange={e => setOptEnabled({...optEnabled,[v.key]:e.target.checked})} />
                   <span style={{ color:optEnabled[v.key]?C.green:C.dim }}>{v.label}</span>
                 </label>
                 {optEnabled[v.key] ? <>
                   <input type="number" value={optRange[v.key].min} onChange={e => setOptRange({...optRange,[v.key]:{...optRange[v.key],min:+e.target.value}})}
-                    className="w-11 px-0.5 rounded text-right" style={{ background:C.card,color:C.text,fontSize:8,border:`1px solid ${C.border}`,fontFamily: "'Noto Sans KR', sans-serif" }} />
+                    className="w-11 px-0.5 rounded text-right" style={{ background:C.card,color:C.text,fontSize:12,border:`1px solid ${C.border}`,fontFamily: "'Noto Sans KR', sans-serif" }} />
                   <span style={{color:C.dim}}>~</span>
                   <input type="number" value={optRange[v.key].max} onChange={e => setOptRange({...optRange,[v.key]:{...optRange[v.key],max:+e.target.value}})}
-                    className="w-11 px-0.5 rounded text-right" style={{ background:C.card,color:C.text,fontSize:8,border:`1px solid ${C.border}`,fontFamily: "'Noto Sans KR', sans-serif" }} />
-                  <span style={{color:C.dim,fontSize:6}}>Δ</span>
+                    className="w-11 px-0.5 rounded text-right" style={{ background:C.card,color:C.text,fontSize:12,border:`1px solid ${C.border}`,fontFamily: "'Noto Sans KR', sans-serif" }} />
+                  <span style={{color:C.dim,fontSize:11}}>Δ</span>
                   <input type="number" value={optRange[v.key].step} onChange={e => setOptRange({...optRange,[v.key]:{...optRange[v.key],step:+e.target.value}})}
-                    className="w-9 px-0.5 rounded text-right" style={{ background:C.card,color:C.amber,fontSize:8,border:`1px solid ${C.border}33`,fontFamily: "'Noto Sans KR', sans-serif" }} />
-                  <span style={{color:C.dim,fontSize:6}}>{v.unit}</span>
-                </> : <span style={{color:C.dim,fontSize:7}}>고정</span>}
+                    className="w-9 px-0.5 rounded text-right" style={{ background:C.card,color:C.amber,fontSize:12,border:`1px solid ${C.border}33`,fontFamily: "'Noto Sans KR', sans-serif" }} />
+                  <span style={{color:C.dim,fontSize:11}}>{v.unit}</span>
+                </> : <span style={{color:C.dim,fontSize:11}}>고정</span>}
               </div>)}
             </div>
             {/* Run */}
             <div className="flex items-center gap-2 mb-2">
               <div className="flex-1"><S label="샘플" value={optSamples} min={50} max={1000} step={50} onChange={setOptSamples} unit="" color={C.green} /></div>
               <button onClick={runOptimization} disabled={optRunning} className="px-4 py-1.5 rounded font-bold"
-                style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:10, background:optRunning?C.dim:C.green, color:C.bg }}>
+                style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:13, background:optRunning?C.dim:C.green, color:C.bg }}>
                 {optRunning?"계산 중...":"▶ 실행"}</button>
             </div>
             {/* Single result */}
             {optResults?.mode==='single' && <div className="p-1.5 rounded" style={{ background:C.bg }}>
-              <div style={{ color:C.green, fontFamily: "'Noto Sans KR', sans-serif", fontSize:9, marginBottom:4 }}>최적 결과 — {optResults.obj.label} ({optResults.all.length}샘플)</div>
+              <div style={{ color:C.green, fontFamily: "'Noto Sans KR', sans-serif", fontSize:12, marginBottom:4 }}>최적 결과 — {optResults.obj.label} ({optResults.all.length}샘플)</div>
               {/* Chart: objective vs first active variable */}
               {(() => {
                 const activeVars = OPT_VARS.filter(v=>optEnabled[v.key]);
@@ -1971,16 +1971,16 @@ export default function ImpellerViewer() {
                     {l:'SPL',v:optResults.best.SPL.toFixed(1)+'dB',c:C.purple},{l:'SF',v:optResults.best.SF.toFixed(1),c:C.orange},
                     {l:'Q',v:optResults.best.Q.toFixed(1),c:C.amber},{l:'W',v:optResults.best.power.toFixed(1)+'W',c:C.red},
                     {l:'f_n',v:optResults.best.f_n.toFixed(0)+'Hz',c:C.cyan},{l:'σ',v:optResults.best.sigma.toFixed(1),c:C.orange},
-                  ].map(m => <div key={m.l} className="text-center" style={{fontSize:8,fontFamily: "'Noto Sans KR', sans-serif"}}>
-                    <div style={{color:C.dim,fontSize:6}}>{m.l}</div><div style={{color:m.c}}>{m.v}</div></div>)}
+                  ].map(m => <div key={m.l} className="text-center" style={{fontSize:12,fontFamily: "'Noto Sans KR', sans-serif"}}>
+                    <div style={{color:C.dim,fontSize:11}}>{m.l}</div><div style={{color:m.c}}>{m.v}</div></div>)}
                 </div>
-                <div style={{ fontSize:7, fontFamily: "'Noto Sans KR', sans-serif", color:C.muted }}>
+                <div style={{ fontSize:11, fontFamily: "'Noto Sans KR', sans-serif", color:C.muted }}>
                   {OPT_VARS.filter(v=>optEnabled[v.key]).map(v=>`${v.label}=${optResults.best.params[v.key]}`).join(' | ')}</div>
                 <button onClick={() => applyOptResult(optResults.best)} className="mt-1 px-3 py-0.5 rounded w-full"
-                  style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:8, background:C.green+'22', color:C.green, border:`1px solid ${C.green}44` }}>🔧 적용</button>
+                  style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:12, background:C.green+'22', color:C.green, border:`1px solid ${C.green}44` }}>🔧 적용</button>
               </div>
               <div style={{ overflowX:"auto", maxHeight:140 }}>
-                <table style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:7, borderCollapse:"collapse", width:"100%" }}>
+                <table style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:11, borderCollapse:"collapse", width:"100%" }}>
                   <thead><tr style={{ borderBottom:`1px solid ${C.border}` }}>
                     <th className="px-1" style={{color:C.dim}}>#</th>
                     {OPT_VARS.filter(v=>optEnabled[v.key]).map(v=><th key={v.key} className="px-1 text-right" style={{color:C.dim}}>{v.label}</th>)}
@@ -1993,19 +1993,19 @@ export default function ImpellerViewer() {
                     <td className="px-1 text-right" style={{color:C.green}}>{(r.eta*100).toFixed(1)}</td>
                     <td className="px-1 text-right" style={{color:C.purple}}>{r.SPL.toFixed(1)}</td>
                     <td className="px-1 text-right" style={{color:r.SF>2?C.green:C.red}}>{r.SF.toFixed(1)}</td>
-                    <td><button onClick={()=>applyOptResult(r)} style={{color:C.cyan,fontSize:7}}>적용</button></td>
+                    <td><button onClick={()=>applyOptResult(r)} style={{color:C.cyan,fontSize:11}}>적용</button></td>
                   </tr>)}</tbody>
                 </table>
               </div>
             </div>}
             {/* Multi-objective Pareto */}
             {optResults?.mode==='multi' && <div className="p-1.5 rounded" style={{ background:C.bg }}>
-              <div style={{ color:C.green, fontFamily: "'Noto Sans KR', sans-serif", fontSize:9, marginBottom:4 }}>
+              <div style={{ color:C.green, fontFamily: "'Noto Sans KR', sans-serif", fontSize:12, marginBottom:4 }}>
                 Pareto Front — {optResults.obj1.label} vs {optResults.obj2.label} ({optResults.pareto.length}개)
               </div>
               {(() => {
                 const pts=optResults.pareto,all=optResults.all;
-                if(!pts.length) return <div style={{color:C.dim,fontSize:8}}>비지배해 없음</div>;
+                if(!pts.length) return <div style={{color:C.dim,fontSize:12}}>비지배해 없음</div>;
                 const k1=optResults.obj1.key,k2=optResults.obj2.key;
                 const v1=all.map(s=>s[k1]).filter(isFinite),v2=all.map(s=>s[k2]).filter(isFinite);
                 const x1=Math.min(...v1),x2=Math.max(...v1),y1=Math.min(...v2),y2=Math.max(...v2);
@@ -2021,9 +2021,9 @@ export default function ImpellerViewer() {
                   <text x={8} y={p.t+ph/2} fill={C.dim} fontSize={7} fontFamily="'Noto Sans KR', sans-serif" textAnchor="middle" transform={`rotate(-90,8,${p.t+ph/2})`}>{optResults.obj2.label}</text>
                 </svg>;
               })()}
-              <div style={{color:C.dim,fontFamily: "'Noto Sans KR', sans-serif",fontSize:7,marginTop:2}}>● Pareto 최적해 (클릭→적용) | ● 전체 샘플</div>
+              <div style={{color:C.dim,fontFamily: "'Noto Sans KR', sans-serif",fontSize:11,marginTop:2}}>● Pareto 최적해 (클릭→적용) | ● 전체 샘플</div>
               <div style={{ overflowX:"auto", maxHeight:110, marginTop:4 }}>
-                <table style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:7, borderCollapse:"collapse", width:"100%" }}>
+                <table style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:11, borderCollapse:"collapse", width:"100%" }}>
                   <thead><tr style={{borderBottom:`1px solid ${C.border}`}}>
                     <th className="px-1" style={{color:C.dim}}>#</th>
                     <th className="px-1 text-right" style={{color:optResults.obj1.color}}>{optResults.obj1.label.split(' ')[0]}</th>
@@ -2036,7 +2036,7 @@ export default function ImpellerViewer() {
                     <td className="px-1 text-right" style={{color:optResults.obj1.color}}>{(optResults.obj1.key==='eta'?r[optResults.obj1.key]*100:r[optResults.obj1.key]).toFixed(1)}</td>
                     <td className="px-1 text-right" style={{color:optResults.obj2.color}}>{(optResults.obj2.key==='eta'?r[optResults.obj2.key]*100:r[optResults.obj2.key]).toFixed(1)}</td>
                     {OPT_VARS.filter(v=>optEnabled[v.key]).map(v=><td key={v.key} className="px-1 text-right" style={{color:C.text}}>{typeof r.params[v.key]==='number'&&r.params[v.key]%1!==0?r.params[v.key].toFixed(1):r.params[v.key]}</td>)}
-                    <td><button onClick={()=>applyOptResult(r)} style={{color:C.cyan,fontSize:7}}>적용</button></td>
+                    <td><button onClick={()=>applyOptResult(r)} style={{color:C.cyan,fontSize:11}}>적용</button></td>
                   </tr>)}</tbody>
                 </table>
               </div>
@@ -2044,27 +2044,27 @@ export default function ImpellerViewer() {
           </div></div>
           <div style={{display:viewTab===6?'block':'none'}}><div className="p-2">
             <div className="flex items-center gap-2 mb-2">
-              <span style={{ color:C.cyan, fontFamily: "'Noto Sans KR', sans-serif", fontSize:10, fontWeight:700 }}>PQ ANALYSIS</span>
+              <span style={{ color:C.cyan, fontFamily: "'Noto Sans KR', sans-serif", fontSize:13, fontWeight:700 }}>PQ ANALYSIS</span>
               <div className="flex gap-0.5 ml-auto">
                 {[{k:'on_design',l:'On-design'},{k:'semi_empirical',l:'Semi-emp'},{k:'off_design',l:'Off-design'}].map(m =>
-                  <button key={m.k} onClick={() => setFanMode(m.k)} className="px-2 py-0.5 rounded"
-                    style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:7, background:fanMode===m.k?C.card:"transparent",
+                  <button key={m.k} onClick={() => setFanMode(m.k)} className="px-3 py-1.5 rounded"
+                    style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:11, background:fanMode===m.k?C.card:"transparent",
                       color:fanMode===m.k?C.cyan:C.dim, border:`1px solid ${fanMode===m.k?C.cyan:C.border}` }}>{m.l}</button>)}
               </div>
             </div>
             {/* Semi-empirical fitting panel */}
             {fanMode==='semi_empirical' && <div className="mb-2 p-1.5 rounded" style={{ background:C.bg, border:`1px solid ${C.green}33` }}>
               <div className="flex items-center gap-2 mb-2">
-                <span style={{ color:C.green, fontFamily: "'Noto Sans KR', sans-serif", fontSize:8 }}>피팅 자동 최적화</span>
+                <span style={{ color:C.green, fontFamily: "'Noto Sans KR', sans-serif", fontSize:12 }}>피팅 자동 최적화</span>
                 <button onClick={runFitting} disabled={fitRunning || expData.length < 3} className="ml-auto px-3 py-0.5 rounded"
-                  style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:8, background:fitRunning?C.dim:C.green, color:C.bg, opacity:expData.length<3?0.4:1 }}>
+                  style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:12, background:fitRunning?C.dim:C.green, color:C.bg, opacity:expData.length<3?0.4:1 }}>
                   {fitRunning?"최적화 중...":"▶ 피팅 실행"}</button>
               </div>
-              {expData.length < 3 && <div style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:7,color:C.red}}>⚠ 실험 데이터 3개 이상 필요 (Off-design에서 업로드)</div>}
-              {expData.length >= 3 && !fitCoeffs && <div style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:7,color:C.dim}}>실험 데이터 {expData.length}점 로드됨. 피팅을 실행하세요.</div>}
+              {expData.length < 3 && <div style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:11,color:C.red}}>⚠ 실험 데이터 3개 이상 필요 (Off-design에서 업로드)</div>}
+              {expData.length >= 3 && !fitCoeffs && <div style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:11,color:C.dim}}>실험 데이터 {expData.length}점 로드됨. 피팅을 실행하세요.</div>}
               {fitCoeffs && <>
-                <div style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:7,color:C.dim,marginBottom:2}}>피팅된 손실 계수 (9개)</div>
-                <div className="grid grid-cols-3 gap-1" style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:7}}>
+                <div style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:11,color:C.dim,marginBottom:2}}>피팅된 손실 계수 (9개)</div>
+                <div className="grid grid-cols-3 gap-1" style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:11}}>
                   {[
                     {k:'k_inc',l:'Incidence',def:1.0},
                     {k:'k_fric',l:'Friction',def:1.0},
@@ -2081,69 +2081,69 @@ export default function ImpellerViewer() {
                     return <div key={c.k}>
                       <span style={{color:C.dim}}>{c.l}: </span>
                       <span style={{color:changed?C.amber:C.text}}>{typeof v==='number'?v.toFixed(4):v}</span>
-                      {changed && <span style={{color:C.dim,fontSize:5}}> ({c.def})</span>}
+                      {changed && <span style={{color:C.dim,fontSize:11}}> ({c.def})</span>}
                     </div>;
                   })}
                 </div>
-                {fitResult && <div className="mt-2 flex gap-3" style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:7}}>
+                {fitResult && <div className="mt-2 flex gap-3" style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:11}}>
                   <div><span style={{color:C.dim}}>RMSE 전: </span><span style={{color:C.red}}>{fitResult.rmse_before.toFixed(1)}</span></div>
                   <div><span style={{color:C.dim}}>→ 후: </span><span style={{color:C.green}}>{fitResult.rmse_after.toFixed(1)}</span></div>
                   <div><span style={{color:C.dim}}>개선: </span><span style={{color:C.green}}>{((1-fitResult.rmse_after/Math.max(0.1,fitResult.rmse_before))*100).toFixed(0)}%</span></div>
                 </div>}
                 <div className="flex gap-1 mt-2">
                   <button onClick={() => { setFitCoeffs(null); setFitResult(null); }} className="flex-1 py-0.5 rounded"
-                    style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:7,color:C.red,background:C.card,border:`1px solid ${C.red}33`}}>초기화</button>
+                    style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:11,color:C.red,background:C.card,border:`1px solid ${C.red}33`}}>초기화</button>
                 </div>
               </>}
             </div>}
             {/* Experimental data upload */}
             {(fanMode==='off_design' || fanMode==='semi_empirical') && <div className="mb-2 p-1.5 rounded" style={{ background:C.bg, border:`1px solid ${C.orange}33` }}>
-              <div style={{ color:C.orange, fontFamily: "'Noto Sans KR', sans-serif", fontSize:8, marginBottom:3 }}>실험 PQ 데이터</div>
+              <div style={{ color:C.orange, fontFamily: "'Noto Sans KR', sans-serif", fontSize:12, marginBottom:3 }}>실험 PQ 데이터</div>
               <div className="flex gap-1 mb-1">
                 <button onClick={() => expFileRef.current?.click()} className="flex-1 py-1 rounded"
-                  style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:8, background:C.card, color:C.orange, border:`1px solid ${C.orange}44` }}>📂 CSV 불러오기</button>
+                  style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:12, background:C.card, color:C.orange, border:`1px solid ${C.orange}44` }}>📂 CSV 불러오기</button>
                 <input ref={expFileRef} type="file" accept=".csv,.tsv,.txt" style={{display:'none'}}
                   onChange={e => { const f=e.target.files?.[0]; if(f){const r=new FileReader(); r.onload=ev=>parseExpCSV(ev.target.result); r.readAsText(f);} }} />
                 <button onClick={() => {
                   const txt = prompt('CSV 데이터 붙여넣기 (Q,Ps 또는 Q,Ps,eta)\n예: Q,Ps,eta\\n1.5,120,0.55\\n2.0,115,0.60');
                   if (txt) parseExpCSV(txt);
                 }} className="flex-1 py-1 rounded"
-                  style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:8, background:C.card, color:C.amber, border:`1px solid ${C.amber}44` }}>📋 붙여넣기</button>
+                  style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:12, background:C.card, color:C.amber, border:`1px solid ${C.amber}44` }}>📋 붙여넣기</button>
                 {expData.length > 0 && <button onClick={() => setExpData([])} className="px-2 py-1 rounded"
-                  style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:8, background:C.card, color:C.red, border:`1px solid ${C.red}44` }}>✕</button>}
+                  style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:12, background:C.card, color:C.red, border:`1px solid ${C.red}44` }}>✕</button>}
               </div>
-              {expData.length > 0 && <div style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:7, color:C.dim }}>
+              {expData.length > 0 && <div style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:11, color:C.dim }}>
                 {expData.length}개 데이터 로드 | Q: {Math.min(...expData.map(d=>d.Q)).toFixed(1)}~{Math.max(...expData.map(d=>d.Q)).toFixed(1)} m³/min
                 {expData[0].eta > 0 && ` | η: ${Math.max(...expData.map(d=>d.eta)).toFixed(1)}`}
               </div>}
-              {expData.length === 0 && <div style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:7, color:C.dim }}>
+              {expData.length === 0 && <div style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:11, color:C.dim }}>
                 CSV 형식: Q,Ps[,Pt,eta,RPM,W] (헤더 필수, 탭/콤마 구분)
               </div>}
             </div>}
             {/* System resistance curve */}
             <div className="mb-2 p-1.5 rounded" style={{ background:C.bg, border:`1px solid ${showSysCurve?'#f97316':'transparent'}33` }}>
               <div className="flex items-center gap-2">
-                <label className="flex items-center gap-1" style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:8}}>
+                <label className="flex items-center gap-1" style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:12}}>
                   <input type="checkbox" checked={showSysCurve} onChange={e=>setShowSysCurve(e.target.checked)} />
                   <span style={{color:showSysCurve?'#f97316':C.dim}}>시스템 저항 커브</span>
                 </label>
                 {showSysCurve && <button onClick={() => sysCurveFileRef.current?.click()} className="ml-auto px-2 py-0.5 rounded"
-                  style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:7,color:'#f97316',background:C.card,border:`1px solid #f9731644`}}>📂 저항 CSV</button>}
+                  style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:11,color:'#f97316',background:C.card,border:`1px solid #f9731644`}}>📂 저항 CSV</button>}
                 <input ref={sysCurveFileRef} type="file" accept=".csv,.tsv,.txt" style={{display:'none'}}
                   onChange={e => { const f=e.target.files?.[0]; if(f){const r=new FileReader(); r.onload=ev=>parseSysCurveCSV(ev.target.result); r.readAsText(f);} }} />
               </div>
               {showSysCurve && <div className="mt-1">
-                <div style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:7,color:C.dim,marginBottom:2}}>ΔP = a·Q² + b·Q + c (Pa, m³/min)</div>
+                <div style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:11,color:C.dim,marginBottom:2}}>ΔP = a·Q² + b·Q + c (Pa, m³/min)</div>
                 <div className="grid grid-cols-3 gap-1">
                   <S label="a" value={sysA} min={0} max={20} step={0.1} onChange={setSysA} unit="" color="#f97316" />
                   <S label="b" value={sysB} min={-10} max={10} step={0.1} onChange={setSysB} unit="" color="#f97316" />
                   <S label="c" value={sysC} min={0} max={100} step={1} onChange={setSysC} unit="Pa" color="#f97316" />
                 </div>
-                {sysCurveData.length > 0 && <div style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:6,color:C.dim,marginTop:1}}>
+                {sysCurveData.length > 0 && <div style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:11,color:C.dim,marginTop:1}}>
                   저항 데이터 {sysCurveData.length}점 → 자동 피팅 완료</div>}
                 {operatingPoint && <div className="mt-1 p-1 rounded" style={{background:C.card,border:`1px solid #f9731644`}}>
-                  <div style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:8,color:'#f97316',marginBottom:2}}>▸ 운전점</div>
-                  <div className="grid grid-cols-4 gap-1" style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:7}}>
+                  <div style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:12,color:'#f97316',marginBottom:2}}>▸ 운전점</div>
+                  <div className="grid grid-cols-4 gap-1" style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:11}}>
                     <div><span style={{color:C.dim}}>Q=</span><span style={{color:C.amber}}>{operatingPoint.Q.toFixed(1)}</span></div>
                     <div><span style={{color:C.dim}}>Ps=</span><span style={{color:C.cyan}}>{operatingPoint.Ps.toFixed(0)}</span></div>
                     <div><span style={{color:C.dim}}>η=</span><span style={{color:C.green}}>{(operatingPoint.eta*100).toFixed(1)}%</span></div>
@@ -2155,27 +2155,27 @@ export default function ImpellerViewer() {
             {/* Quasi-steady time-domain simulation */}
             {showSysCurve && <div className="mb-2 p-1.5 rounded" style={{ background:C.bg, border:`1px solid ${C.purple}33` }}>
               <div className="flex items-center gap-2">
-                <label className="flex items-center gap-1" style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:8}}>
+                <label className="flex items-center gap-1" style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:12}}>
                   <input type="checkbox" checked={qsShow} onChange={e=>setQsShow(e.target.checked)} />
                   <span style={{color:qsShow?C.purple:C.dim}}>Quasi-Steady 시간영역</span>
                 </label>
                 {qsShow && <button onClick={runQuasiSteady} className="ml-auto px-3 py-0.5 rounded"
-                  style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:8,background:C.purple,color:C.bg}}>▶ 시뮬레이션</button>}
+                  style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:12,background:C.purple,color:C.bg}}>▶ 시뮬레이션</button>}
               </div>
               {qsShow && <div className="mt-1">
-                <div style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:7,color:C.dim,marginBottom:2}}>건조 시간에 따른 시스템 저항 변화 → 운전점 이동</div>
+                <div style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:11,color:C.dim,marginBottom:2}}>건조 시간에 따른 시스템 저항 변화 → 운전점 이동</div>
                 <div className="grid grid-cols-2 gap-1 mb-1">
                   <S label="시간" value={qsDuration} min={10} max={180} step={5} onChange={setQsDuration} unit="min" color={C.purple} />
                   <S label="스텝" value={qsSteps} min={10} max={60} step={5} onChange={setQsSteps} unit="" color={C.purple} />
                 </div>
-                <div style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:7,color:C.dim,marginBottom:1}}>저항 변화 (시작 → 종료)</div>
+                <div style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:11,color:C.dim,marginBottom:1}}>저항 변화 (시작 → 종료)</div>
                 <div className="grid grid-cols-2 gap-1">
                   <S label="a₀" value={qsAStart} min={0.1} max={10} step={0.1} onChange={setQsAStart} unit="" color={C.purple} />
                   <S label="a₁" value={qsAEnd} min={0.1} max={10} step={0.1} onChange={setQsAEnd} unit="" color={C.purple} />
                   <S label="c₀" value={qsCStart} min={0} max={50} step={1} onChange={setQsCStart} unit="Pa" color={C.purple} />
                   <S label="c₁" value={qsCEnd} min={0} max={50} step={1} onChange={setQsCEnd} unit="Pa" color={C.purple} />
                 </div>
-                <div style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:6,color:C.dim,marginTop:1}}>a₀→a₁: 2차항 변화 (필터 막힘), c₀→c₁: 정적 손실 변화</div>
+                <div style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:11,color:C.dim,marginTop:1}}>a₀→a₁: 2차항 변화 (필터 막힘), c₀→c₁: 정적 손실 변화</div>
                 {qsResults && qsResults.length > 2 && (() => {
                   const W=310,H=120,p={l:34,r:28,t:8,b:16};
                   const pw=W-p.l-p.r,ph=H-p.t-p.b;
@@ -2215,7 +2215,7 @@ export default function ImpellerViewer() {
                       <text x={p.l+67} y={p.t+6} fill={C.green} fontSize={5} fontFamily="'Noto Sans KR', sans-serif">η</text>
                     </svg>
                     {/* Summary */}
-                    <div className="mt-1 grid grid-cols-3 gap-1" style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:7}}>
+                    <div className="mt-1 grid grid-cols-3 gap-1" style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:11}}>
                       <div style={{textAlign:"center"}}>
                         <div style={{color:C.dim}}>Q</div>
                         <div style={{color:C.amber}}>{qMax.toFixed(1)} → {qMin.toFixed(1)}</div>
@@ -2372,22 +2372,22 @@ export default function ImpellerViewer() {
                     {l:'Ns',v:aero.Ns.toFixed(0),u:'',c:C.dim},
                     {l:'W',v:(bep.Qm3s>0?bep.Pt*bep.Qm3s/Math.max(0.01,bep.eta):0).toFixed(1),u:'W',c:C.red},
                   ].map(m => <div key={m.l} className="text-center py-1 rounded" style={{background:C.card}}>
-                    <div style={{color:C.dim,fontFamily: "'Noto Sans KR', sans-serif",fontSize:6}}>{m.l}</div>
-                    <div style={{color:m.c,fontFamily: "'Noto Sans KR', sans-serif",fontSize:11,fontWeight:700}}>{m.v}</div>
-                    <div style={{color:C.dim,fontFamily: "'Noto Sans KR', sans-serif",fontSize:5}}>{m.u}</div>
+                    <div style={{color:C.dim,fontFamily: "'Noto Sans KR', sans-serif",fontSize:11}}>{m.l}</div>
+                    <div style={{color:m.c,fontFamily: "'Noto Sans KR', sans-serif",fontSize:13,fontWeight:700}}>{m.v}</div>
+                    <div style={{color:C.dim,fontFamily: "'Noto Sans KR', sans-serif",fontSize:11}}>{m.u}</div>
                   </div>)}
                 </div>
 
                 {/* Loss breakdown at BEP */}
                 <div className="mt-2 p-1.5 rounded" style={{background:C.bg}}>
-                  <div style={{color:C.dim,fontFamily: "'Noto Sans KR', sans-serif",fontSize:8,marginBottom:3}}>손실 분해 @BEP (총 {totalLoss.toFixed(1)} Pa)</div>
+                  <div style={{color:C.dim,fontFamily: "'Noto Sans KR', sans-serif",fontSize:12,marginBottom:3}}>손실 분해 @BEP (총 {totalLoss.toFixed(1)} Pa)</div>
                   {/* Stacked bar */}
                   <div className="flex rounded overflow-hidden" style={{height:14,background:C.card}}>
                     {losses.map((l,i) => <div key={i} style={{width:`${l.v/totalLoss*100}%`,background:l.c,minWidth:1}} title={`${l.l}: ${l.v.toFixed(1)}Pa`}/>)}
                   </div>
                   {/* Loss items */}
                   <div className="grid grid-cols-2 gap-x-3 gap-y-0 mt-1">
-                    {losses.map((l,i) => <div key={i} className="flex items-center gap-1" style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:7}}>
+                    {losses.map((l,i) => <div key={i} className="flex items-center gap-1" style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:11}}>
                       <span style={{display:"inline-block",width:6,height:6,borderRadius:1,background:l.c}}/>
                       <span style={{color:C.dim,flex:1}}>{l.l}</span>
                       <span style={{color:C.text}}>{l.v.toFixed(1)}</span>
@@ -2395,20 +2395,20 @@ export default function ImpellerViewer() {
                       <span style={{color:C.dim}}>({(l.v/totalLoss*100).toFixed(0)}%)</span>
                     </div>)}
                   </div>
-                  {diffRecov > 0.1 && <div style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:7,color:C.green,marginTop:2}}>
+                  {diffRecov > 0.1 && <div style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:11,color:C.green,marginTop:2}}>
                     + 디퓨저 회복: +{diffRecov.toFixed(1)} Pa
                   </div>}
-                  {bepPt.Q_recirc > 0.0001 && <div style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:7,color:C.red,marginTop:1}}>
+                  {bepPt.Q_recirc > 0.0001 && <div style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:11,color:C.red,marginTop:1}}>
                     ↻ Tongue 재순환: {(bepPt.Q_recirc*60).toFixed(2)} m³/min ({(bepPt.Q_recirc/(bepPt.Qm3s+bepPt.Q_recirc)*100).toFixed(1)}%)
                   </div>}
-                  <div style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:7,color:C.dim,marginTop:2}}>
+                  <div style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:11,color:C.dim,marginTop:2}}>
                     Euler Pt_e={bepPt.Pt_e?.toFixed(0)||'—'}Pa → 손실 {totalLoss.toFixed(0)}Pa → Pt_fan={bep.Pt.toFixed(0)}Pa
                   </div>
                 </div>
 
                 {/* Experimental comparison metrics */}
                 {expData.length >= 2 && <div className="mt-2 p-1.5 rounded" style={{background:C.bg, border:`1px solid ${C.orange}33`}}>
-                  <div style={{color:C.orange,fontFamily: "'Noto Sans KR', sans-serif",fontSize:8,marginBottom:3}}>검증 프레임워크 — 실험 vs 모델</div>
+                  <div style={{color:C.orange,fontFamily: "'Noto Sans KR', sans-serif",fontSize:12,marginBottom:3}}>검증 프레임워크 — 실험 vs 모델</div>
                   {(() => {
                     // Compute errors for default model
                     const errors_Ps = [], errors_eta = [];
@@ -2452,7 +2452,7 @@ export default function ImpellerViewer() {
 
                     return <>
                       {/* Metrics table */}
-                      <div className="grid grid-cols-2 gap-x-3 mb-2" style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:7}}>
+                      <div className="grid grid-cols-2 gap-x-3 mb-2" style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:11}}>
                         <div>
                           <div style={{color:C.dim,marginBottom:1}}>정압 Ps — {m_fit?'기본':'모델'} ({errors_Ps.length}점)</div>
                           <div>RMSE: <span style={{color:m_def.rmse<10?C.green:m_def.rmse<20?C.amber:C.red}}>{m_def.rmse?.toFixed(1)} Pa</span></div>
@@ -2475,7 +2475,7 @@ export default function ImpellerViewer() {
 
                       {/* Residual plot */}
                       {errors_Ps.length >= 3 && <div>
-                        <div style={{color:C.dim,fontFamily: "'Noto Sans KR', sans-serif",fontSize:7,marginBottom:2}}>잔차 플롯 (Ps_mod - Ps_exp)</div>
+                        <div style={{color:C.dim,fontFamily: "'Noto Sans KR', sans-serif",fontSize:11,marginBottom:2}}>잔차 플롯 (Ps_mod - Ps_exp)</div>
                         <svg width={resW} height={resH} style={{display:"block",margin:"0 auto",background:C.card,borderRadius:3}}>
                           <line x1={rPad.l} y1={rPad.t+rph/2} x2={rPad.l+rpw} y2={rPad.t+rph/2} stroke={C.dim} strokeWidth={0.5}/>
                           <line x1={rPad.l} y1={rPad.t} x2={rPad.l} y2={rPad.t+rph} stroke={C.dim} strokeWidth={0.3}/>
@@ -2493,14 +2493,14 @@ export default function ImpellerViewer() {
                           <text x={rPad.l-2} y={rPad.t+rph} fill={C.dim} fontSize={5} fontFamily="'Noto Sans KR', sans-serif" textAnchor="end">-{eMax.toFixed(0)}</text>
                           <text x={rPad.l-2} y={rPad.t+rph/2+3} fill={C.dim} fontSize={5} fontFamily="'Noto Sans KR', sans-serif" textAnchor="end">0</text>
                         </svg>
-                        <div style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:6,color:C.dim,textAlign:"center",marginTop:1}}>
+                        <div style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:11,color:C.dim,textAlign:"center",marginTop:1}}>
                           <span style={{color:C.cyan}}>●</span> 기본 {m_fit && <><span style={{color:C.green}}>●</span> 피팅</>} | 녹색 대역 = ±RMSE
                         </div>
                       </div>}
 
                       {/* Parity plot */}
                       {errors_Ps.length >= 3 && <div className="mt-2">
-                        <div style={{color:C.dim,fontFamily: "'Noto Sans KR', sans-serif",fontSize:7,marginBottom:2}}>패리티 플롯 (Ps_mod vs Ps_exp)</div>
+                        <div style={{color:C.dim,fontFamily: "'Noto Sans KR', sans-serif",fontSize:11,marginBottom:2}}>패리티 플롯 (Ps_mod vs Ps_exp)</div>
                         {(() => {
                           const pW=140,pH=140,pPad={l:28,r:6,t:6,b:16};
                           const ppw=pW-pPad.l-pPad.r, pph=pH-pPad.t-pPad.b;
@@ -2521,7 +2521,7 @@ export default function ImpellerViewer() {
                   })()}
                   {/* Data table */}
                   <div style={{maxHeight:80,overflowY:'auto',marginTop:4}}>
-                    <table style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:6,borderCollapse:"collapse",width:"100%"}}>
+                    <table style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:11,borderCollapse:"collapse",width:"100%"}}>
                       <thead><tr style={{borderBottom:`1px solid ${C.border}`}}>
                         <th className="px-1 text-right" style={{color:C.dim}}>Q</th>
                         <th className="px-1 text-right" style={{color:C.dim}}>Ps_exp</th>
@@ -2545,8 +2545,8 @@ export default function ImpellerViewer() {
                   </div>
                 </div>}
                 <div className="mt-2 p-1.5 rounded" style={{background:C.bg}}>
-                  <div style={{color:C.dim,fontFamily: "'Noto Sans KR', sans-serif",fontSize:8,marginBottom:2}}>속도 삼각형 + 구조</div>
-                  <div className="grid grid-cols-4 gap-1" style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:8}}>
+                  <div style={{color:C.dim,fontFamily: "'Noto Sans KR', sans-serif",fontSize:12,marginBottom:2}}>속도 삼각형 + 구조</div>
+                  <div className="grid grid-cols-4 gap-1" style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:12}}>
                     <div><span style={{color:C.dim}}>U₂=</span><span style={{color:C.text}}>{aero.U2.toFixed(1)}</span></div>
                     <div><span style={{color:C.dim}}>C₂=</span><span style={{color:C.text}}>{bep.C2.toFixed(1)}</span></div>
                     <div><span style={{color:C.dim}}>W₁=</span><span style={{color:C.text}}>{bep.W1.toFixed(1)}</span></div>
@@ -2570,11 +2570,11 @@ export default function ImpellerViewer() {
           {/* Material + RPM */}
           <div className="mb-2 pb-1" style={{ borderBottom: `1px solid ${C.border}` }}>
             <div className="flex items-center gap-1 mb-1">
-              <span style={{ color: C.dim, fontFamily: "'Noto Sans KR', sans-serif", fontSize: 9 }}>재질</span>
+              <span style={{ color: C.dim, fontFamily: "'Noto Sans KR', sans-serif", fontSize:12 }}>재질</span>
               <div className="flex gap-0.5 flex-wrap">
                 {Object.entries(MATERIALS).map(([k,m]) =>
-                  <button key={k} onClick={() => setMatKey(k)} className="px-1.5 py-0.5 rounded"
-                    style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:7, background:matKey===k?C.card:"transparent",
+                  <button key={k} onClick={() => setMatKey(k)} className="px-3 py-1.5 rounded"
+                    style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:11, background:matKey===k?C.card:"transparent",
                       color:matKey===k?m.color:C.dim, border:`1px solid ${matKey===k?m.color:C.border}` }}>{k}</button>)}
               </div>
             </div>
@@ -2582,12 +2582,12 @@ export default function ImpellerViewer() {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-3">
             <div>
-              <div style={{ color: C.dim, fontFamily: "'Noto Sans KR', sans-serif", fontSize: 9, marginBottom: 2 }}>DIAMETERS</div>
+              <div style={{ color: C.dim, fontFamily: "'Noto Sans KR', sans-serif", fontSize:12, marginBottom: 2 }}>DIAMETERS</div>
               <S label="D_eye" value={Deye} min={40} max={200} step={1} onChange={setDeye} unit="mm" color={C.eye} />
               <S label="D₁" value={D1} min={50} max={220} step={1} onChange={setD1} unit="mm" color={C.cyan} />
               <S label="D₂" value={D2} min={80} max={320} step={1} onChange={setD2} unit="mm" color={C.blade} />
               <S label="D_u" value={Du} min={80} max={350} step={1} onChange={setDu} unit="mm" color={C.backplate} />
-              <div style={{ color: C.dim, fontFamily: "'Noto Sans KR', sans-serif", fontSize: 9, marginTop: 4, marginBottom: 2 }}>WIDTH / SHAPE</div>
+              <div style={{ color: C.dim, fontFamily: "'Noto Sans KR', sans-serif", fontSize:12, marginTop: 4, marginBottom: 2 }}>WIDTH / SHAPE</div>
               <S label="b₁" value={b1} min={15} max={120} step={1} onChange={setB1} unit="mm" color={C.text} />
               <S label="b₂" value={b2} min={15} max={120} step={1} onChange={setB2} unit="mm" color={C.hub} />
               <S label="Eye R" value={eyeRise} min={0} max={25} step={1} onChange={setEyeRise} unit="mm" color={C.shroud} />
@@ -2596,11 +2596,11 @@ export default function ImpellerViewer() {
             </div>
             <div>
               <div className="flex items-center gap-1 mb-1">
-                <span style={{ color: C.dim, fontFamily: "'Noto Sans KR', sans-serif", fontSize: 9 }}>BLADE</span>
+                <span style={{ color: C.dim, fontFamily: "'Noto Sans KR', sans-serif", fontSize:12 }}>BLADE</span>
                 <div className="flex gap-0.5 ml-auto">
                   {[{k:'fc',l:'전곡',b2:145},{k:'rad',l:'방사',b2:90},{k:'bc',l:'후곡',b2:55}].map(m =>
-                    <button key={m.k} onClick={() => setBeta2(m.b2)} className="px-1.5 py-0.5 rounded"
-                      style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:6,
+                    <button key={m.k} onClick={() => setBeta2(m.b2)} className="px-3 py-1.5 rounded"
+                      style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:11,
                         background: (m.k==='fc'&&beta2>90)||(m.k==='rad'&&beta2===90)||(m.k==='bc'&&beta2<90) ? C.card : "transparent",
                         color: (m.k==='fc'&&beta2>90)||(m.k==='rad'&&beta2===90)||(m.k==='bc'&&beta2<90)
                           ? (m.k==='fc'?C.red:m.k==='rad'?C.amber:C.cyan) : C.dim,
@@ -2610,17 +2610,17 @@ export default function ImpellerViewer() {
               </div>
               <S label="β₁" value={beta1} min={0} max={90} step={1} onChange={setBeta1} unit="°" color={C.green} />
               <S label="β₂" value={beta2} min={20} max={180} step={1} onChange={setBeta2} unit="°" color={beta2>90?C.red:beta2===90?C.amber:C.cyan} />
-              <div className="mb-1" style={{ color: C.dim, fontFamily: "'Noto Sans KR', sans-serif", fontSize: 7 }}>
+              <div className="mb-1" style={{ color: C.dim, fontFamily: "'Noto Sans KR', sans-serif", fontSize:11 }}>
                 {beta2 > 90 ? `전곡 (Forward-curved) β₂=${beta2}°` : beta2 === 90 ? '방사 (Radial) β₂=90°' : `후곡 (Backward-curved) β₂=${beta2}°`}
               </div>
               <S label="Z" value={Z} min={16} max={48} step={1} onChange={setZ} unit="" color={C.purple} />
               <S label="t" value={tBlade} min={0.3} max={3} step={0.1} onChange={setTBlade} unit="mm" color={C.blade} />
               <S label="Lean" value={bladeLean} min={-15} max={15} step={0.5} onChange={setBladeLean} unit="°" color={C.accent} />
-              <div style={{ color: C.dim, fontFamily: "'Noto Sans KR', sans-serif", fontSize: 9, marginTop: 4, marginBottom: 2 }}>PROFILE</div>
+              <div style={{ color: C.dim, fontFamily: "'Noto Sans KR', sans-serif", fontSize:12, marginTop: 4, marginBottom: 2 }}>PROFILE</div>
               <div className="flex gap-1 mb-1">
                 {[{k:'sfs',l:'직선-필렛-직선'},{k:'arc',l:'단일 원호'},{k:'linear',l:'선형 β'}].map(m =>
                   <button key={m.k} onClick={() => setBladeType(m.k)} className="flex-1 py-0.5 rounded"
-                    style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize: 7,
+                    style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:11,
                       background: bladeType===m.k ? C.card : "transparent",
                       color: bladeType===m.k ? C.blade : C.dim,
                       border: `1px solid ${bladeType===m.k ? C.blade : C.border}` }}>{m.l}</button>)}
@@ -2630,32 +2630,32 @@ export default function ImpellerViewer() {
                 return <>
                   <S label="R" value={Rfillet} min={1} max={50} step={1} onChange={setRfillet} unit="mm" color={C.accent} />
                   <S label="Bend" value={bendPos} min={0.15} max={0.85} step={0.01} onChange={setBendPos} unit="" color={C.cyan} />
-                  <div style={{ color: C.dim, fontFamily: "'Noto Sans KR', sans-serif", fontSize: 7 }}>
+                  <div style={{ color: C.dim, fontFamily: "'Noto Sans KR', sans-serif", fontSize:11 }}>
                     절곡 r={rBend.toFixed(1)}mm (D={rBend*2|0}mm) span {(bendPos*100)|0}%
                   </div>
                 </>;
               })()}
-              {bladeType === 'arc' && <div style={{ color: C.dim, fontFamily: "'Noto Sans KR', sans-serif", fontSize: 7 }}>β₁,β₂ 접선 유일 원호. 프레스 1회 성형.</div>}
-              {bladeType === 'linear' && <div style={{ color: C.dim, fontFamily: "'Noto Sans KR', sans-serif", fontSize: 7 }}>β가 r₁→r₂에서 선형 변화.</div>}
+              {bladeType === 'arc' && <div style={{ color: C.dim, fontFamily: "'Noto Sans KR', sans-serif", fontSize:11 }}>β₁,β₂ 접선 유일 원호. 프레스 1회 성형.</div>}
+              {bladeType === 'linear' && <div style={{ color: C.dim, fontFamily: "'Noto Sans KR', sans-serif", fontSize:11 }}>β가 r₁→r₂에서 선형 변화.</div>}
             </div>
           </div>
 
           {/* SCROLL parameters */}
           <div className="mt-2 pt-2" style={{ borderTop: `1px solid ${C.border}` }}>
             <div className="flex items-center gap-2 mb-1">
-              <span style={{ color: "#d4a44a", fontFamily: "'Noto Sans KR', sans-serif", fontSize: 9, fontWeight: 700 }}>SCROLL</span>
+              <span style={{ color: "#d4a44a", fontFamily: "'Noto Sans KR', sans-serif", fontSize:12, fontWeight: 700 }}>SCROLL</span>
               <div className="flex gap-1">
                 {[{k:'cv',l:'등속팽창'},{k:'fv',l:'자유와류'}].map(m =>
-                  <button key={m.k} onClick={() => setScrollType(m.k)} className="px-2 py-0.5 rounded"
-                    style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize: 7,
+                  <button key={m.k} onClick={() => setScrollType(m.k)} className="px-3 py-1.5 rounded"
+                    style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:11,
                       background: scrollType===m.k ? C.card : "transparent",
                       color: scrollType===m.k ? "#d4a44a" : C.dim,
                       border: `1px solid ${scrollType===m.k ? "#d4a44a" : C.border}` }}>{m.l}</button>)}
               </div>
               <div className="flex gap-1 ml-auto">
                 {[{k:'rect',l:'사각'},{k:'circular',l:'원형'}].map(m =>
-                  <button key={m.k} onClick={() => setScrollCross(m.k)} className="px-2 py-0.5 rounded"
-                    style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize: 7,
+                  <button key={m.k} onClick={() => setScrollCross(m.k)} className="px-3 py-1.5 rounded"
+                    style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:11,
                       background: scrollCross===m.k ? C.card : "transparent",
                       color: scrollCross===m.k ? "#d4a44a" : C.dim,
                       border: `1px solid ${scrollCross===m.k ? "#d4a44a" : C.border}` }}>{m.l}</button>)}
@@ -2674,34 +2674,34 @@ export default function ImpellerViewer() {
             {/* Expansion rate mode */}
             <div className="mt-1 p-1 rounded" style={{ background: C.bg }}>
               <div className="flex items-center gap-2 mb-1">
-                <span style={{ color: "#d4a44a", fontFamily: "'Noto Sans KR', sans-serif", fontSize: 7 }}>팽창률</span>
+                <span style={{ color: "#d4a44a", fontFamily: "'Noto Sans KR', sans-serif", fontSize:11 }}>팽창률</span>
                 <div className="flex gap-0.5 ml-auto">
                   {[{k:'uniform',l:'균일'},{k:'variable',l:'가변'}].map(m =>
-                    <button key={m.k} onClick={() => setScrollExpMode(m.k)} className="px-1.5 py-0.5 rounded"
-                      style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:6,
+                    <button key={m.k} onClick={() => setScrollExpMode(m.k)} className="px-3 py-1.5 rounded"
+                      style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:11,
                         background:scrollExpMode===m.k?C.card:"transparent", color:scrollExpMode===m.k?"#d4a44a":C.dim,
                         border:`1px solid ${scrollExpMode===m.k?"#d4a44a":C.border}` }}>{m.l}</button>)}
                 </div>
               </div>
               {scrollExpMode==='uniform' && <S label="k" value={scrollExpRate} min={0.02} max={0.3} step={0.01} onChange={setScrollExpRate} unit="" color="#d4a44a" />}
               {scrollExpMode==='variable' && <>
-                <div style={{ color:C.dim, fontFamily: "'Noto Sans KR', sans-serif", fontSize:7, marginBottom:2 }}>각도별 팽창률 제어점 (spline 보간)</div>
-                {scrollExpPts.map((pt, i) => <div key={i} className="flex items-center gap-1 mb-0.5" style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:8 }}>
+                <div style={{ color:C.dim, fontFamily: "'Noto Sans KR', sans-serif", fontSize:11, marginBottom:2 }}>각도별 팽창률 제어점 (spline 보간)</div>
+                {scrollExpPts.map((pt, i) => <div key={i} className="flex items-center gap-1 mb-0.5" style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:12 }}>
                   <span style={{ color:C.dim, width:12 }}>{i+1}</span>
                   <input type="number" value={pt.a} onChange={e => { const nxt=[...scrollExpPts]; nxt[i]={...nxt[i],a:+e.target.value}; setScrollExpPts(nxt); }}
-                    className="w-12 px-0.5 rounded text-right" style={{ background:C.card,color:C.text,fontSize:8,border:`1px solid ${C.border}`,fontFamily: "'Noto Sans KR', sans-serif" }} />
-                  <span style={{color:C.dim,fontSize:6}}>°</span>
+                    className="w-12 px-0.5 rounded text-right" style={{ background:C.card,color:C.text,fontSize:12,border:`1px solid ${C.border}`,fontFamily: "'Noto Sans KR', sans-serif" }} />
+                  <span style={{color:C.dim,fontSize:11}}>°</span>
                   <input type="number" value={pt.k} step={0.01} onChange={e => { const nxt=[...scrollExpPts]; nxt[i]={...nxt[i],k:+e.target.value}; setScrollExpPts(nxt); }}
-                    className="w-12 px-0.5 rounded text-right" style={{ background:C.card,color:C.amber,fontSize:8,border:`1px solid ${C.border}33`,fontFamily: "'Noto Sans KR', sans-serif" }} />
-                  <span style={{color:C.dim,fontSize:6}}>k</span>
+                    className="w-12 px-0.5 rounded text-right" style={{ background:C.card,color:C.amber,fontSize:12,border:`1px solid ${C.border}33`,fontFamily: "'Noto Sans KR', sans-serif" }} />
+                  <span style={{color:C.dim,fontSize:11}}>k</span>
                   {scrollExpPts.length > 2 && <button onClick={() => { const nxt=[...scrollExpPts]; nxt.splice(i,1); setScrollExpPts(nxt); }}
-                    style={{color:C.red,fontSize:8,fontFamily: "'Noto Sans KR', sans-serif"}}>✕</button>}
+                    style={{color:C.red,fontSize:12,fontFamily: "'Noto Sans KR', sans-serif"}}>✕</button>}
                 </div>)}
                 <button onClick={() => {
                   const last = scrollExpPts[scrollExpPts.length-1];
                   setScrollExpPts([...scrollExpPts, {a: Math.min(720, last.a + 90), k: last.k}]);
                 }} className="mt-1 px-2 py-0.5 rounded w-full"
-                  style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:7,color:"#d4a44a",background:C.card,border:`1px solid #d4a44a44`}}>+ 제어점 추가</button>
+                  style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:11,color:"#d4a44a",background:C.card,border:`1px solid #d4a44a44`}}>+ 제어점 추가</button>
                 {/* Mini preview of k(θ) */}
                 {(() => {
                   const W=160,H=50,pad={l:20,r:4,t:4,b:12};
@@ -2729,17 +2729,17 @@ export default function ImpellerViewer() {
             </div>
             {/* Tongue */}
             <div className="mt-1 pt-1" style={{ borderTop: `1px solid ${C.border}33` }}>
-              <div style={{ color: C.red, fontFamily: "'Noto Sans KR', sans-serif", fontSize: 8, marginBottom: 2 }}>TONGUE</div>
+              <div style={{ color: C.red, fontFamily: "'Noto Sans KR', sans-serif", fontSize:12, marginBottom: 2 }}>TONGUE</div>
               <div className="grid grid-cols-3 gap-x-2">
                 <S label="Gap" value={cutoffGap} min={2} max={30} step={0.5} onChange={setCutoffGap} unit="mm" color={C.red} />
                 <S label="θ_cut" value={cutoffAngle} min={0} max={360} step={1} onChange={setCutoffAngle} unit="°" color={C.red} />
                 <S label="R" value={Rtongue} min={1} max={20} step={0.5} onChange={setRtongue} unit="mm" color={C.red} />
               </div>
-              <div style={{ color: C.dim, fontFamily: "'Noto Sans KR', sans-serif", fontSize: 7, marginTop: 2 }}>θ_cut: 0°=→ 90°=↑ 180°=← 270°=↓</div>
-              <div style={{ color: "#d4a44a", fontFamily: "'Noto Sans KR', sans-serif", fontSize: 8, marginTop: 4, marginBottom: 1 }}>출구 방향 (절대축)</div>
+              <div style={{ color: C.dim, fontFamily: "'Noto Sans KR', sans-serif", fontSize:11, marginTop: 2 }}>θ_cut: 0°=→ 90°=↑ 180°=← 270°=↓</div>
+              <div style={{ color: "#d4a44a", fontFamily: "'Noto Sans KR', sans-serif", fontSize:12, marginTop: 4, marginBottom: 1 }}>출구 방향 (절대축)</div>
               <S label="θ_exit" value={exitAngle} min={0} max={360} step={1} onChange={setExitAngle} unit="°" color="#d4a44a" />
-              <div style={{ color: C.dim, fontFamily: "'Noto Sans KR', sans-serif", fontSize: 7 }}>θ_exit: 출구 덕트 방향. α_out, Diff α는 이 축 기준</div>
-              <div style={{ color: C.dim, fontFamily: "'Noto Sans KR', sans-serif", fontSize: 7, marginTop: 2, marginBottom: 1 }}>외면 (θ_exit 기준 상대각)</div>
+              <div style={{ color: C.dim, fontFamily: "'Noto Sans KR', sans-serif", fontSize:11 }}>θ_exit: 출구 덕트 방향. α_out, Diff α는 이 축 기준</div>
+              <div style={{ color: C.dim, fontFamily: "'Noto Sans KR', sans-serif", fontSize:11, marginTop: 2, marginBottom: 1 }}>외면 (θ_exit 기준 상대각)</div>
               <div className="grid grid-cols-2 gap-x-2">
                 <S label="L_out" value={tongueOutLen} min={0} max={200} step={1} onChange={setTongueOutLen} unit="mm" color={C.red} />
                 <S label="α_out" value={tongueOutAngle} min={-90} max={90} step={0.5} onChange={setTongueOutAngle} unit="°" color={C.red} />
@@ -2748,11 +2748,11 @@ export default function ImpellerViewer() {
             {/* Diffuser */}
             <div className="mt-1 pt-1" style={{ borderTop: `1px solid ${C.border}33` }}>
               <div className="flex items-center gap-2 mb-1">
-                <span style={{ color: "#d4a44a", fontFamily: "'Noto Sans KR', sans-serif", fontSize: 8 }}>DIFFUSER</span>
+                <span style={{ color: "#d4a44a", fontFamily: "'Noto Sans KR', sans-serif", fontSize:12 }}>DIFFUSER</span>
                 <div className="flex gap-0.5 ml-auto">
                   {[{k:'single',l:'단일'},{k:'stepped',l:'단계'},{k:'round',l:'Round'}].map(m =>
-                    <button key={m.k} onClick={() => setDiffType(m.k)} className="px-1.5 py-0.5 rounded"
-                      style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:6,
+                    <button key={m.k} onClick={() => setDiffType(m.k)} className="px-3 py-1.5 rounded"
+                      style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:11,
                         background:diffType===m.k?C.card:"transparent", color:diffType===m.k?"#d4a44a":C.dim,
                         border:`1px solid ${diffType===m.k?"#d4a44a":C.border}` }}>{m.l}</button>)}
                 </div>
@@ -2761,12 +2761,12 @@ export default function ImpellerViewer() {
                 <S label="Angle" value={diffAngle} min={-90} max={90} step={0.5} onChange={setDiffAngle} unit="°" color="#d4a44a" />
                 <S label="Length" value={diffLength} min={0} max={300} step={1} onChange={setDiffLength} unit="mm" color="#d4a44a" />
               </div>
-              <label className="flex items-center gap-1 mt-1" style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:8, color:C.dim }}>
+              <label className="flex items-center gap-1 mt-1" style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:12, color:C.dim }}>
                 <input type="checkbox" checked={diffInnerWall} onChange={e => setDiffInnerWall(e.target.checked)} />
                 <span style={{ color: diffInnerWall ? "#d4a44a" : C.dim }}>내벽 {diffInnerWall ? "있음" : "없음 (개방)"}</span>
               </label>
             </div>
-            <div style={{ color: C.dim, fontFamily: "'Noto Sans KR', sans-serif", fontSize: 7, marginTop: 2 }}>
+            <div style={{ color: C.dim, fontFamily: "'Noto Sans KR', sans-serif", fontSize:11, marginTop: 2 }}>
               {scrollType==='cv'?'아르키메데스':'로그나선'} | {scrollCross==='rect'?'사각':'원형'} | θ_cut={cutoffAngle}° → θ_end={scrollEndAngle}° (Wrap {wrapAngle}°) |
               Tongue δ={cutoffGap} R={Rtongue} 외면 L={tongueOutLen} α={tongueOutAngle}° |
               Diff {diffType} {diffAngle}° L={diffLength}mm {diffInnerWall?'':'(내벽 개방)'}
@@ -2776,12 +2776,12 @@ export default function ImpellerViewer() {
           {/* CASING */}
           <div className="mt-2 pt-2" style={{ borderTop: `1px solid ${C.border}` }}>
             <div className="flex items-center gap-2 mb-1">
-              <label className="flex items-center gap-1" style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:9, color:"#4488aa" }}>
+              <label className="flex items-center gap-1" style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:12, color:"#4488aa" }}>
                 <input type="checkbox" checked={showCasing} onChange={e=>setShowCasing(e.target.checked)} />
                 CASING
               </label>
-              {showCasing && <button onClick={autoFitScroll} className="px-2 py-0.5 rounded ml-auto"
-                style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:7, background:C.card, color:C.green,
+              {showCasing && <button onClick={autoFitScroll} className="px-3 py-1.5 rounded ml-auto"
+                style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:11, background:C.card, color:C.green,
                   border:`1px solid ${C.green}66` }}>🔧 Auto-Fit Scroll</button>}
             </div>
             {showCasing && <>
@@ -2790,12 +2790,12 @@ export default function ImpellerViewer() {
                 <S label="H" value={casingH} min={100} max={500} step={5} onChange={setCasingH} unit="mm" color="#4488aa" />
                 <S label="D" value={casingD} min={30} max={200} step={1} onChange={setCasingD} unit="mm" color="#4488aa" />
               </div>
-              <div style={{ color: C.dim, fontFamily: "'Noto Sans KR', sans-serif", fontSize: 8, marginTop: 2, marginBottom: 1 }}>임펠러 중심 오프셋</div>
+              <div style={{ color: C.dim, fontFamily: "'Noto Sans KR', sans-serif", fontSize:12, marginTop: 2, marginBottom: 1 }}>임펠러 중심 오프셋</div>
               <div className="grid grid-cols-2 gap-x-2">
                 <S label="X" value={casingCX} min={-100} max={100} step={1} onChange={setCasingCX} unit="mm" color="#4488aa" />
                 <S label="Y" value={casingCY} min={-100} max={100} step={1} onChange={setCasingCY} unit="mm" color="#4488aa" />
               </div>
-              <div style={{ color: C.dim, fontFamily: "'Noto Sans KR', sans-serif", fontSize: 7, marginTop: 2 }}>
+              <div style={{ color: C.dim, fontFamily: "'Noto Sans KR', sans-serif", fontSize:11, marginTop: 2 }}>
                 케이싱 {casingW}×{casingH}×{casingD}mm | 중심 오프셋 ({casingCX},{casingCY})mm
                 {' | '}Auto-Fit: 케이싱 내부에 맞게 Wrap/디퓨저 자동 조정
               </div>
@@ -2805,8 +2805,8 @@ export default function ImpellerViewer() {
           <div className="mt-2 pt-2 grid grid-cols-5 gap-1" style={{ borderTop: `1px solid ${C.border}` }}>
             {[{l:"D₁/D₂",v:ratios.D1D2,ok:D1/D2>=0.65&&D1/D2<=0.8},{l:"Deye/D₁",v:ratios.DeyeD1,ok:Deye<=D1},{l:"Du/D₂",v:ratios.DuD2,ok:Du>=D2},{l:"b₂/D₂",v:ratios.b2D2,ok:b2/D2>=0.2&&b2/D2<=0.5},{l:"b₁/b₂",v:ratios.b1b2,ok:b1>=b2}].map(m=>
               <div key={m.l} className="text-center py-1 rounded" style={{background:C.bg}}>
-                <div style={{color:C.dim,fontFamily: "'Noto Sans KR', sans-serif",fontSize:7}}>{m.l}</div>
-                <div className="font-bold" style={{color:m.ok?C.green:C.hub,fontFamily: "'Noto Sans KR', sans-serif",fontSize:11}}>{m.v}</div>
+                <div style={{color:C.dim,fontFamily: "'Noto Sans KR', sans-serif",fontSize:11}}>{m.l}</div>
+                <div className="font-bold" style={{color:m.ok?C.green:C.hub,fontFamily: "'Noto Sans KR', sans-serif",fontSize:13}}>{m.v}</div>
               </div>)}
           </div>
 
@@ -2822,12 +2822,12 @@ export default function ImpellerViewer() {
               { l:"f_n", v:baseStruc.f_n.toFixed(0), u:"Hz", c:baseStruc.res_ok?C.cyan:C.red },
               { l:"BPF", v:baseAero.BPF.toFixed(0), u:"Hz", c:C.purple },
             ].map(m => <div key={m.l} className="text-center py-1 rounded" style={{background:C.bg}}>
-              <div style={{color:C.dim,fontFamily: "'Noto Sans KR', sans-serif",fontSize:6}}>{m.l}</div>
-              <div className="font-bold" style={{color:m.c,fontFamily: "'Noto Sans KR', sans-serif",fontSize:10}}>{m.v}<span style={{fontSize:6,color:C.dim}}>{m.u}</span></div>
+              <div style={{color:C.dim,fontFamily: "'Noto Sans KR', sans-serif",fontSize:11}}>{m.l}</div>
+              <div className="font-bold" style={{color:m.c,fontFamily: "'Noto Sans KR', sans-serif",fontSize:13}}>{m.v}<span style={{fontSize:11,color:C.dim}}>{m.u}</span></div>
             </div>)}
           </div>
 
-          <div className="mt-1 p-1 rounded" style={{ background: C.bg, fontFamily: "'Noto Sans KR', sans-serif", fontSize: 7, color: C.muted }}>
+          <div className="mt-1 p-1 rounded" style={{ background: C.bg, fontFamily: "'Noto Sans KR', sans-serif", fontSize:11, color: C.muted }}>
             {mat.name} | σ_c={baseStruc.sigma_c.toFixed(1)}+σ_b={baseStruc.sigma_b.toFixed(1)}={baseStruc.sigma_total.toFixed(1)}MPa |
             f_n/BPF={(baseAero.BPF>0?(baseStruc.f_n/baseAero.BPF).toFixed(2):"—")} {baseStruc.res_ok?"✓":"⚠공진"} |
             질량:{baseStruc.bladeMass.toFixed(1)}g |
@@ -2855,9 +2855,9 @@ export default function ImpellerViewer() {
             flex: 1, textAlign: "center", padding: "8px 6px",
             borderRight: i < arr.length - 1 ? `1px solid ${C.border}` : "none"
           }}>
-            <div style={{ fontSize: 10, color: C.dim, marginBottom: 2 }}>{k.l}</div>
-            <div style={{ fontSize: 15, fontWeight: 500, color: C.text, fontFamily: "'Noto Sans KR', sans-serif" }}>
-              {k.v}{k.u && <span style={{ fontSize: 11, fontWeight: 400, color: C.muted }}> {k.u}</span>}
+            <div style={{ fontSize:13, color: C.dim, marginBottom: 2 }}>{k.l}</div>
+            <div style={{ fontSize:14, fontWeight: 500, color: C.text, fontFamily: "'Noto Sans KR', sans-serif" }}>
+              {k.v}{k.u && <span style={{ fontSize:13, fontWeight: 400, color: C.muted }}> {k.u}</span>}
             </div>
           </div>
         ))}
@@ -2865,7 +2865,7 @@ export default function ImpellerViewer() {
 
       {/* Status bar */}
       <div style={{
-        fontSize: 11, color: C.dim, padding: "5px 20px",
+        fontSize:13, color: C.dim, padding: "5px 20px",
         borderTop: `1px solid ${C.border}`, background: C.card,
         display: "flex", gap: 16, flexShrink: 0
       }}>
@@ -2877,7 +2877,7 @@ export default function ImpellerViewer() {
         <span>{mat.name}</span>
       </div>
 
-      <div className="text-center pb-3 pt-2" style={{color:C.border,fontFamily: "'Noto Sans KR', sans-serif",fontSize:9}}>Fan · HPWD Integration v5.1</div>
+      <div className="text-center pb-3 pt-2" style={{color:C.border,fontFamily: "'Noto Sans KR', sans-serif",fontSize:12}}>Fan · HPWD Integration v5.1</div>
     </div>
   );
 }
