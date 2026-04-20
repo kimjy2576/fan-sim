@@ -539,7 +539,7 @@ function FrontView({ Deye, D1, D2, Du, bladePts, Z, bladeType, bendPos, showScro
   const rBend = D1/2 + bendPos * (D2/2 - D1/2);
   const tongueTheta = cutoffAngle * Math.PI / 180;
   const rTongue = D2/2 + cutoffGap + Rtongue; // tip center = r₂ + δ + R
-  return <svg width={w} height={h} style={{ display: "block", margin: "0 auto" }}>
+  return <svg width="100%" height="100%" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="xMidYMid meet" style={{ display: "block", margin: "0 auto", maxHeight:'100%' }}>
     <text x={w/2} y={16} fill={C.dim} fontSize={9} fontFamily="'Noto Sans KR', sans-serif" textAnchor="middle">정면도 (Front — Eye 방향에서 본 모습)</text>
     {/* Casing box */}
     {showCasing && <rect x={w/2 - casingW/2*sc} y={h/2+10 - casingH/2*sc} width={casingW*sc} height={casingH*sc}
@@ -734,7 +734,7 @@ function SectionView({ Deye, D1, D2, Du, b1, b2, eyeRise, showScroll, scrollGapF
   const eyeH = eyeRise * bSc * 0.5; // eye rise in SVG units
   // Eye curve control point offset
   const eyeCurveR = eyeRise * 0.8 * sc; // radial spread of curve
-  return <svg width={w} height={h} style={{ display: "block", margin: "0 auto" }}>
+  return <svg width="100%" height="100%" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="xMidYMid meet" style={{ display: "block", margin: "0 auto", maxHeight:'100%' }}>
     <text x={w/2} y={14} fill={C.dim} fontSize={9} fontFamily="'Noto Sans KR', sans-serif" textAnchor="middle">단면도 (Section View)</text>
     <line x1={cx} y1={22} x2={cx} y2={h-8} stroke={C.dim} strokeWidth={0.5} strokeDasharray="4,3" opacity={0.3} />
     <text x={cx+3} y={26} fill={C.dim} fontSize={7} fontFamily="'Noto Sans KR', sans-serif">CL</text>
@@ -800,7 +800,7 @@ function BottomView({ D2, Du, Deye }) {
   const w = 340, h = 240, cx = w/2, cy = h/2+5;
   const maxR = Math.max(D2, Du)/2; const sc = (Math.min(w, h)/2 - 25) / maxR;
   const hubR = Deye * 0.2;
-  return <svg width={w} height={h} style={{ display: "block", margin: "0 auto" }}>
+  return <svg width="100%" height="100%" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="xMidYMid meet" style={{ display: "block", margin: "0 auto", maxHeight:'100%' }}>
     <text x={w/2} y={14} fill={C.dim} fontSize={9} fontFamily="'Noto Sans KR', sans-serif" textAnchor="middle">저면도 (Bottom — 주판 방향에서 본 모습)</text>
     <circle cx={cx} cy={cy} r={Du/2*sc} fill={C.backplate} fillOpacity={0.06} stroke={C.backplate} strokeWidth={1.5} />
     <circle cx={cx} cy={cy} r={D2/2*sc} fill="none" stroke={C.blade} strokeWidth={0.8} strokeDasharray="3,3" opacity={0.4} />
@@ -1366,7 +1366,7 @@ export default function ImpellerViewer() {
   useEffect(() => {
     if (activeTab !== 0) return;
     const mount = mountRef.current; if (!mount) return;
-    const w = mount.clientWidth || 340, h = 360;
+    const w = mount.clientWidth || 340, h = mount.clientHeight || 500;
     const scene = new THREE.Scene(); scene.background = new THREE.Color(C.bg);
     const cam = new THREE.PerspectiveCamera(45, w / h, 1, 2000);
     const rend = new THREE.WebGLRenderer({ antialias: true }); rend.setSize(w, h); rend.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -1386,7 +1386,17 @@ export default function ImpellerViewer() {
     const anim = () => { frameRef.current = requestAnimationFrame(anim); const m = mouseRef.current; if(autoRef.current&&!m.isDown) m.rotY+=0.005;
       cam.position.set(m.dist*Math.sin(m.rotY)*Math.cos(m.rotX), m.dist*Math.sin(m.rotX)+30, m.dist*Math.cos(m.rotY)*Math.cos(m.rotX)); cam.lookAt(0,25,0); rend.render(scene,cam); };
     anim();
-    return () => { cancelAnimationFrame(frameRef.current); rend.dispose(); };
+    // ResizeObserver: auto-fit to container size
+    const resizeObs = new ResizeObserver(() => {
+      const nw = mount.clientWidth, nh = mount.clientHeight;
+      if (nw > 0 && nh > 0) {
+        rend.setSize(nw, nh);
+        cam.aspect = nw / nh;
+        cam.updateProjectionMatrix();
+      }
+    });
+    resizeObs.observe(mount);
+    return () => { cancelAnimationFrame(frameRef.current); resizeObs.disconnect(); rend.dispose(); };
   }, [activeTab]);
 
   useEffect(() => {
@@ -1778,9 +1788,9 @@ export default function ImpellerViewer() {
       </div>}
 
       {/* ═══ TAB 0: VISUALIZATION with sub-tabs (one view at a time, large) ═══ */}
-      {activeTab === 0 && <div className="vp">
+      {activeTab === 0 && <div className="vp" style={{display:'flex', flexDirection:'column'}}>
         {/* Sub-tab selector */}
-        <div style={{display:'flex',gap:6,marginBottom:16,flexWrap:'wrap'}}>
+        <div style={{display:'flex',gap:6,marginBottom:16,flexWrap:'wrap',flexShrink:0}}>
           {[{i:0,l:'3D Model'},{i:1,l:'Top view'},{i:2,l:'Front view'},{i:3,l:'Bottom view'}].map(t =>
             <button key={t.i} onClick={()=>setVizSub(t.i)}
               style={{padding:'8px 18px',fontSize:13,
@@ -1792,11 +1802,11 @@ export default function ImpellerViewer() {
                 transition:'all .15s'}}>{t.l}</button>)}
         </div>
 
-        {/* Sub-tab 0: 3D Model (full size) */}
-        {vizSub === 0 && <div className="vc">
-          <div className="vt">3D Model <span className="sub">— drag to rotate, scroll to zoom</span></div>
-          <div ref={mountRef} style={{ width:"100%", height:500, borderRadius:8, background:'var(--bg3)' }} />
-          <div style={{padding:'10px 0 0',display:'flex',gap:12,flexWrap:'wrap',fontSize:13,color:'var(--tx2)',borderTop:'1px solid var(--bd)',marginTop:10}}>
+        {/* Sub-tab 0: 3D Model (fills available space) */}
+        {vizSub === 0 && <div className="vc" style={{flex:1, display:'flex', flexDirection:'column', minHeight:0}}>
+          <div className="vt" style={{flexShrink:0}}>3D Model <span className="sub">— drag to rotate, scroll to zoom</span></div>
+          <div ref={mountRef} style={{ width:"100%", flex:1, minHeight:400, borderRadius:8, background:'var(--bg3)' }} />
+          <div style={{padding:'10px 0 0',display:'flex',gap:12,flexWrap:'wrap',fontSize:13,color:'var(--tx2)',borderTop:'1px solid var(--bd)',marginTop:10,flexShrink:0}}>
             <label style={{display:'flex',alignItems:'center',gap:4,cursor:'pointer'}}><input type="checkbox" checked={showShroud} onChange={e=>setShowShroud(e.target.checked)} />측판</label>
             <label style={{display:'flex',alignItems:'center',gap:4,cursor:'pointer'}}><input type="checkbox" checked={showBackplate} onChange={e=>setShowBackplate(e.target.checked)} />주판</label>
             <label style={{display:'flex',alignItems:'center',gap:4,cursor:'pointer'}}><input type="checkbox" checked={showScroll} onChange={e=>setShowScroll(e.target.checked)} />스크롤</label>
@@ -1810,26 +1820,26 @@ export default function ImpellerViewer() {
           </div>
         </div>}
 
-        {/* Sub-tab 1: Top view (full size) */}
-        {vizSub === 1 && <div className="vc">
-          <div className="vt">Top view <span className="sub">— plan view with scroll housing</span></div>
-          <div style={{minHeight:480,display:'flex',alignItems:'center',justifyContent:'center'}}>
+        {/* Sub-tab 1: Top view (fills available space) */}
+        {vizSub === 1 && <div className="vc" style={{flex:1, display:'flex', flexDirection:'column', minHeight:0}}>
+          <div className="vt" style={{flexShrink:0}}>Top view <span className="sub">— plan view with scroll housing</span></div>
+          <div style={{flex:1, minHeight:400, display:'flex',alignItems:'center',justifyContent:'center',overflow:'auto'}}>
             <FrontView {...{Deye,D1,D2,Du,b1,b2,bladePts,Z,bladeType,bendPos,showScroll,scrollType,wrapAngle,cutoffGap,cutoffAngle,Rtongue,tongueOutLen,tongueOutAngle,diffAngle,diffLength,diffType,diffInnerWall,showCasing,casingW,casingH,casingCX,casingCY,scrollExpRate,exitAngle,scrollExpMode,scrollExpPts}} />
           </div>
         </div>}
 
-        {/* Sub-tab 2: Front view (full size) */}
-        {vizSub === 2 && <div className="vc">
-          <div className="vt">Front view <span className="sub">— axial cross section</span></div>
-          <div style={{minHeight:480,display:'flex',alignItems:'center',justifyContent:'center'}}>
+        {/* Sub-tab 2: Front view (fills available space) */}
+        {vizSub === 2 && <div className="vc" style={{flex:1, display:'flex', flexDirection:'column', minHeight:0}}>
+          <div className="vt" style={{flexShrink:0}}>Front view <span className="sub">— axial cross section</span></div>
+          <div style={{flex:1, minHeight:400, display:'flex',alignItems:'center',justifyContent:'center',overflow:'auto'}}>
             <SectionView {...{Deye,D1,D2,Du,b1,b2,eyeRise,showScroll,scrollGapF,scrollGapB,bScroll,hubDepth,hubFillet}} />
           </div>
         </div>}
 
-        {/* Sub-tab 3: Bottom view (full size) */}
-        {vizSub === 3 && <div className="vc">
-          <div className="vt">Bottom view <span className="sub">— from below (hub side)</span></div>
-          <div style={{minHeight:480,display:'flex',alignItems:'center',justifyContent:'center'}}>
+        {/* Sub-tab 3: Bottom view (fills available space) */}
+        {vizSub === 3 && <div className="vc" style={{flex:1, display:'flex', flexDirection:'column', minHeight:0}}>
+          <div className="vt" style={{flexShrink:0}}>Bottom view <span className="sub">— from below (hub side)</span></div>
+          <div style={{flex:1, minHeight:400, display:'flex',alignItems:'center',justifyContent:'center',overflow:'auto'}}>
             <BottomView {...{D2,Du,Deye}} />
           </div>
         </div>}
