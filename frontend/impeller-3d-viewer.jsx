@@ -840,8 +840,8 @@ export default function ImpellerViewer() {
   const [activeTab, setActiveTab] = useState(0);
   // Resizable sidebar
   const [sidebarWidth, setSidebarWidth] = useState(() => {
-    try { const v = localStorage.getItem('fansim_sidebar_w'); return v ? +v : 290; }
-    catch { return 290; }
+    try { const v = localStorage.getItem('fansim_sidebar_w'); return v ? +v : 320; }
+    catch { return 320; }
   });
   const resizingRef = useRef(false);
   const startResize = (e) => {
@@ -851,7 +851,7 @@ export default function ImpellerViewer() {
       if (!resizingRef.current) return;
       const x = ev.clientX || ev.touches?.[0]?.clientX;
       if (x == null) return;
-      const w = Math.max(200, Math.min(600, x));
+      const w = Math.max(260, Math.min(600, x));
       setSidebarWidth(w);
     };
     const onUp = () => {

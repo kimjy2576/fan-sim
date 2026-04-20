@@ -66,14 +66,15 @@
   .st{font-size:11px;font-weight:600;color:var(--tx2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px}
   .ir{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
   .il{font-size:13px;color:var(--tx2)}
-  .nf{width:96px;text-align:right;font-size:13px;padding:6px 10px;border:1px solid var(--bd);border-radius:6px;background:var(--bg2);color:var(--tx)}
+  .nf{width:96px;max-width:45%;text-align:right;font-size:13px;padding:6px 10px;border:1px solid var(--bd);border-radius:6px;background:var(--bg2);color:var(--tx);min-width:0}
   .dv{height:1px;background:var(--bd);margin:6px 0}
 
   /* Slider row */
   .sr{margin-bottom:10px}
-  .sr-t{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
-  .sr-l{font-size:13px;color:var(--tx2)}
-  .sr-i{width:68px;text-align:right;font-size:12px;padding:4px 8px;border:1px solid var(--bd);border-radius:5px;background:var(--bg2);color:var(--tx)}
+  .sr-t{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;gap:6px;min-width:0}
+  .sr-l{font-size:13px;color:var(--tx2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1}
+  .sr-i{width:68px;max-width:50%;text-align:right;font-size:12px;padding:4px 8px;border:1px solid var(--bd);border-radius:5px;background:var(--bg2);color:var(--tx);min-width:0;flex-shrink:0}
+  .sr input[type=range]{width:100%;cursor:pointer;min-width:0}
 
   /* Sidebar bottom */
   .sb{padding:14px 18px;border-top:1px solid var(--bd);margin-top:auto}
@@ -108,9 +109,20 @@
   /* Legacy hpwd-* classes mapped to compressor-sim standard */
   .hpwd-body{display:flex;flex:1;min-height:0}
   .hpwd-main{order:3;flex:1;min-width:0;display:flex;flex-direction:column}
-  .hpwd-side{order:1;width:290px;min-width:200px;max-width:600px;border-right:1px solid var(--bd);background:var(--bg);overflow-y:auto;flex-shrink:0}
+  .hpwd-side{order:1;width:290px;min-width:260px;max-width:600px;border-right:1px solid var(--bd);background:var(--bg);overflow-y:auto;overflow-x:hidden;flex-shrink:0}
   .hpwd-side::-webkit-scrollbar{width:6px}
   .hpwd-side::-webkit-scrollbar-thumb{background:var(--bd2);border-radius:3px}
+  /* Sidebar content containment — all children must not overflow */
+  .hpwd-side *{min-width:0}
+  /* Prevent 2-col grid in sidebar (too narrow) */
+  .hpwd-side .sm\:grid-cols-2{grid-template-columns:1fr !important}
+  /* Sidebar inline button groups (재질, BLADE 등) */
+  .hpwd-side button{flex-shrink:0}
+  /* Compact buttons inside sidebar (override general px-3 py-1.5) */
+  .hpwd-side .px-3{padding-left:8px;padding-right:8px}
+  .hpwd-side .py-1\.5{padding-top:4px;padding-bottom:4px}
+  /* Button groups in sidebar should not overflow */
+  .hpwd-side .flex-wrap{flex-wrap:wrap;gap:3px}
   /* Resizer handle (between sidebar and main) */
   .hpwd-resizer{order:2;width:4px;cursor:col-resize;background:transparent;flex-shrink:0;position:relative;z-index:10;transition:background .15s}
   .hpwd-resizer:hover{background:var(--accent)}
