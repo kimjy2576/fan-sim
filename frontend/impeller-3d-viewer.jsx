@@ -1711,16 +1711,6 @@ export default function ImpellerViewer() {
         })}
       </div>
 
-      {/* Visualization sub-tabs (only inside Tab 0) */}
-      {activeTab === 0 && <div className="px-3 py-2 flex items-center gap-1" style={{borderBottom:`1px solid var(--bd)`,background:'var(--bg2)'}}>
-        <span style={{fontSize:11,color:'var(--tx3)',marginRight:8}}>View:</span>
-        {[{i:0,l:'3D'},{i:1,l:'Top view'},{i:2,l:'Front view'},{i:3,l:'Bottom view'}].map(t =>
-          <button key={t.i} onClick={()=>setViewTab(t.i)}
-            style={{padding:'4px 12px',fontSize:12,border:`1px solid ${viewTab===t.i?'var(--accent)':'var(--bd)'}`,
-              borderRadius:6,background:viewTab===t.i?'var(--accent)':'transparent',
-              color:viewTab===t.i?'#fff':'var(--tx2)',cursor:'pointer'}}>{t.l}</button>)}
-      </div>}
-
       {/* Analysis sub-tabs (only inside Tab 3) */}
       {activeTab === 3 && <div className="px-3 py-2 flex items-center gap-1" style={{borderBottom:`1px solid var(--bd)`,background:'var(--bg2)'}}>
         <span style={{fontSize:11,color:'var(--tx3)',marginRight:8}}>Tool:</span>
@@ -1743,14 +1733,59 @@ export default function ImpellerViewer() {
         </div>
       </div>}
 
-      <div className="px-3 flex items-center gap-0.5" style={{overflowX:"auto",WebkitOverflowScrolling:"touch",display: activeTab === 0 || activeTab === 1 || activeTab === 3 ? 'none' : 'none'}}>
-        {[{l:"3D",c:C.blade},{l:"정면",c:C.eye},{l:"단면",c:C.shroud},{l:"저면",c:C.backplate},{l:"Sweep",c:C.pink},{l:"최적화",c:C.green},{l:"PQ",c:C.cyan}].map((t,i)=>
-          <Tab key={i} active={viewTab===i} onClick={()=>setViewTab(i)} color={t.c}>{t.l}</Tab>)}
-      </div>
-      <div className="px-3 py-1" style={{display: activeTab === 2 ? 'none' : 'block'}}>
+      {/* ═══ TAB 0: VISUALIZATION — 3D + Top + Front + Bottom 모두 한 창 그리드 ═══ */}
+      {activeTab === 0 && <div className="vp">
+        <div className="vg">
+          {/* 3D Model (full width) */}
+          <div className="vc full">
+            <div className="vt">3D Model <span className="sub">— drag to rotate, scroll to zoom</span></div>
+            <div ref={mountRef} style={{ width:"100%", height:320, borderRadius:8, background:'var(--bg3)' }} />
+            <div style={{padding:'10px 0 0',display:'flex',gap:12,flexWrap:'wrap',fontSize:12,color:'var(--tx2)'}}>
+              <label style={{display:'flex',alignItems:'center',gap:4,cursor:'pointer'}}><input type="checkbox" checked={showShroud} onChange={e=>setShowShroud(e.target.checked)} />측판</label>
+              <label style={{display:'flex',alignItems:'center',gap:4,cursor:'pointer'}}><input type="checkbox" checked={showBackplate} onChange={e=>setShowBackplate(e.target.checked)} />주판</label>
+              <label style={{display:'flex',alignItems:'center',gap:4,cursor:'pointer'}}><input type="checkbox" checked={showScroll} onChange={e=>setShowScroll(e.target.checked)} />스크롤</label>
+              <label style={{display:'flex',alignItems:'center',gap:4,cursor:'pointer'}}><input type="checkbox" checked={showCasing} onChange={e=>setShowCasing(e.target.checked)} />케이싱</label>
+              <label style={{display:'flex',alignItems:'center',gap:4,cursor:'pointer'}}><input type="checkbox" checked={autoRotate} onChange={e=>setAutoRotate(e.target.checked)} />자동회전</label>
+              <div style={{marginLeft:'auto',display:'flex',alignItems:'center',gap:6}}>
+                <span style={{fontSize:11,color:'var(--tx3)'}}>분해</span>
+                <input type="range" min={0} max={30} step={1} value={explode} onChange={e=>setExplode(+e.target.value)} style={{width:100}} />
+                <span style={{fontSize:11,fontFamily:'var(--mono)',color:'var(--tx2)',minWidth:24}}>{explode}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Top view */}
+          <div className="vc">
+            <div className="vt">Top view <span className="sub">— plan</span></div>
+            <div style={{minHeight:280,display:'flex',alignItems:'center',justifyContent:'center'}}>
+              <FrontView {...{Deye,D1,D2,Du,b1,b2,bladePts,Z,bladeType,bendPos,showScroll,scrollType,wrapAngle,cutoffGap,cutoffAngle,Rtongue,tongueOutLen,tongueOutAngle,diffAngle,diffLength,diffType,diffInnerWall,showCasing,casingW,casingH,casingCX,casingCY,scrollExpRate,exitAngle,scrollExpMode,scrollExpPts}} />
+            </div>
+          </div>
+
+          {/* Front view */}
+          <div className="vc">
+            <div className="vt">Front view <span className="sub">— axial section</span></div>
+            <div style={{minHeight:280,display:'flex',alignItems:'center',justifyContent:'center'}}>
+              <SectionView {...{Deye,D1,D2,Du,b1,b2,eyeRise,showScroll,scrollGapF,scrollGapB,bScroll,hubDepth,hubFillet}} />
+            </div>
+          </div>
+
+          {/* Bottom view (full width) */}
+          <div className="vc full">
+            <div className="vt">Bottom view <span className="sub">— from below</span></div>
+            <div style={{minHeight:200,display:'flex',alignItems:'center',justifyContent:'center'}}>
+              <BottomView {...{D2,Du,Deye}} />
+            </div>
+          </div>
+        </div>
+      </div>}
+
+      {/* ═══ Legacy hidden pass-through (renders chosen viewTab content for non-Viz tabs) ═══ */}
+      <div style={{display: activeTab === 2 || activeTab === 0 ? 'none' : 'block'}}>
+        <div className="px-3 py-1">
         <div className="rounded-lg overflow-hidden" style={{ background: C.bg, border: `1px solid ${C.border}` }}>
           {viewTab===0 && <>
-            <div ref={mountRef} style={{ width:"100%", height:360 }} />
+            <div style={{display:'none'}} />
             <div className="px-2 py-1 flex gap-2 flex-wrap" style={{ borderTop:`1px solid ${C.border}` }}>
               <label className="flex items-center gap-1 text-xs" style={{ fontFamily: "'Noto Sans KR', sans-serif",color:C.dim }}><input type="checkbox" checked={showShroud} onChange={e=>setShowShroud(e.target.checked)} /><span style={{color:C.shroud}}>측판</span></label>
               <label className="flex items-center gap-1 text-xs" style={{ fontFamily: "'Noto Sans KR', sans-serif",color:C.dim }}><input type="checkbox" checked={showBackplate} onChange={e=>setShowBackplate(e.target.checked)} /><span style={{color:C.backplate}}>주판</span></label>
@@ -2525,6 +2560,7 @@ export default function ImpellerViewer() {
           </div></div>
         </div>
       </div>
+      </div>{/* /legacy pass-through wrapper */}
       </div>{/* /hpwd-main */}
       <aside className="hpwd-side">
       <div className="px-3 pb-2">
