@@ -838,6 +838,38 @@ export default function ImpellerViewer() {
   const [viewTab, setViewTab] = useState(0);
   // compressor-sim style 4-tab: 0=Visualization, 1=Results, 2=Fitting, 3=Analysis
   const [activeTab, setActiveTab] = useState(0);
+  // Resizable sidebar
+  const [sidebarWidth, setSidebarWidth] = useState(() => {
+    try { const v = localStorage.getItem('fansim_sidebar_w'); return v ? +v : 290; }
+    catch { return 290; }
+  });
+  const resizingRef = useRef(false);
+  const startResize = (e) => {
+    resizingRef.current = true;
+    e.currentTarget.classList.add('dragging');
+    const onMove = (ev) => {
+      if (!resizingRef.current) return;
+      const x = ev.clientX || ev.touches?.[0]?.clientX;
+      if (x == null) return;
+      const w = Math.max(200, Math.min(600, x));
+      setSidebarWidth(w);
+    };
+    const onUp = () => {
+      resizingRef.current = false;
+      document.querySelectorAll('.hpwd-resizer.dragging').forEach(el => el.classList.remove('dragging'));
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+      window.removeEventListener('touchmove', onMove);
+      window.removeEventListener('touchend', onUp);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    window.addEventListener('touchmove', onMove);
+    window.addEventListener('touchend', onUp);
+  };
+  useEffect(() => {
+    try { localStorage.setItem('fansim_sidebar_w', String(sidebarWidth)); } catch {}
+  }, [sidebarWidth]);
   const [RPM, setRPM] = useState(1400);
   // Scroll
   const [showScroll, setShowScroll] = useState(true);
@@ -2572,7 +2604,7 @@ export default function ImpellerViewer() {
       </div>
       </div>{/* /legacy pass-through wrapper */}
       </div>{/* /hpwd-main */}
-      <aside className="hpwd-side">
+      <aside className="hpwd-side" style={{width: sidebarWidth + 'px'}}>
       <div className="px-3 pb-2">
         <div className="rounded-lg p-2" style={{ background: C.card, border: `1px solid ${C.border}` }}>
           {/* Material + RPM */}
@@ -2844,6 +2876,7 @@ export default function ImpellerViewer() {
         </div>
       </div>
       </aside>{/* /hpwd-side */}
+      <div className="hpwd-resizer" onMouseDown={startResize} onTouchStart={startResize} title="드래그하여 너비 조절"/>
       </div>{/* /hpwd-body */}
       {/* ═══ HPWD Standard KPI Bar (sticky bottom) ═══ */}
       <div style={{

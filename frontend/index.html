@@ -107,10 +107,15 @@
 
   /* Legacy hpwd-* classes mapped to compressor-sim standard */
   .hpwd-body{display:flex;flex:1;min-height:0}
-  .hpwd-main{order:2;flex:1;min-width:0;display:flex;flex-direction:column}
-  .hpwd-side{order:1;width:290px;min-width:290px;border-right:1px solid var(--bd);background:var(--bg);overflow-y:auto}
+  .hpwd-main{order:3;flex:1;min-width:0;display:flex;flex-direction:column}
+  .hpwd-side{order:1;width:290px;min-width:200px;max-width:600px;border-right:1px solid var(--bd);background:var(--bg);overflow-y:auto;flex-shrink:0}
   .hpwd-side::-webkit-scrollbar{width:6px}
   .hpwd-side::-webkit-scrollbar-thumb{background:var(--bd2);border-radius:3px}
+  /* Resizer handle (between sidebar and main) */
+  .hpwd-resizer{order:2;width:4px;cursor:col-resize;background:transparent;flex-shrink:0;position:relative;z-index:10;transition:background .15s}
+  .hpwd-resizer:hover{background:var(--accent)}
+  .hpwd-resizer.dragging{background:var(--accent)}
+  .hpwd-resizer::before{content:'';position:absolute;inset:0 -3px;cursor:col-resize}
 
   /* Mobile: stack vertically */
   @media (max-width:1023px){
