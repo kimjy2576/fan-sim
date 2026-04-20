@@ -408,9 +408,9 @@ function interpExpRate(dTheta, expPts, wrapRad) {
   return ys[seg] + s * (ys[seg+1] - ys[seg]);
 }
 
-// Interpolate slope m [mm/°] at angle θ from control points [{a:deg, m:mm/deg}]
+// Interpolate slope m [mm/rad] at angle θ from control points [{a:deg, m:mm/rad}]
 function interpMSlope(dTheta, mPts, wrapRad) {
-  if (!mPts || mPts.length < 2) return 0.5;
+  if (!mPts || mPts.length < 2) return 20;
   const sorted = [...mPts].sort((a,b) => a.a - b.a);
   const xs = sorted.map(p => p.a * Math.PI / 180);
   const ys = sorted.map(p => p.m);
@@ -430,7 +430,7 @@ function scrollProfile(r2, wrapDeg, type, bScroll, startDeg = 0, cutoffGap = 8, 
   const pts = [];
 
   if (type === 'linear') {
-    // r = r_3 + m·θ  (m은 사용자 입력 mm/° 기준, 내부에서 mm/rad로 변환)
+    // r = r_3 + m·θ (direct slope input in mm/rad)
     if (expMode === 'variable' && mPts && mPts.length >= 2) {
       // Variable m(θ): integrate m(θ) along θ
       let r = rStart;
@@ -439,21 +439,18 @@ function scrollProfile(r2, wrapDeg, type, bScroll, startDeg = 0, cutoffGap = 8, 
         const theta = startRad + dTheta;
         if (i > 0) {
           const dTh = wrapRad / nSeg;
-          const mLocal_per_deg = interpMSlope(dTheta, mPts, wrapRad);
-          // Convert mm/° → mm/rad: multiply by 180/π
-          const mLocal_per_rad = mLocal_per_deg * 180 / Math.PI;
-          r += mLocal_per_rad * dTh;
+          const mLocal = interpMSlope(dTheta, mPts, wrapRad);
+          r += mLocal * dTh;
         }
         pts.push({ theta, r });
       }
     } else {
-      // Uniform m (user input in mm/°)
-      const m_per_deg = (mDirect != null) ? mDirect : (r2 * expRate * Math.PI / 180); // fallback: legacy expRate conversion
-      const m_per_rad = m_per_deg * 180 / Math.PI;
+      // Uniform m
+      const m = (mDirect != null) ? mDirect : (r2 * expRate);
       for (let i = 0; i <= nSeg; i++) {
         const dTheta = (i / nSeg) * wrapRad;
         const theta = startRad + dTheta;
-        const r = rStart + m_per_rad * dTheta;
+        const r = rStart + m * dTheta;
         pts.push({ theta, r });
       }
     }
@@ -929,8 +926,8 @@ export default function ImpellerViewer() {
   const [scrollCross, setScrollCross] = useState('rect'); // 'rect' or 'circular'
   // Linear mode (r = r_3 + m·θ) parameters
   const [scrollR3, setScrollR3] = useState(0);  // r_3 in mm (0 = auto: r2 + cutoffGap)
-  const [scrollM, setScrollM] = useState(0.5);  // slope m in mm/deg
-  const [scrollMPts, setScrollMPts] = useState([{a:0,m:0.3},{a:180,m:0.5},{a:360,m:0.4}]); // variable m mode [mm/deg]
+  const [scrollM, setScrollM] = useState(20);   // slope m in mm/rad
+  const [scrollMPts, setScrollMPts] = useState([{a:0,m:15},{a:180,m:25},{a:360,m:20}]); // variable m mode [mm/rad]
   // Tongue
   const [cutoffGap, setCutoffGap] = useState(8); // mm, gap between D₂ and tongue tip
   const [cutoffAngle, setCutoffAngle] = useState(0); // degrees, tongue position (absolute: 0=right, 90=up, 180=left, 270=down)
@@ -2798,14 +2795,14 @@ export default function ImpellerViewer() {
               </div>
               {scrollExpMode==='uniform' && scrollType !== 'linear' && <S label="k" value={scrollExpRate} min={0.02} max={0.3} step={0.01} onChange={setScrollExpRate} unit="" color="#d4a44a" />}
               {scrollType === 'linear' && scrollExpMode === 'uniform' && <>
-                <div style={{fontSize:11,color:C.dim,marginBottom:4,fontFamily:"'Noto Sans KR', sans-serif"}}>r = r₃ + m·θ (θ in °)</div>
+                <div style={{fontSize:11,color:C.dim,marginBottom:4,fontFamily:"'Noto Sans KR', sans-serif"}}>r = r₃ + m·θ (θ in rad)</div>
                 <S label="r₃" value={scrollR3} min={0} max={300} step={1} onChange={setScrollR3} unit="mm" color="#d4a44a" />
                 <div style={{fontSize:10,color:C.dim,marginTop:-6,marginBottom:4,fontFamily:"'Noto Sans KR', sans-serif"}}>
                   {scrollR3 > 0 ? `직접 입력: r₃ = ${scrollR3}mm` : `자동: r₃ = r₂+δ = ${(D2/2 + cutoffGap).toFixed(1)}mm`}
                 </div>
-                <S label="m" value={scrollM} min={0.05} max={2} step={0.01} onChange={setScrollM} unit="mm/°" color="#d4a44a" />
+                <S label="m" value={scrollM} min={1} max={80} step={0.5} onChange={setScrollM} unit="mm/rad" color="#d4a44a" />
                 <div style={{fontSize:10,color:C.dim,fontFamily:"'Noto Sans KR', sans-serif"}}>
-                  r_출구 ≈ {((scrollR3 > 0 ? scrollR3 : (D2/2 + cutoffGap)) + scrollM * wrapAngle).toFixed(1)}mm
+                  r_출구 ≈ {((scrollR3 > 0 ? scrollR3 : (D2/2 + cutoffGap)) + scrollM * (wrapAngle * Math.PI / 180)).toFixed(1)}mm
                   ({wrapAngle}° 회전 시)
                 </div>
               </>}
@@ -2829,16 +2826,16 @@ export default function ImpellerViewer() {
                   style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:11,color:"#d4a44a",background:C.card,border:`1px solid #d4a44a44`}}>+ 제어점 추가</button>
               </>}
               {scrollExpMode==='variable' && scrollType === 'linear' && <>
-                <div style={{ color:C.dim, fontFamily: "'Noto Sans KR', sans-serif", fontSize:11, marginBottom:2 }}>각도별 m(θ) 제어점 [mm/°] (spline 보간)</div>
+                <div style={{ color:C.dim, fontFamily: "'Noto Sans KR', sans-serif", fontSize:11, marginBottom:2 }}>각도별 m(θ) 제어점 [mm/rad] (spline 보간)</div>
                 <S label="r₃" value={scrollR3} min={0} max={300} step={1} onChange={setScrollR3} unit="mm" color="#d4a44a" />
                 {scrollMPts.map((pt, i) => <div key={i} className="flex items-center gap-1 mb-0.5" style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:12 }}>
                   <span style={{ color:C.dim, width:12 }}>{i+1}</span>
                   <input type="number" value={pt.a} onChange={e => { const nxt=[...scrollMPts]; nxt[i]={...nxt[i],a:+e.target.value}; setScrollMPts(nxt); }}
                     className="w-12 px-0.5 rounded text-right" style={{ background:C.card,color:C.text,fontSize:12,border:`1px solid ${C.border}`,fontFamily: "'Noto Sans KR', sans-serif" }} />
                   <span style={{color:C.dim,fontSize:11}}>°</span>
-                  <input type="number" value={pt.m} step={0.05} onChange={e => { const nxt=[...scrollMPts]; nxt[i]={...nxt[i],m:+e.target.value}; setScrollMPts(nxt); }}
+                  <input type="number" value={pt.m} step={1} onChange={e => { const nxt=[...scrollMPts]; nxt[i]={...nxt[i],m:+e.target.value}; setScrollMPts(nxt); }}
                     className="w-14 px-0.5 rounded text-right" style={{ background:C.card,color:C.amber,fontSize:12,border:`1px solid ${C.border}33`,fontFamily: "'Noto Sans KR', sans-serif" }} />
-                  <span style={{color:C.dim,fontSize:10}}>mm/°</span>
+                  <span style={{color:C.dim,fontSize:10}}>mm/rad</span>
                   {scrollMPts.length > 2 && <button onClick={() => { const nxt=[...scrollMPts]; nxt.splice(i,1); setScrollMPts(nxt); }}
                     style={{color:C.red,fontSize:12,fontFamily: "'Noto Sans KR', sans-serif"}}>✕</button>}
                 </div>)}
