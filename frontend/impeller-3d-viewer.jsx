@@ -836,6 +836,8 @@ export default function ImpellerViewer() {
   const [autoRotate, setAutoRotate] = useState(true);
   const [explode, setExplode] = useState(0);
   const [viewTab, setViewTab] = useState(0);
+  // compressor-sim style 4-tab: 0=Visualization, 1=Results, 2=Fitting, 3=Analysis
+  const [activeTab, setActiveTab] = useState(0);
   const [RPM, setRPM] = useState(1400);
   // Scroll
   const [showScroll, setShowScroll] = useState(true);
@@ -1328,7 +1330,7 @@ export default function ImpellerViewer() {
   const bladePts = useMemo(() => bladeShape(D1, D2, beta1, beta2, bladeType, Rfillet, bendPos), [D1, D2, beta1, beta2, bladeType, Rfillet, bendPos]);
 
   useEffect(() => {
-    if (viewTab !== 0) return;
+    if (activeTab !== 0) return;
     const mount = mountRef.current; if (!mount) return;
     const w = mount.clientWidth || 340, h = 360;
     const scene = new THREE.Scene(); scene.background = new THREE.Color(C.bg);
@@ -1351,10 +1353,10 @@ export default function ImpellerViewer() {
       cam.position.set(m.dist*Math.sin(m.rotY)*Math.cos(m.rotX), m.dist*Math.sin(m.rotX)+30, m.dist*Math.cos(m.rotY)*Math.cos(m.rotX)); cam.lookAt(0,25,0); rend.render(scene,cam); };
     anim();
     return () => { cancelAnimationFrame(frameRef.current); rend.dispose(); };
-  }, [viewTab]);
+  }, [activeTab]);
 
   useEffect(() => {
-    if (viewTab !== 0) return;
+    if (activeTab !== 0) return;
     const grp = grpRef.current; if (!grp) return;
     while(grp.children.length>0){const c=grp.children[0];if(c.geometry)c.geometry.dispose();if(c.material)c.material.dispose();grp.remove(c);}
     const hubR=Deye*0.2, sT=2, bpT=2, ex=explode;
