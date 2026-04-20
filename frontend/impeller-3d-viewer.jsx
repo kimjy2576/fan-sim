@@ -408,13 +408,53 @@ function interpExpRate(dTheta, expPts, wrapRad) {
   return ys[seg] + s * (ys[seg+1] - ys[seg]);
 }
 
-function scrollProfile(r2, wrapDeg, type, bScroll, startDeg = 0, cutoffGap = 8, Rtongue = 5, expRate = 0.12, nSeg = 72, expMode = 'uniform', expPts = null) {
-  const rStart = r2 + cutoffGap;
+// Interpolate slope m [mm/rad] at angle θ from control points [{a:deg, m:mm/rad}]
+function interpMSlope(dTheta, mPts, wrapRad) {
+  if (!mPts || mPts.length < 2) return 20;
+  const sorted = [...mPts].sort((a,b) => a.a - b.a);
+  const xs = sorted.map(p => p.a * Math.PI / 180);
+  const ys = sorted.map(p => p.m);
+  if (dTheta <= xs[0]) return ys[0];
+  if (dTheta >= xs[xs.length-1]) return ys[ys.length-1];
+  let seg = 0;
+  for (let i = 0; i < xs.length - 1; i++) { if (dTheta >= xs[i] && dTheta <= xs[i+1]) { seg = i; break; } }
+  const t = (dTheta - xs[seg]) / (xs[seg+1] - xs[seg] || 1);
+  const s = t * t * (3 - 2 * t);
+  return ys[seg] + s * (ys[seg+1] - ys[seg]);
+}
+
+function scrollProfile(r2, wrapDeg, type, bScroll, startDeg = 0, cutoffGap = 8, Rtongue = 5, expRate = 0.12, nSeg = 72, expMode = 'uniform', expPts = null, r3Override = 0, mDirect = null, mPts = null) {
+  const rStart = (r3Override > 0) ? r3Override : (r2 + cutoffGap);
   const wrapRad = wrapDeg * Math.PI / 180;
   const startRad = startDeg * Math.PI / 180;
   const pts = [];
 
-  if (type === 'cv') {
+  if (type === 'linear') {
+    // r = r_3 + m·θ (direct slope input in mm/rad)
+    if (expMode === 'variable' && mPts && mPts.length >= 2) {
+      // Variable m(θ): integrate m(θ) along θ
+      let r = rStart;
+      for (let i = 0; i <= nSeg; i++) {
+        const dTheta = (i / nSeg) * wrapRad;
+        const theta = startRad + dTheta;
+        if (i > 0) {
+          const dTh = wrapRad / nSeg;
+          const mLocal = interpMSlope(dTheta, mPts, wrapRad);
+          r += mLocal * dTh;
+        }
+        pts.push({ theta, r });
+      }
+    } else {
+      // Uniform m
+      const m = (mDirect != null) ? mDirect : (r2 * expRate);
+      for (let i = 0; i <= nSeg; i++) {
+        const dTheta = (i / nSeg) * wrapRad;
+        const theta = startRad + dTheta;
+        const r = rStart + m * dTheta;
+        pts.push({ theta, r });
+      }
+    }
+  } else if (type === 'cv') {
     if (expMode === 'variable' && expPts && expPts.length >= 2) {
       // Variable expansion: integrate k(θ) along θ
       let r = rStart;
@@ -527,9 +567,9 @@ function Tab({ active, onClick, children, color }) {
     borderBottom: active ? `2px solid ${color || C.blade}` : "2px solid transparent" }}>{children}</button>;
 }
 
-function FrontView({ Deye, D1, D2, Du, bladePts, Z, bladeType, bendPos, showScroll, scrollType, wrapAngle, cutoffGap, cutoffAngle, Rtongue, tongueOutLen, tongueOutAngle, diffAngle, diffLength, diffType, diffInnerWall, showCasing, casingW, casingH, casingCX, casingCY, scrollExpRate, exitAngle, scrollExpMode, scrollExpPts }) {
+function FrontView({ Deye, D1, D2, Du, bladePts, Z, bladeType, bendPos, showScroll, scrollType, wrapAngle, cutoffGap, cutoffAngle, Rtongue, tongueOutLen, tongueOutAngle, diffAngle, diffLength, diffType, diffInnerWall, showCasing, casingW, casingH, casingCX, casingCY, scrollExpRate, exitAngle, scrollExpMode, scrollExpPts, scrollR3, scrollM, scrollMPts }) {
   const w = 340, h = 280;
-  const sPts = showScroll ? scrollProfile(D2/2, wrapAngle, scrollType, 55, cutoffAngle, cutoffGap, Rtongue, scrollExpRate, 72, scrollExpMode, scrollExpPts) : [];
+  const sPts = showScroll ? scrollProfile(D2/2, wrapAngle, scrollType, 55, cutoffAngle, cutoffGap, Rtongue, scrollExpRate, 72, scrollExpMode, scrollExpPts, scrollR3, scrollM, scrollMPts) : [];
   const scrollMaxR = showScroll && sPts.length > 0 ? Math.max(Du/2, ...sPts.map(p=>p.r)) + 10 : Math.max(D2, Du) / 2;
   const maxR = showCasing ? Math.max(scrollMaxR, casingW/2, casingH/2) : scrollMaxR;
   const sc = (Math.min(w, h) / 2 - 25) / maxR;
@@ -875,7 +915,7 @@ export default function ImpellerViewer() {
   const [RPM, setRPM] = useState(1400);
   // Scroll
   const [showScroll, setShowScroll] = useState(true);
-  const [scrollType, setScrollType] = useState('cv'); // 'cv'=const velocity (Archimedes), 'fv'=free vortex (log spiral)
+  const [scrollType, setScrollType] = useState('cv'); // 'cv'=const velocity (Archimedes), 'fv'=free vortex (log spiral), 'linear'=r=r3+m*θ direct
   const [scrollEndAngle, setScrollEndAngle] = useState(360); // absolute angle where scroll ends
   const [scrollGapF, setScrollGapF] = useState(3); // front (shroud side) gap mm
   const [scrollGapB, setScrollGapB] = useState(3); // back (backplate side) gap mm
@@ -884,6 +924,10 @@ export default function ImpellerViewer() {
   const [scrollExpMode, setScrollExpMode] = useState('uniform'); // 'uniform' or 'variable'
   const [scrollExpPts, setScrollExpPts] = useState([{a:0,k:0.08},{a:180,k:0.15},{a:360,k:0.12}]); // variable mode: [{a:angle°, k:rate}]
   const [scrollCross, setScrollCross] = useState('rect'); // 'rect' or 'circular'
+  // Linear mode (r = r_3 + m·θ) parameters
+  const [scrollR3, setScrollR3] = useState(0);  // r_3 in mm (0 = auto: r2 + cutoffGap)
+  const [scrollM, setScrollM] = useState(20);   // slope m in mm/rad
+  const [scrollMPts, setScrollMPts] = useState([{a:0,m:15},{a:180,m:25},{a:360,m:20}]); // variable m mode
   // Tongue
   const [cutoffGap, setCutoffGap] = useState(8); // mm, gap between D₂ and tongue tip
   const [cutoffAngle, setCutoffAngle] = useState(0); // degrees, tongue position (absolute: 0=right, 90=up, 180=left, 270=down)
@@ -1824,7 +1868,7 @@ export default function ImpellerViewer() {
         {vizSub === 1 && <div className="vc" style={{flex:1, display:'flex', flexDirection:'column', minHeight:0}}>
           <div className="vt" style={{flexShrink:0}}>Top view <span className="sub">— plan view with scroll housing</span></div>
           <div style={{flex:1, minHeight:400, display:'flex',alignItems:'center',justifyContent:'center',overflow:'auto'}}>
-            <FrontView {...{Deye,D1,D2,Du,b1,b2,bladePts,Z,bladeType,bendPos,showScroll,scrollType,wrapAngle,cutoffGap,cutoffAngle,Rtongue,tongueOutLen,tongueOutAngle,diffAngle,diffLength,diffType,diffInnerWall,showCasing,casingW,casingH,casingCX,casingCY,scrollExpRate,exitAngle,scrollExpMode,scrollExpPts}} />
+            <FrontView {...{Deye,D1,D2,Du,b1,b2,bladePts,Z,bladeType,bendPos,showScroll,scrollType,wrapAngle,cutoffGap,cutoffAngle,Rtongue,tongueOutLen,tongueOutAngle,diffAngle,diffLength,diffType,diffInnerWall,showCasing,casingW,casingH,casingCX,casingCY,scrollExpRate,exitAngle,scrollExpMode,scrollExpPts,scrollR3,scrollM,scrollMPts}} />
           </div>
         </div>}
 
@@ -1861,7 +1905,7 @@ export default function ImpellerViewer() {
                 <input type="range" min={0} max={30} step={1} value={explode} onChange={e=>setExplode(+e.target.value)} className="w-16 h-1" style={{accentColor:C.accent}} /></div>
             </div>
           </>}
-          {viewTab===1 && <div className="py-2"><FrontView {...{Deye,D1,D2,Du,b1,b2,bladePts,Z,bladeType,bendPos,showScroll,scrollType,wrapAngle,cutoffGap,cutoffAngle,Rtongue,tongueOutLen,tongueOutAngle,diffAngle,diffLength,diffType,diffInnerWall,showCasing,casingW,casingH,casingCX,casingCY,scrollExpRate,exitAngle,scrollExpMode,scrollExpPts}} /></div>}
+          {viewTab===1 && <div className="py-2"><FrontView {...{Deye,D1,D2,Du,b1,b2,bladePts,Z,bladeType,bendPos,showScroll,scrollType,wrapAngle,cutoffGap,cutoffAngle,Rtongue,tongueOutLen,tongueOutAngle,diffAngle,diffLength,diffType,diffInnerWall,showCasing,casingW,casingH,casingCX,casingCY,scrollExpRate,exitAngle,scrollExpMode,scrollExpPts,scrollR3,scrollM,scrollMPts}} /></div>}
           {viewTab===2 && <div className="py-2"><SectionView {...{Deye,D1,D2,Du,b1,b2,eyeRise,showScroll,scrollGapF,scrollGapB,bScroll,hubDepth,hubFillet}} /></div>}
           {viewTab===3 && <div className="py-2"><BottomView {...{D2,Du,Deye}} /></div>}
           <div style={{display:viewTab===4?'block':'none'}}>
