@@ -1649,7 +1649,7 @@ export default function ImpellerViewer() {
       cutoffGap,Rtongue,tongueOutLen,tongueOutAngle,scrollEndAngle,cutoffAngle,scrollExpRate,exitAngle,diffAngle,diffLength]);
 
   return (
-    <div style={{ background: C.bg, minHeight: "100vh", color: C.text }} className="font-sans">
+    <div style={{ background: C.bg, height: "100vh", color: C.text, display: "flex", flexDirection: "column", overflow: "hidden" }} className="font-sans">
       {/* ═══ HPWD Standard Header (compressor-sim 동일) ═══ */}
       <div style={{
         display: "flex", alignItems: "center", gap: 16, padding: "10px 24px",
