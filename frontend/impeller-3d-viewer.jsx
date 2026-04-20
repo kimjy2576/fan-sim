@@ -264,20 +264,17 @@ function S({ label, value, min, max, step, onChange, unit, color }) {
   const startEdit = () => { setEditing(true); setText(String(value)); };
   const endEdit = () => { setEditing(false); const v = parseFloat(text); if (!isNaN(v)) onChange(Math.max(min, Math.min(max, v))); };
   const onKey = (e) => { if (e.key === 'Enter') endEdit(); if (e.key === 'Escape') setEditing(false); };
+  // compressor-sim 'sr' structure: label + number input on top, range slider below
   return (
-    <div className="flex items-center gap-1 py-0.5">
-      <span className="w-10 text-right" style={{ color: color || C.muted, fontFamily: "'Noto Sans KR', sans-serif", fontSize: 10 }}>{label}</span>
-      <input type="range" min={min} max={max} step={step} value={value} onChange={e => onChange(+e.target.value)}
-        className="flex-1 h-1 appearance-none rounded cursor-pointer" style={{ background: C.border, accentColor: color || C.blade }} />
-      {editing ? (
-        <input type="number" value={text} onChange={e => setText(e.target.value)} onBlur={endEdit} onKeyDown={onKey} autoFocus
-          className="w-14 text-right rounded px-0.5" style={{ background: C.bg, color: C.text, fontFamily: "'Noto Sans KR', sans-serif", fontSize: 10, border: `1px solid ${color || C.blade}`, outline: "none" }} />
-      ) : (
-        <span className="w-14 text-right cursor-pointer" onDoubleClick={startEdit} title="더블클릭: 직접 입력"
-          style={{ color: C.text, fontFamily: "'Noto Sans KR', sans-serif", fontSize: 10, borderBottom: `1px dashed ${C.border}` }}>
-          {typeof value === 'number' && value % 1 !== 0 ? value.toFixed(1) : value}{unit}
-        </span>
-      )}
+    <div className="sr">
+      <div className="sr-t">
+        <span className="sr-l">{label}{unit ? <span style={{fontSize:11,color:'var(--tx3)',marginLeft:2}}> [{unit}]</span> : ''}</span>
+        <input className="sr-i" type="number" value={value} step={step}
+          onChange={e => { const v = parseFloat(e.target.value); if (!isNaN(v)) onChange(Math.max(min, Math.min(max, v))); }} />
+      </div>
+      <input type="range" min={min} max={max} step={step} value={value}
+        onChange={e => onChange(+e.target.value)}
+        style={{accentColor: color || 'var(--accent)', width:'100%'}} />
     </div>
   );
 }
@@ -1699,11 +1696,58 @@ export default function ImpellerViewer() {
       {/* ═══ HPWD Sidebar Layout (flex on desktop, stack on mobile) ═══ */}
       <div className="hpwd-body">
       <div className="hpwd-main">
-      <div className="px-3 flex items-center gap-0.5" style={{overflowX:"auto",WebkitOverflowScrolling:"touch"}}>
+      {/* ═══ compressor-sim 4-tab structure ═══ */}
+      <div className="tabs">
+        {['Visualization','Results','Fitting','Analysis'].map((t,i) => {
+          const isOn = activeTab === i;
+          return <button key={t} className={`tab ${isOn?'on':''}`}
+            onClick={() => {
+              setActiveTab(i);
+              // Auto-select internal viewTab for each tab
+              if (i === 0) setViewTab(0); // Visualization → 3D
+              if (i === 1) setViewTab(6); // Results → PQ
+              if (i === 3) setViewTab(4); // Analysis → Sweep
+            }}>{t}</button>;
+        })}
+      </div>
+
+      {/* Visualization sub-tabs (only inside Tab 0) */}
+      {activeTab === 0 && <div className="px-3 py-2 flex items-center gap-1" style={{borderBottom:`1px solid var(--bd)`,background:'var(--bg2)'}}>
+        <span style={{fontSize:11,color:'var(--tx3)',marginRight:8}}>View:</span>
+        {[{i:0,l:'3D'},{i:1,l:'Top view'},{i:2,l:'Front view'},{i:3,l:'Bottom view'}].map(t =>
+          <button key={t.i} onClick={()=>setViewTab(t.i)}
+            style={{padding:'4px 12px',fontSize:12,border:`1px solid ${viewTab===t.i?'var(--accent)':'var(--bd)'}`,
+              borderRadius:6,background:viewTab===t.i?'var(--accent)':'transparent',
+              color:viewTab===t.i?'#fff':'var(--tx2)',cursor:'pointer'}}>{t.l}</button>)}
+      </div>}
+
+      {/* Analysis sub-tabs (only inside Tab 3) */}
+      {activeTab === 3 && <div className="px-3 py-2 flex items-center gap-1" style={{borderBottom:`1px solid var(--bd)`,background:'var(--bg2)'}}>
+        <span style={{fontSize:11,color:'var(--tx3)',marginRight:8}}>Tool:</span>
+        {[{i:4,l:'Sweep'},{i:5,l:'Optimizer'}].map(t =>
+          <button key={t.i} onClick={()=>setViewTab(t.i)}
+            style={{padding:'4px 12px',fontSize:12,border:`1px solid ${viewTab===t.i?'var(--accent)':'var(--bd)'}`,
+              borderRadius:6,background:viewTab===t.i?'var(--accent)':'transparent',
+              color:viewTab===t.i?'#fff':'var(--tx2)',cursor:'pointer'}}>{t.l}</button>)}
+      </div>}
+
+      {/* Fitting tab placeholder */}
+      {activeTab === 2 && <div className="vp">
+        <div className="vc full">
+          <div className="vt">Fitting — Semi-empirical 계수 피팅</div>
+          <div style={{padding:16,color:'var(--tx2)',fontSize:13,lineHeight:1.6}}>
+            <p>실험 데이터를 업로드하면 9개 손실 계수를 자동 피팅합니다.</p>
+            <p style={{marginTop:8,fontSize:12,color:'var(--tx3)'}}>현재 피팅 기능은 헤더의 <strong>Semi-empirical</strong> 모드에서 사용할 수 있습니다.</p>
+            <p style={{marginTop:8,fontSize:12,color:'var(--tx3)'}}>→ 향후 이 탭으로 분리 예정</p>
+          </div>
+        </div>
+      </div>}
+
+      <div className="px-3 flex items-center gap-0.5" style={{overflowX:"auto",WebkitOverflowScrolling:"touch",display: activeTab === 0 || activeTab === 1 || activeTab === 3 ? 'none' : 'none'}}>
         {[{l:"3D",c:C.blade},{l:"정면",c:C.eye},{l:"단면",c:C.shroud},{l:"저면",c:C.backplate},{l:"Sweep",c:C.pink},{l:"최적화",c:C.green},{l:"PQ",c:C.cyan}].map((t,i)=>
           <Tab key={i} active={viewTab===i} onClick={()=>setViewTab(i)} color={t.c}>{t.l}</Tab>)}
       </div>
-      <div className="px-3 py-1">
+      <div className="px-3 py-1" style={{display: activeTab === 2 ? 'none' : 'block'}}>
         <div className="rounded-lg overflow-hidden" style={{ background: C.bg, border: `1px solid ${C.border}` }}>
           {viewTab===0 && <>
             <div ref={mountRef} style={{ width:"100%", height:360 }} />
