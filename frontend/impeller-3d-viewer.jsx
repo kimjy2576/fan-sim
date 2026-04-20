@@ -838,6 +838,8 @@ export default function ImpellerViewer() {
   const [viewTab, setViewTab] = useState(0);
   // compressor-sim style 4-tab: 0=Visualization, 1=Results, 2=Fitting, 3=Analysis
   const [activeTab, setActiveTab] = useState(0);
+  // Visualization sub-tab: 0=3D, 1=Top view, 2=Front view, 3=Bottom view
+  const [vizSub, setVizSub] = useState(0);
   // Resizable sidebar
   const [sidebarWidth, setSidebarWidth] = useState(() => {
     try { const v = localStorage.getItem('fansim_sidebar_w'); return v ? +v : 320; }
@@ -1775,51 +1777,62 @@ export default function ImpellerViewer() {
         </div>
       </div>}
 
-      {/* ═══ TAB 0: VISUALIZATION — 3D + Top + Front + Bottom 모두 한 창 그리드 ═══ */}
+      {/* ═══ TAB 0: VISUALIZATION with sub-tabs (one view at a time, large) ═══ */}
       {activeTab === 0 && <div className="vp">
-        <div className="vg">
-          {/* 3D Model (full width) */}
-          <div className="vc full">
-            <div className="vt">3D Model <span className="sub">— drag to rotate, scroll to zoom</span></div>
-            <div ref={mountRef} style={{ width:"100%", height:320, borderRadius:8, background:'var(--bg3)' }} />
-            <div style={{padding:'10px 0 0',display:'flex',gap:12,flexWrap:'wrap',fontSize:13,color:'var(--tx2)'}}>
-              <label style={{display:'flex',alignItems:'center',gap:4,cursor:'pointer'}}><input type="checkbox" checked={showShroud} onChange={e=>setShowShroud(e.target.checked)} />측판</label>
-              <label style={{display:'flex',alignItems:'center',gap:4,cursor:'pointer'}}><input type="checkbox" checked={showBackplate} onChange={e=>setShowBackplate(e.target.checked)} />주판</label>
-              <label style={{display:'flex',alignItems:'center',gap:4,cursor:'pointer'}}><input type="checkbox" checked={showScroll} onChange={e=>setShowScroll(e.target.checked)} />스크롤</label>
-              <label style={{display:'flex',alignItems:'center',gap:4,cursor:'pointer'}}><input type="checkbox" checked={showCasing} onChange={e=>setShowCasing(e.target.checked)} />케이싱</label>
-              <label style={{display:'flex',alignItems:'center',gap:4,cursor:'pointer'}}><input type="checkbox" checked={autoRotate} onChange={e=>setAutoRotate(e.target.checked)} />자동회전</label>
-              <div style={{marginLeft:'auto',display:'flex',alignItems:'center',gap:6}}>
-                <span style={{fontSize:13,color:'var(--tx3)'}}>분해</span>
-                <input type="range" min={0} max={30} step={1} value={explode} onChange={e=>setExplode(+e.target.value)} style={{width:100}} />
-                <span style={{fontSize:13,fontFamily:'var(--mono)',color:'var(--tx2)',minWidth:24}}>{explode}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Top view */}
-          <div className="vc">
-            <div className="vt">Top view <span className="sub">— plan</span></div>
-            <div style={{minHeight:280,display:'flex',alignItems:'center',justifyContent:'center'}}>
-              <FrontView {...{Deye,D1,D2,Du,b1,b2,bladePts,Z,bladeType,bendPos,showScroll,scrollType,wrapAngle,cutoffGap,cutoffAngle,Rtongue,tongueOutLen,tongueOutAngle,diffAngle,diffLength,diffType,diffInnerWall,showCasing,casingW,casingH,casingCX,casingCY,scrollExpRate,exitAngle,scrollExpMode,scrollExpPts}} />
-            </div>
-          </div>
-
-          {/* Front view */}
-          <div className="vc">
-            <div className="vt">Front view <span className="sub">— axial section</span></div>
-            <div style={{minHeight:280,display:'flex',alignItems:'center',justifyContent:'center'}}>
-              <SectionView {...{Deye,D1,D2,Du,b1,b2,eyeRise,showScroll,scrollGapF,scrollGapB,bScroll,hubDepth,hubFillet}} />
-            </div>
-          </div>
-
-          {/* Bottom view (full width) */}
-          <div className="vc full">
-            <div className="vt">Bottom view <span className="sub">— from below</span></div>
-            <div style={{minHeight:200,display:'flex',alignItems:'center',justifyContent:'center'}}>
-              <BottomView {...{D2,Du,Deye}} />
-            </div>
-          </div>
+        {/* Sub-tab selector */}
+        <div style={{display:'flex',gap:6,marginBottom:16,flexWrap:'wrap'}}>
+          {[{i:0,l:'3D Model'},{i:1,l:'Top view'},{i:2,l:'Front view'},{i:3,l:'Bottom view'}].map(t =>
+            <button key={t.i} onClick={()=>setVizSub(t.i)}
+              style={{padding:'8px 18px',fontSize:13,
+                border:`1px solid ${vizSub===t.i?'var(--accent)':'var(--bd)'}`,
+                borderRadius:'var(--r)',
+                background:vizSub===t.i?'var(--accent)':'transparent',
+                color:vizSub===t.i?'#fff':'var(--tx2)',
+                cursor:'pointer',fontFamily:"'Noto Sans KR', sans-serif",fontWeight:vizSub===t.i?500:400,
+                transition:'all .15s'}}>{t.l}</button>)}
         </div>
+
+        {/* Sub-tab 0: 3D Model (full size) */}
+        {vizSub === 0 && <div className="vc">
+          <div className="vt">3D Model <span className="sub">— drag to rotate, scroll to zoom</span></div>
+          <div ref={mountRef} style={{ width:"100%", height:500, borderRadius:8, background:'var(--bg3)' }} />
+          <div style={{padding:'10px 0 0',display:'flex',gap:12,flexWrap:'wrap',fontSize:13,color:'var(--tx2)',borderTop:'1px solid var(--bd)',marginTop:10}}>
+            <label style={{display:'flex',alignItems:'center',gap:4,cursor:'pointer'}}><input type="checkbox" checked={showShroud} onChange={e=>setShowShroud(e.target.checked)} />측판</label>
+            <label style={{display:'flex',alignItems:'center',gap:4,cursor:'pointer'}}><input type="checkbox" checked={showBackplate} onChange={e=>setShowBackplate(e.target.checked)} />주판</label>
+            <label style={{display:'flex',alignItems:'center',gap:4,cursor:'pointer'}}><input type="checkbox" checked={showScroll} onChange={e=>setShowScroll(e.target.checked)} />스크롤</label>
+            <label style={{display:'flex',alignItems:'center',gap:4,cursor:'pointer'}}><input type="checkbox" checked={showCasing} onChange={e=>setShowCasing(e.target.checked)} />케이싱</label>
+            <label style={{display:'flex',alignItems:'center',gap:4,cursor:'pointer'}}><input type="checkbox" checked={autoRotate} onChange={e=>setAutoRotate(e.target.checked)} />자동회전</label>
+            <div style={{marginLeft:'auto',display:'flex',alignItems:'center',gap:6}}>
+              <span style={{fontSize:13,color:'var(--tx3)'}}>분해</span>
+              <input type="range" min={0} max={30} step={1} value={explode} onChange={e=>setExplode(+e.target.value)} style={{width:120}} />
+              <span style={{fontSize:13,fontFamily:'var(--mono)',color:'var(--tx2)',minWidth:24}}>{explode}</span>
+            </div>
+          </div>
+        </div>}
+
+        {/* Sub-tab 1: Top view (full size) */}
+        {vizSub === 1 && <div className="vc">
+          <div className="vt">Top view <span className="sub">— plan view with scroll housing</span></div>
+          <div style={{minHeight:480,display:'flex',alignItems:'center',justifyContent:'center'}}>
+            <FrontView {...{Deye,D1,D2,Du,b1,b2,bladePts,Z,bladeType,bendPos,showScroll,scrollType,wrapAngle,cutoffGap,cutoffAngle,Rtongue,tongueOutLen,tongueOutAngle,diffAngle,diffLength,diffType,diffInnerWall,showCasing,casingW,casingH,casingCX,casingCY,scrollExpRate,exitAngle,scrollExpMode,scrollExpPts}} />
+          </div>
+        </div>}
+
+        {/* Sub-tab 2: Front view (full size) */}
+        {vizSub === 2 && <div className="vc">
+          <div className="vt">Front view <span className="sub">— axial cross section</span></div>
+          <div style={{minHeight:480,display:'flex',alignItems:'center',justifyContent:'center'}}>
+            <SectionView {...{Deye,D1,D2,Du,b1,b2,eyeRise,showScroll,scrollGapF,scrollGapB,bScroll,hubDepth,hubFillet}} />
+          </div>
+        </div>}
+
+        {/* Sub-tab 3: Bottom view (full size) */}
+        {vizSub === 3 && <div className="vc">
+          <div className="vt">Bottom view <span className="sub">— from below (hub side)</span></div>
+          <div style={{minHeight:480,display:'flex',alignItems:'center',justifyContent:'center'}}>
+            <BottomView {...{D2,Du,Deye}} />
+          </div>
+        </div>}
       </div>}
 
       {/* ═══ Legacy hidden pass-through (renders chosen viewTab content for non-Viz tabs) ═══ */}
@@ -2605,6 +2618,7 @@ export default function ImpellerViewer() {
       </div>{/* /legacy pass-through wrapper */}
       </div>{/* /hpwd-main */}
       <aside className="hpwd-side" style={{width: sidebarWidth + 'px'}}>
+      <div className="hpwd-side-scroll">
       <div className="px-3 pb-2">
         <div className="rounded-lg p-2" style={{ background: C.card, border: `1px solid ${C.border}` }}>
           {/* Material + RPM */}
@@ -2875,6 +2889,7 @@ export default function ImpellerViewer() {
           </div>
         </div>
       </div>
+      </div>{/* /hpwd-side-scroll */}
       </aside>{/* /hpwd-side */}
       <div className="hpwd-resizer" onMouseDown={startResize} onTouchStart={startResize} title="드래그하여 너비 조절"/>
       </div>{/* /hpwd-body */}

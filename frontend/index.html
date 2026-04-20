@@ -109,9 +109,12 @@
   /* Legacy hpwd-* classes mapped to compressor-sim standard */
   .hpwd-body{display:flex;flex:1;min-height:0}
   .hpwd-main{order:3;flex:1;min-width:0;display:flex;flex-direction:column}
-  .hpwd-side{order:1;width:290px;min-width:260px;max-width:600px;border-right:1px solid var(--bd);background:var(--bg);overflow-y:auto;overflow-x:hidden;flex-shrink:0}
-  .hpwd-side::-webkit-scrollbar{width:6px}
-  .hpwd-side::-webkit-scrollbar-thumb{background:var(--bd2);border-radius:3px}
+  .hpwd-side{order:1;width:290px;min-width:260px;max-width:600px;border-right:1px solid var(--bd);background:var(--bg);overflow:hidden;flex-shrink:0;display:flex;flex-direction:column}
+  .hpwd-side-scroll{flex:1;overflow-y:auto;overflow-x:hidden;min-height:0}
+  .hpwd-side-scroll::-webkit-scrollbar{width:8px}
+  .hpwd-side-scroll::-webkit-scrollbar-track{background:var(--bg2)}
+  .hpwd-side-scroll::-webkit-scrollbar-thumb{background:var(--bd2);border-radius:4px}
+  .hpwd-side-scroll::-webkit-scrollbar-thumb:hover{background:var(--tx3)}
   /* Sidebar content containment — all children must not overflow */
   .hpwd-side *{min-width:0}
   /* Prevent 2-col grid in sidebar (too narrow) */
