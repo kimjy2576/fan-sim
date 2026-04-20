@@ -958,7 +958,7 @@ export default function ImpellerViewer() {
   const collectState = () => ({
     _v: '2.0', _t: new Date().toISOString(),
     Deye,D1,D2,Du,b1,b2,beta1,beta2,Z,tBlade,bladeType,Rfillet,bendPos,bladeLean,eyeRise,hubDepth,hubFillet,RPM,matKey,
-    scrollType,scrollEndAngle,scrollGapF,scrollGapB,bScroll,scrollExpRate,scrollExpMode,scrollExpPts,scrollCross,
+    scrollType,scrollEndAngle,scrollGapF,scrollGapB,bScroll,scrollExpRate,scrollExpMode,scrollExpPts,scrollCross,scrollR3,scrollM,scrollMPts,
     cutoffGap,cutoffAngle,Rtongue,exitAngle,tongueOutLen,tongueOutAngle,
     diffAngle,diffLength,diffType,diffInnerWall,
     showCasing,casingW,casingH,casingD,casingCX,casingCY,casingFace,
@@ -978,6 +978,8 @@ export default function ImpellerViewer() {
     s('scrollGapF',setScrollGapF);s('scrollGapB',setScrollGapB);
     s('bScroll',setBScroll);s('scrollExpRate',setScrollExpRate);s('scrollExpMode',setScrollExpMode);
     if(d.scrollExpPts)setScrollExpPts(d.scrollExpPts);s('scrollCross',setScrollCross);
+    s('scrollR3',setScrollR3);s('scrollM',setScrollM);
+    if(d.scrollMPts)setScrollMPts(d.scrollMPts);
     s('cutoffGap',setCutoffGap);s('cutoffAngle',setCutoffAngle);
     s('Rtongue',setRtongue);s('exitAngle',setExitAngle);s('tongueOutLen',setTongueOutLen);s('tongueOutAngle',setTongueOutAngle);
     s('diffAngle',setDiffAngle);s('diffLength',setDiffLength);s('diffType',setDiffType);s('diffInnerWall',setDiffInnerWall);
@@ -1505,7 +1507,7 @@ export default function ImpellerViewer() {
 
     // Scroll casing
     if (showScroll) {
-      const sPts = scrollProfile(D2/2, wrapAngle, scrollType, bScroll, cutoffAngle, cutoffGap, Rtongue, scrollExpRate, 72, scrollExpMode, scrollExpPts);
+      const sPts = scrollProfile(D2/2, wrapAngle, scrollType, bScroll, cutoffAngle, cutoffGap, Rtongue, scrollExpRate, 72, scrollExpMode, scrollExpPts, scrollR3, scrollM, scrollMPts);
       const sGeo = buildScrollMesh(sPts, bScroll, scrollGapF, scrollGapB, scrollCross);
       if (sGeo) {
         const sMat = new THREE.MeshPhongMaterial({ color: 0xd4a44a, transparent: true, opacity: 0.2, side: THREE.DoubleSide, shininess: 40 });
@@ -2753,7 +2755,7 @@ export default function ImpellerViewer() {
             <div className="flex items-center gap-2 mb-1">
               <span style={{ color: "#d4a44a", fontFamily: "'Noto Sans KR', sans-serif", fontSize:12, fontWeight: 700 }}>SCROLL</span>
               <div className="flex gap-1">
-                {[{k:'cv',l:'등속팽창'},{k:'fv',l:'자유와류'}].map(m =>
+                {[{k:'cv',l:'등속팽창'},{k:'fv',l:'자유와류'},{k:'linear',l:'선형 r=r₃+mθ'}].map(m =>
                   <button key={m.k} onClick={() => setScrollType(m.k)} className="px-3 py-1.5 rounded"
                     style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:11,
                       background: scrollType===m.k ? C.card : "transparent",
@@ -2791,8 +2793,20 @@ export default function ImpellerViewer() {
                         border:`1px solid ${scrollExpMode===m.k?"#d4a44a":C.border}` }}>{m.l}</button>)}
                 </div>
               </div>
-              {scrollExpMode==='uniform' && <S label="k" value={scrollExpRate} min={0.02} max={0.3} step={0.01} onChange={setScrollExpRate} unit="" color="#d4a44a" />}
-              {scrollExpMode==='variable' && <>
+              {scrollExpMode==='uniform' && scrollType !== 'linear' && <S label="k" value={scrollExpRate} min={0.02} max={0.3} step={0.01} onChange={setScrollExpRate} unit="" color="#d4a44a" />}
+              {scrollType === 'linear' && scrollExpMode === 'uniform' && <>
+                <div style={{fontSize:11,color:C.dim,marginBottom:4,fontFamily:"'Noto Sans KR', sans-serif"}}>r = r₃ + m·θ (θ in rad)</div>
+                <S label="r₃" value={scrollR3} min={0} max={300} step={1} onChange={setScrollR3} unit="mm" color="#d4a44a" />
+                <div style={{fontSize:10,color:C.dim,marginTop:-6,marginBottom:4,fontFamily:"'Noto Sans KR', sans-serif"}}>
+                  {scrollR3 > 0 ? `직접 입력: r₃ = ${scrollR3}mm` : `자동: r₃ = r₂+δ = ${(D2/2 + cutoffGap).toFixed(1)}mm`}
+                </div>
+                <S label="m" value={scrollM} min={1} max={80} step={0.5} onChange={setScrollM} unit="mm/rad" color="#d4a44a" />
+                <div style={{fontSize:10,color:C.dim,fontFamily:"'Noto Sans KR', sans-serif"}}>
+                  r_출구 ≈ {((scrollR3 > 0 ? scrollR3 : (D2/2 + cutoffGap)) + scrollM * (wrapAngle * Math.PI / 180)).toFixed(1)}mm
+                  ({wrapAngle}° 회전 시)
+                </div>
+              </>}
+              {scrollExpMode==='variable' && scrollType !== 'linear' && <>
                 <div style={{ color:C.dim, fontFamily: "'Noto Sans KR', sans-serif", fontSize:11, marginBottom:2 }}>각도별 팽창률 제어점 (spline 보간)</div>
                 {scrollExpPts.map((pt, i) => <div key={i} className="flex items-center gap-1 mb-0.5" style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:12 }}>
                   <span style={{ color:C.dim, width:12 }}>{i+1}</span>
@@ -2810,6 +2824,52 @@ export default function ImpellerViewer() {
                   setScrollExpPts([...scrollExpPts, {a: Math.min(720, last.a + 90), k: last.k}]);
                 }} className="mt-1 px-2 py-0.5 rounded w-full"
                   style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:11,color:"#d4a44a",background:C.card,border:`1px solid #d4a44a44`}}>+ 제어점 추가</button>
+              </>}
+              {scrollExpMode==='variable' && scrollType === 'linear' && <>
+                <div style={{ color:C.dim, fontFamily: "'Noto Sans KR', sans-serif", fontSize:11, marginBottom:2 }}>각도별 m(θ) 제어점 [mm/rad] (spline 보간)</div>
+                <S label="r₃" value={scrollR3} min={0} max={300} step={1} onChange={setScrollR3} unit="mm" color="#d4a44a" />
+                {scrollMPts.map((pt, i) => <div key={i} className="flex items-center gap-1 mb-0.5" style={{ fontFamily: "'Noto Sans KR', sans-serif", fontSize:12 }}>
+                  <span style={{ color:C.dim, width:12 }}>{i+1}</span>
+                  <input type="number" value={pt.a} onChange={e => { const nxt=[...scrollMPts]; nxt[i]={...nxt[i],a:+e.target.value}; setScrollMPts(nxt); }}
+                    className="w-12 px-0.5 rounded text-right" style={{ background:C.card,color:C.text,fontSize:12,border:`1px solid ${C.border}`,fontFamily: "'Noto Sans KR', sans-serif" }} />
+                  <span style={{color:C.dim,fontSize:11}}>°</span>
+                  <input type="number" value={pt.m} step={1} onChange={e => { const nxt=[...scrollMPts]; nxt[i]={...nxt[i],m:+e.target.value}; setScrollMPts(nxt); }}
+                    className="w-14 px-0.5 rounded text-right" style={{ background:C.card,color:C.amber,fontSize:12,border:`1px solid ${C.border}33`,fontFamily: "'Noto Sans KR', sans-serif" }} />
+                  <span style={{color:C.dim,fontSize:10}}>mm/rad</span>
+                  {scrollMPts.length > 2 && <button onClick={() => { const nxt=[...scrollMPts]; nxt.splice(i,1); setScrollMPts(nxt); }}
+                    style={{color:C.red,fontSize:12,fontFamily: "'Noto Sans KR', sans-serif"}}>✕</button>}
+                </div>)}
+                <button onClick={() => {
+                  const last = scrollMPts[scrollMPts.length-1];
+                  setScrollMPts([...scrollMPts, {a: Math.min(720, last.a + 90), m: last.m}]);
+                }} className="mt-1 px-2 py-0.5 rounded w-full"
+                  style={{fontFamily: "'Noto Sans KR', sans-serif",fontSize:11,color:"#d4a44a",background:C.card,border:`1px solid #d4a44a44`}}>+ 제어점 추가</button>
+                {/* Mini preview of m(θ) */}
+                {(() => {
+                  const W=160,H=50,pad={l:22,r:4,t:4,b:12};
+                  const sorted=[...scrollMPts].sort((a,b)=>a.a-b.a);
+                  const aMin=sorted[0]?.a||0,aMax=sorted[sorted.length-1]?.a||360;
+                  const mMin=Math.min(...sorted.map(p=>p.m)),mMax=Math.max(...sorted.map(p=>p.m));
+                  const pw=W-pad.l-pad.r,ph=H-pad.t-pad.b;
+                  const sx=a=>pad.l+(a-aMin)/((aMax-aMin)||1)*pw;
+                  const sy=mv=>pad.t+ph-(mv-mMin)/((mMax-mMin)||0.01)*ph;
+                  const nPts=40;
+                  const curvePts=Array.from({length:nPts+1},(_,i)=>{
+                    const dTh=(aMin + i/nPts*(aMax-aMin))*Math.PI/180;
+                    const mVal=interpMSlope(dTh,scrollMPts,(aMax-aMin)*Math.PI/180);
+                    return {x:sx(aMin+i/nPts*(aMax-aMin)),y:sy(mVal)};
+                  });
+                  return <svg width={W} height={H} style={{display:"block",margin:"4px auto 0",background:C.card,borderRadius:3}}>
+                    <path d={curvePts.map((p,i)=>`${i===0?'M':'L'}${p.x} ${p.y}`).join(' ')} fill="none" stroke="#d4a44a" strokeWidth={1.5}/>
+                    {sorted.map((p,i)=><circle key={i} cx={sx(p.a)} cy={sy(p.m)} r={3} fill="#d4a44a" stroke={C.bg} strokeWidth={1}/>)}
+                    <text x={pad.l} y={H-1} fill={C.dim} fontSize={7} fontFamily="'Noto Sans KR', sans-serif">{aMin}°</text>
+                    <text x={pad.l+pw} y={H-1} fill={C.dim} fontSize={7} fontFamily="'Noto Sans KR', sans-serif" textAnchor="end">{aMax}°</text>
+                    <text x={pad.l-2} y={pad.t+6} fill={C.dim} fontSize={7} fontFamily="'Noto Sans KR', sans-serif" textAnchor="end">{mMax.toFixed(0)}</text>
+                    <text x={pad.l-2} y={H-pad.b+2} fill={C.dim} fontSize={7} fontFamily="'Noto Sans KR', sans-serif" textAnchor="end">{mMin.toFixed(0)}</text>
+                  </svg>;
+                })()}
+              </>}
+              {scrollExpMode==='variable' && scrollType !== 'linear' && <>
                 {/* Mini preview of k(θ) */}
                 {(() => {
                   const W=160,H=50,pad={l:20,r:4,t:4,b:12};
@@ -2875,7 +2935,7 @@ export default function ImpellerViewer() {
               </label>
             </div>
             <div style={{ color: C.dim, fontFamily: "'Noto Sans KR', sans-serif", fontSize:11, marginTop: 2 }}>
-              {scrollType==='cv'?'아르키메데스':'로그나선'} | {scrollCross==='rect'?'사각':'원형'} | θ_cut={cutoffAngle}° → θ_end={scrollEndAngle}° (Wrap {wrapAngle}°) |
+              {scrollType==='cv'?'아르키메데스':scrollType==='fv'?'로그나선':'선형(r₃+mθ)'} | {scrollCross==='rect'?'사각':'원형'} | θ_cut={cutoffAngle}° → θ_end={scrollEndAngle}° (Wrap {wrapAngle}°) |
               Tongue δ={cutoffGap} R={Rtongue} 외면 L={tongueOutLen} α={tongueOutAngle}° |
               Diff {diffType} {diffAngle}° L={diffLength}mm {diffInnerWall?'':'(내벽 개방)'}
             </div>
