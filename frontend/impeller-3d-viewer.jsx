@@ -3336,20 +3336,20 @@ export default function ImpellerViewer() {
       </div>
       </div>{/* /hpwd-side-scroll */}
 
-      {/* Sidebar Bottom: warnings + SOLVE (comp-sim 동일 구조, fan-sim은 real-time 이므로 상태 표시용) */}
+      {/* Sidebar Bottom: warnings + SOLVE (comp-sim 동일 구조) */}
       <div className="sb">
         {warnings.length > 0 ? warnings.map((w,i) => (
           <div key={i} className={`wn ${w.t}`}><span className="dot"/>{w.m}</div>
         )) : <div className="wn ok"><span className="dot"/> All inputs valid</div>}
         <button className="solve-btn"
           onClick={() => {
-            // Force re-render/recompute (though already real-time)
-            setExpData(e => [...e]);
-            // Scroll to results if in Results tab
+            // fan-sim is real-time, but provide explicit trigger for UX consistency
             if (activeTab === 2) setResultsSub(1);
+            else setActiveTab(2);
+            setExpData(e => [...e]); // force memo recompute
           }}
           disabled={warnings.some(w => w.t === 'er')}>
-          {warnings.some(w => w.t === 'er') ? '입력 오류' : 'RECOMPUTE ▶'}
+          {warnings.some(w => w.t === 'er') ? '입력 오류' : 'SOLVE ▶'}
         </button>
       </div>
       </aside>{/* /hpwd-side */}
