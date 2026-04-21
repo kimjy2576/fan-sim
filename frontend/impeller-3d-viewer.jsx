@@ -1658,9 +1658,10 @@ export default function ImpellerViewer() {
     const grp = new THREE.Group(); scene.add(grp);
     sceneRef.current = scene; camRef.current = cam; rendRef.current = rend; grpRef.current = grp;
     const el = rend.domElement;
-    const onD = (e) => { const m = mouseRef.current; m.isDown = true; m.x = e.clientX||e.touches?.[0]?.clientX; m.y = e.clientY||e.touches?.[0]?.clientY; };
-    const onM = (e) => { const m = mouseRef.current; if(!m.isDown) return; const cx=e.clientX||e.touches?.[0]?.clientX||0,cy=e.clientY||e.touches?.[0]?.clientY||0; m.rotY+=(cx-m.x)*0.01; m.rotX=Math.max(-1.2,Math.min(1.5,m.rotX+(cy-m.y)*0.01)); m.x=cx;m.y=cy; };
-    const onU = () => { mouseRef.current.isDown = false; };
+    el.style.cursor = 'grab';  // comp-sim과 동일한 손 모양 커서
+    const onD = (e) => { const m = mouseRef.current; m.isDown = true; m.x = e.clientX||e.touches?.[0]?.clientX; m.y = e.clientY||e.touches?.[0]?.clientY; el.style.cursor = 'grabbing'; };
+    const onM = (e) => { const m = mouseRef.current; if(!m.isDown) return; const cx=e.clientX||e.touches?.[0]?.clientX||0,cy=e.clientY||e.touches?.[0]?.clientY||0; m.rotY-=(cx-m.x)*0.01; m.rotX=Math.max(-1.2,Math.min(1.5,m.rotX+(cy-m.y)*0.01)); m.x=cx;m.y=cy; };
+    const onU = () => { mouseRef.current.isDown = false; el.style.cursor = 'grab'; };
     const onW = (e) => { mouseRef.current.dist = Math.max(100, Math.min(800, mouseRef.current.dist + e.deltaY * 0.3)); e.preventDefault(); };
     el.addEventListener('pointerdown',onD); el.addEventListener('pointermove',onM); el.addEventListener('pointerup',onU); el.addEventListener('wheel',onW,{passive:false});
     const anim = () => { frameRef.current = requestAnimationFrame(anim); const m = mouseRef.current; if(autoRef.current&&!m.isDown) m.rotY-=0.006;
