@@ -1115,7 +1115,7 @@ export default function ImpellerViewer() {
   const [fittingData, setFittingData] = useState(() => Array.from({length: 8}, () => ['','','','','']));
   // Resizable sidebar
   const [sidebarWidth, setSidebarWidth] = useState(() => {
-    try { const v = localStorage.getItem('fansim_sidebar_w'); return v ? +v : 320; }
+    try { const v = localStorage.getItem('fansim_sidebar_w'); return v ? +v : 290; }
     catch { return 320; }
   });
   const resizingRef = useRef(false);
@@ -1861,6 +1861,21 @@ export default function ImpellerViewer() {
   // Base case performance + structure
   const baseAero = useMemo(() => computeAero(baseParams), [D1,D2,Deye,b1,b2,beta1,beta2,Z,RPM,tBlade,cutoffGap,Rtongue,scrollEndAngle,cutoffAngle,scrollExpRate,scrollExpMode,scrollExpPts,diffAngle,diffLength,tongueOutLen,tongueOutAngle]);
   const baseStruc = useMemo(() => computeStructure(baseParams, baseAero, mat), [baseAero, matKey, tBlade, b1, b2, D1, D2, Z]);
+
+  // Input validation for sidebar (comp-sim compatible)
+  const warnings = useMemo(() => {
+    const w = [];
+    if (D2 <= 0) w.push({t:'er', m:'D₂ 는 0보다 커야 합니다'});
+    if (D1 >= D2) w.push({t:'er', m:'D₁ 은 D₂ 보다 작아야 합니다'});
+    if (Deye >= D1) w.push({t:'wr', m:'D_eye 가 D₁ 보다 큽니다'});
+    if (b1 <= 0 || b2 <= 0) w.push({t:'er', m:'날개 폭은 0보다 커야 합니다'});
+    if (Z < 3) w.push({t:'er', m:'블레이드 수는 3 이상이어야 합니다'});
+    if (RPM <= 0) w.push({t:'er', m:'RPM 은 0보다 커야 합니다'});
+    if (beta2 >= 90 || beta2 <= 0) w.push({t:'wr', m:'β₂ 범위 확인 (0~90°)'});
+    if (!baseAero || !baseAero.pts || baseAero.pts.length < 3) w.push({t:'er', m:'계산 실패 — 입력값을 확인하세요'});
+    if (baseStruc && baseStruc.SF < 1.5) w.push({t:'wr', m:`안전율 SF=${baseStruc.SF.toFixed(2)} (1.5 미만)`});
+    return w;
+  }, [D1, D2, Deye, b1, b2, Z, RPM, beta2, baseAero, baseStruc]);
 
   // Find operating point: fan Ps(Q) = system dP(Q)
   const operatingPoint = useMemo(() => {
@@ -3320,6 +3335,23 @@ export default function ImpellerViewer() {
         </div>
       </div>
       </div>{/* /hpwd-side-scroll */}
+
+      {/* Sidebar Bottom: warnings + SOLVE (comp-sim 동일 구조, fan-sim은 real-time 이므로 상태 표시용) */}
+      <div className="sb">
+        {warnings.length > 0 ? warnings.map((w,i) => (
+          <div key={i} className={`wn ${w.t}`}><span className="dot"/>{w.m}</div>
+        )) : <div className="wn ok"><span className="dot"/> All inputs valid</div>}
+        <button className="solve-btn"
+          onClick={() => {
+            // Force re-render/recompute (though already real-time)
+            setExpData(e => [...e]);
+            // Scroll to results if in Results tab
+            if (activeTab === 2) setResultsSub(1);
+          }}
+          disabled={warnings.some(w => w.t === 'er')}>
+          {warnings.some(w => w.t === 'er') ? '입력 오류' : 'RECOMPUTE ▶'}
+        </button>
+      </div>
       </aside>{/* /hpwd-side */}
       <div className="hpwd-resizer" onMouseDown={startResize} onTouchStart={startResize} title="드래그하여 너비 조절"/>
       </div>{/* /hpwd-body */}

@@ -109,7 +109,7 @@
   /* Legacy hpwd-* classes mapped to compressor-sim standard */
   .hpwd-body{display:flex;flex:1;min-height:0}
   .hpwd-main{order:3;flex:1;min-width:0;min-height:0;display:flex;flex-direction:column;overflow:hidden}
-  .hpwd-side{order:1;width:290px;min-width:260px;max-width:600px;border-right:1px solid var(--bd);background:var(--bg);overflow:hidden;flex-shrink:0;display:flex;flex-direction:column}
+  .hpwd-side{order:1;width:290px;min-width:200px;max-width:600px;border-right:1px solid var(--bd);background:var(--bg);overflow:hidden;flex-shrink:0;display:flex;flex-direction:column}
   .hpwd-side-scroll{flex:1;overflow-y:auto;overflow-x:hidden;min-height:0}
   .hpwd-side-scroll::-webkit-scrollbar{width:8px}
   .hpwd-side-scroll::-webkit-scrollbar-track{background:var(--bg2)}
@@ -131,6 +131,17 @@
   .hpwd-resizer:hover{background:var(--accent)}
   .hpwd-resizer.dragging{background:var(--accent)}
   .hpwd-resizer::before{content:'';position:absolute;inset:0 -3px;cursor:col-resize}
+
+  /* Sidebar Bottom — SOLVE + validity (comp-sim과 동일) */
+  .sb{padding:14px 18px;border-top:1px solid var(--bd);background:var(--bg);flex-shrink:0}
+  .wn{font-size:12px;padding:8px 10px;border-radius:var(--r);margin-bottom:10px;display:flex;align-items:center;gap:8px}
+  .wn.ok{background:var(--ok-bg);color:var(--ok)}
+  .wn.wr{background:var(--warn-bg);color:var(--warn)}
+  .wn.er{background:var(--err-bg);color:var(--err)}
+  .dot{width:7px;height:7px;border-radius:50%;background:currentColor;flex-shrink:0}
+  .solve-btn{width:100%;padding:11px 0;font-size:14px;font-weight:500;border:none;background:var(--accent);color:#fff;border-radius:var(--r);cursor:pointer}
+  .solve-btn:hover{filter:brightness(1.1)}
+  .solve-btn:disabled{opacity:.5;cursor:not-allowed}
 
   /* Fitting (compressor-sim과 동일) */
   .fa{border:1px solid var(--bd);border-radius:var(--rl);padding:16px;background:var(--bg2)}
