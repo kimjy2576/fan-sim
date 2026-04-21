@@ -1707,58 +1707,22 @@ export default function ImpellerViewer() {
   return (
     <div style={{ background: C.bg, height: "100vh", color: C.text, display: "flex", flexDirection: "column", overflow: "hidden" }} className="font-sans">
       {/* ═══ HPWD Standard Header (compressor-sim 동일) ═══ */}
-      <div style={{
-        display: "flex", alignItems: "center", gap: 16, padding: "10px 24px",
-        borderBottom: `1px solid ${C.border}`, background: C.card, flexShrink: 0,
-        flexWrap: "nowrap", overflowX: "auto",
-        fontFamily: "'Noto Sans KR', sans-serif"
-      }}>
-        <a href="#" onClick={e => e.preventDefault()} style={{
-          fontSize: 14, color: C.cyan, textDecoration: "none", cursor: "pointer",
-          whiteSpace: "nowrap", fontFamily: "'Noto Sans KR', sans-serif"
-        }}>← System</a>
-        <span style={{
-          fontSize: 16, fontWeight: 500, color: C.text, whiteSpace: "nowrap",
-          fontFamily: "'Noto Sans KR', sans-serif"
-        }}>
-          <span style={{ color: C.accent, marginRight: 6 }}>◆</span>Fan
-        </span>
-        <div style={{
-          display: "flex", gap: 4, marginLeft: "auto",
-          background: C.bg, borderRadius: 8, padding: 4, flexShrink: 0
-        }}>
+      <div className="hdr">
+        <a className="hdr-back" href="#" onClick={e => e.preventDefault()}>← System</a>
+        <div className="hdr-name"><span style={{color:'var(--accent)',marginRight:6}}>◆</span>Fan</div>
+        <div className="mode-grp">
           {[{k:'off_design',n:'Off-design'},{k:'semi_empirical',n:'Semi-empirical'},{k:'on_design',n:'On-design'}].map(m =>
-            <button key={m.k} onClick={() => setFanMode(m.k)} style={{
-              fontSize: 13, padding: "7px 18px", border: "none",
-              background: fanMode===m.k ? C.card : "transparent",
-              color: fanMode===m.k ? C.text : C.muted,
-              fontWeight: fanMode===m.k ? 500 : 400,
-              cursor: "pointer", borderRadius: 6, whiteSpace: "nowrap",
-              boxShadow: fanMode===m.k ? `0 0 0 1px ${C.border}` : "none",
-              fontFamily: "'Noto Sans KR', sans-serif",
-              transition: "all .15s"
-            }}>{m.n}</button>)}
+            <button key={m.k} className={`mode-btn ${fanMode===m.k?'on':''}`}
+              onClick={() => setFanMode(m.k)}>{m.n}</button>)}
         </div>
-        <div style={{ display: "flex", gap: 8, marginLeft: 16, flexShrink: 0 }}>
-          <button onClick={() => setSaveOpen(!saveOpen)} title="Save/Load" style={{
-            fontSize: 14, width: 36, height: 36, border: `1px solid ${C.border}`,
-            background: saveOpen ? C.bg : "transparent", borderRadius: 8,
-            cursor: "pointer", color: C.muted, display: "flex",
-            alignItems: "center", justifyContent: "center",
-            fontFamily: "'Noto Sans KR', sans-serif"
-          }}>💾</button>
+        <div className="hdr-icons">
+          <button title="Save / Load" onClick={() => setSaveOpen(!saveOpen)}>&#128190;</button>
           <button title="STEP Export" onClick={() => {
             const body = { D1, D2, beta1, beta2, Z, b1, b2, tBlade, bladeType };
             fetch('/api/generate-step', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
               .then(r => r.blob()).then(b => { const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = `fan_D${D2}_Z${Z}.step`; a.click(); })
               .catch(() => alert('STEP 생성 실패'));
-          }} style={{
-            fontSize: 14, width: 36, height: 36, border: `1px solid ${C.border}`,
-            background: "transparent", borderRadius: 8,
-            cursor: "pointer", color: C.muted, display: "flex",
-            alignItems: "center", justifyContent: "center",
-            fontFamily: "'Noto Sans KR', sans-serif"
-          }}>⚙</button>
+          }}>&#9881;</button>
         </div>
       </div>
       {/* Save/Load Panel */}
