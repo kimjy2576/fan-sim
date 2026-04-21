@@ -132,6 +132,15 @@
   .hpwd-resizer.dragging{background:var(--accent)}
   .hpwd-resizer::before{content:'';position:absolute;inset:0 -3px;cursor:col-resize}
 
+  /* Fitting (compressor-sim과 동일) */
+  .fa{border:1px solid var(--bd);border-radius:var(--rl);padding:16px;background:var(--bg2)}
+  .fit-btn{margin-top:10px;width:100%;padding:9px;font-size:13px;font-weight:500;border:none;border-radius:var(--r);cursor:pointer;color:#fff}
+  .fit-btn:disabled{opacity:0.5;cursor:default}
+  .fit-semi{background:var(--accent)}
+  .pg{display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px}
+  .pk{color:var(--tx2);padding:2px 0}
+  .pv{color:var(--tx);text-align:right;font-family:var(--mono);padding:2px 0}
+
   /* Mobile: stack vertically */
   @media (max-width:1023px){
     .hpwd-body{flex-direction:column}

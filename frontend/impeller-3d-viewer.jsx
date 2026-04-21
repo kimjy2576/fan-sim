@@ -856,7 +856,7 @@ function BottomView({ D2, Du, Deye }) {
 // ═══════════════════════════════════════════════════════════════
 // Excel-like Fitting Data Table (drag copy/paste, auto-expand rows/cols)
 // ═══════════════════════════════════════════════════════════════
-function FittingTable({ headers, setHeaders, data, setData, accent = '#d4a44a' }) {
+function FittingTable({ headers, setHeaders, data, setData, accent = 'var(--accent)' }) {
   const [sel, setSel] = React.useState({ r1: null, c1: null, r2: null, c2: null }); // selection range
   const [dragging, setDragging] = React.useState(false);
   const [editCell, setEditCell] = React.useState(null);  // {r, c} or null
@@ -1009,11 +1009,10 @@ function FittingTable({ headers, setHeaders, data, setData, accent = '#d4a44a' }
       style={{ outline: 'none', userSelect: 'none' }}>
       {/* Toolbar */}
       <div style={{ display:'flex', gap:8, marginBottom:8, alignItems:'center', flexWrap:'wrap' }}>
-        <button onClick={addRow} style={{ padding:'4px 12px', fontSize:12, border:`1px solid ${accent}44`, background:'var(--bg2)', color:accent, borderRadius:6, cursor:'pointer', fontFamily:"'Noto Sans KR', sans-serif" }}>+ 행 추가</button>
-        <button onClick={addCol} style={{ padding:'4px 12px', fontSize:12, border:`1px solid ${accent}44`, background:'var(--bg2)', color:accent, borderRadius:6, cursor:'pointer', fontFamily:"'Noto Sans KR', sans-serif" }}>+ 열 추가 (변수)</button>
+        <button onClick={addRow} style={{ padding:'4px 12px', fontSize:12, border:`1px solid ${accent}`, background:'var(--bg2)', color:accent, borderRadius:6, cursor:'pointer', fontFamily:"'Noto Sans KR', sans-serif" }}>+ 행 추가</button>
+        <button onClick={addCol} style={{ padding:'4px 12px', fontSize:12, border:`1px solid ${accent}`, background:'var(--bg2)', color:accent, borderRadius:6, cursor:'pointer', fontFamily:"'Noto Sans KR', sans-serif" }}>+ 열 추가 (변수)</button>
         <span style={{ fontSize:11, color:'var(--tx3)', marginLeft:'auto' }}>
-          선택: {sel.r1 != null ? `[${Math.min(sel.r1,sel.r2)+1}..${Math.max(sel.r1,sel.r2)+1}, ${headers[Math.min(sel.c1,sel.c2)]}..${headers[Math.max(sel.c1,sel.c2)]}]` : '없음'} |
-          {nRows}행 × {nCols}열
+          {sel.r1 != null ? `선택: [행 ${Math.min(sel.r1,sel.r2)+1}~${Math.max(sel.r1,sel.r2)+1}, ${headers[Math.min(sel.c1,sel.c2)]}~${headers[Math.max(sel.c1,sel.c2)]}]` : ''} · {nRows}행 × {nCols}열
         </span>
         <span style={{ fontSize:10, color:'var(--tx3)' }}>Ctrl+C/V, Del, F2, 화살표</span>
       </div>
@@ -1056,7 +1055,7 @@ function FittingTable({ headers, setHeaders, data, setData, accent = '#d4a44a' }
                     style={{
                       padding: isEditing ? 0 : '3px 6px',
                       border:'1px solid var(--bd)',
-                      background: selected ? `${accent}22` : 'var(--bg)',
+                      background: selected ? 'rgba(37,99,235,0.13)' : 'var(--bg)',
                       outline: selected && sel.r1 === r && sel.c1 === c ? `2px solid ${accent}` : 'none',
                       outlineOffset:-2,
                       cursor:'cell',
@@ -2035,91 +2034,82 @@ export default function ImpellerViewer() {
               color:paramSub===t.i?'#fff':'var(--tx2)',cursor:'pointer',whiteSpace:'nowrap'}}>{t.l}</button>)}
       </div>}
 
-      {/* TAB 1: Fitting (comp-sim 구조와 통일) */}
+      {/* TAB 1: Fitting (comp-sim 구조와 완전 통일) */}
       {activeTab === 1 && <div className="vp">
         {fanMode === 'on_design' && (
           <div className="vc full">
             <div className="vt">On-design 모드</div>
-            <div style={{padding:40,textAlign:'center',color:'var(--tx3)',fontSize:13}}>On-design 모드는 피팅 없이 물리 모델(9개 손실 계수 고정값)만으로 해석합니다.</div>
+            <div className="cp" style={{height:200,display:'flex',alignItems:'center',justifyContent:'center',color:'var(--tx3)'}}>
+              On-design 은 피팅 없이 물리 모델(9개 손실 계수 고정값)만으로 해석합니다.
+            </div>
           </div>
         )}
         {fanMode === 'off_design' && (
           <div className="vc full">
             <div className="vt">Off-design 모드</div>
-            <div style={{padding:40,textAlign:'center',color:'var(--tx3)',fontSize:13}}>
-              Off-design 모드는 실험 데이터를 PQ 차트에 오버레이만 합니다 (피팅 없음).<br/>
+            <div className="cp" style={{height:200,display:'flex',alignItems:'center',justifyContent:'center',color:'var(--tx3)'}}>
+              Off-design 은 실험 데이터를 PQ 차트에 오버레이만 합니다 (피팅 없음).<br/>
               피팅이 필요하면 <strong>Semi-empirical</strong> 모드를 선택하세요.
             </div>
           </div>
         )}
         {fanMode === 'semi_empirical' && (
-          <div className="vg" style={{gridTemplateColumns:'1fr', gap:16}}>
-            {/* Input table */}
-            <div className="vc full">
+          <div className="vg" style={{gridTemplateColumns:'1fr'}}>
+            <div className="fa">
               <div className="vt">Experimental data — Semi-empirical <span className="sub">(Excel / Sheets 복사 붙여넣기)</span></div>
               <div style={{padding:'10px 0'}}>
                 <FittingTable headers={fittingHeaders} setHeaders={setFittingHeaders} data={fittingData} setData={setFittingData} />
               </div>
-              <div style={{display:'flex',gap:10,marginTop:10,alignItems:'center',flexWrap:'wrap'}}>
-                <button onClick={() => {
-                  // Convert table to expData format [{Q, Ps, eta, RPM, rho}]
-                  const rows = fittingData.filter(r => r.some(v => v !== '' && v != null));
-                  if (rows.length < 3) { alert('최소 3개 이상의 실험 데이터 행이 필요합니다'); return; }
-                  // Column mapping: header name → expData key
-                  const keyMap = {};
-                  fittingHeaders.forEach((h, i) => {
-                    const H = h.toLowerCase();
-                    if (H.startsWith('q')) keyMap.Q = i;
-                    else if (H.startsWith('ps') || H.includes('static')) keyMap.Ps = i;
-                    else if (H.startsWith('pt') || H.includes('total')) keyMap.Pt = i;
-                    else if (H.startsWith('η') || H.startsWith('eta')) keyMap.eta = i;
-                    else if (H.toLowerCase().startsWith('rpm') || H.includes('rpm')) keyMap.RPM = i;
-                    else if (H.startsWith('ρ') || H.startsWith('rho')) keyMap.rho = i;
-                    else if (H.startsWith('w') && !H.includes('rap')) keyMap.W = i;
-                  });
-                  const ed = rows.map(r => ({
-                    Q: parseFloat(r[keyMap.Q]) || 0,
-                    Ps: parseFloat(r[keyMap.Ps]) || 0,
-                    Pt: parseFloat(r[keyMap.Pt]) || 0,
-                    eta: parseFloat(r[keyMap.eta]) || 0,
-                    RPM: parseFloat(r[keyMap.RPM]) || 0,
-                    W: parseFloat(r[keyMap.W]) || 0,
-                  }));
-                  setExpData(ed);
-                  setTimeout(() => runFitting(), 100);  // wait for state update
-                }} disabled={fitRunning}
-                  className="fit-btn"
-                  style={{fontSize:13,fontWeight:500,padding:'10px 24px',border:'none',borderRadius:'var(--r)',
-                    background:fitRunning?'var(--tx3)':'var(--accent)',color:'#fff',cursor:fitRunning?'default':'pointer'}}>
-                  {fitRunning ? 'Fitting...' : 'FIT COEFFICIENTS ▶'}</button>
-                <span style={{fontSize:11,color:'var(--tx3)'}}>
-                  {fittingData.filter(r => r.some(v => v!=='')).length} / {fittingData.length} 행 사용
-                </span>
-                {fitCoeffs && <div style={{fontSize:13,color:'var(--ok)'}}>✓ 피팅 완료 — PQ 차트에 자동 적용</div>}
-              </div>
+              <button className="fit-btn fit-semi" onClick={() => {
+                const rows = fittingData.filter(r => r.some(v => v !== '' && v != null));
+                if (rows.length < 3) { alert('최소 3개 이상의 실험 데이터 행이 필요합니다'); return; }
+                // Column mapping: header name → expData key
+                const keyMap = {};
+                fittingHeaders.forEach((h, i) => {
+                  const H = h.toLowerCase();
+                  if (H.startsWith('q')) keyMap.Q = i;
+                  else if (H.startsWith('ps') || H.includes('static')) keyMap.Ps = i;
+                  else if (H.startsWith('pt') || H.includes('total')) keyMap.Pt = i;
+                  else if (H.startsWith('η') || H.startsWith('eta')) keyMap.eta = i;
+                  else if (H.toLowerCase().startsWith('rpm') || H.includes('rpm')) keyMap.RPM = i;
+                  else if (H.startsWith('ρ') || H.startsWith('rho')) keyMap.rho = i;
+                  else if (H.startsWith('w') && !H.includes('rap')) keyMap.W = i;
+                });
+                const ed = rows.map(r => ({
+                  Q: parseFloat(r[keyMap.Q]) || 0,
+                  Ps: parseFloat(r[keyMap.Ps]) || 0,
+                  Pt: parseFloat(r[keyMap.Pt]) || 0,
+                  eta: parseFloat(r[keyMap.eta]) || 0,
+                  RPM: parseFloat(r[keyMap.RPM]) || 0,
+                  W: parseFloat(r[keyMap.W]) || 0,
+                }));
+                setExpData(ed);
+                setTimeout(() => runFitting(), 100);
+              }} disabled={fitRunning}>
+                {fitRunning ? 'Fitting...' : 'FIT COEFFICIENTS ▶'}</button>
+              {fitCoeffs && <div style={{marginTop:10,fontSize:13,color:'var(--ok)'}}>✓ 피팅 완료 — PQ 차트에 자동 적용</div>}
             </div>
-            {/* Fitted coefficients display */}
             {fitCoeffs && (
-              <div className="vc full">
-                <div className="vt">Fitted coefficients <span className="sub">— 9 loss model multipliers</span></div>
-                <div style={{padding:12,display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:12,fontSize:12}}>
+              <div className="vc">
+                <div className="vt">Fitted coefficients</div>
+                <div className="pg" style={{fontSize:12,padding:'8px 0'}}>
                   {Object.entries(fitCoeffs).map(([k,v]) => (
-                    <div key={k} style={{padding:10,background:'var(--bg2)',border:'1px solid var(--bd)',borderRadius:6}}>
-                      <div style={{fontSize:11,color:'var(--tx3)',marginBottom:3}}>{k}</div>
-                      <div style={{fontSize:15,fontFamily:'var(--mono)',color:'var(--tx)'}}>{typeof v === 'number' ? v.toFixed(4) : v}</div>
-                    </div>
+                    <React.Fragment key={k}>
+                      <span className="pk">{k}</span>
+                      <span className="pv">{typeof v === 'number' ? (Math.abs(v) < 0.001 ? v.toExponential(3) : v.toFixed(4)) : v}</span>
+                    </React.Fragment>
                   ))}
                 </div>
-                <div style={{padding:12,display:'flex',gap:8}}>
+                <div style={{display:'flex',gap:8,marginTop:12}}>
                   <button onClick={() => {
                     const b = new Blob([JSON.stringify(fitCoeffs, null, 2)], {type:'application/json'});
                     const a = document.createElement('a'); a.href = URL.createObjectURL(b);
                     a.download = 'fan_fit_coefficients.json'; a.click();
-                  }} style={{fontSize:12,padding:'6px 12px',border:'1px solid var(--bd)',background:'var(--bg2)',color:'var(--tx2)',borderRadius:6,cursor:'pointer'}}>📥 Export JSON</button>
+                  }} style={{flex:1,fontSize:13,padding:7,border:'1px solid var(--bd)',background:'transparent',borderRadius:'var(--r)',cursor:'pointer',color:'var(--tx2)'}}>📥 Export</button>
                   <button onClick={() => {
                     if (!confirm('피팅 결과를 초기화하시겠습니까?')) return;
                     setFitCoeffs(null);
-                  }} style={{fontSize:12,padding:'6px 12px',border:'1px solid var(--bd)',background:'var(--bg2)',color:'var(--err)',borderRadius:6,cursor:'pointer'}}>🗑 Reset</button>
+                  }} style={{flex:1,fontSize:13,padding:7,border:'1px solid var(--err)',background:'transparent',borderRadius:'var(--r)',cursor:'pointer',color:'var(--err)'}}>🗑 Reset</button>
                 </div>
               </div>
             )}
