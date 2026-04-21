@@ -3355,31 +3355,6 @@ export default function ImpellerViewer() {
       </aside>{/* /hpwd-side */}
       <div className="hpwd-resizer" onMouseDown={startResize} onTouchStart={startResize} title="드래그하여 너비 조절"/>
       </div>{/* /hpwd-body */}
-      {/* ═══ HPWD Standard KPI Bar (sticky bottom) ═══ */}
-      <div style={{
-        position: "sticky", bottom: 0,
-        display: "flex", borderTop: `1px solid ${C.border}`,
-        background: C.card, flexShrink: 0, zIndex: 50
-      }}>
-        {[
-          { l: "Q_BEP", v: (baseAero?.bep?.Q ?? 0).toFixed(1), u: "m³/min" },
-          { l: "Ps", v: (baseAero?.bep?.Ps ?? 0).toFixed(0), u: "Pa" },
-          { l: "η", v: ((baseAero?.bep?.eta ?? 0)*100).toFixed(1), u: "%" },
-          { l: "SPL", v: (baseAero?.SPL ?? 0).toFixed(1), u: "dB" },
-          { l: "BPF", v: (baseAero?.BPF ?? 0).toFixed(0), u: "Hz" },
-          { l: "SF", v: (baseStruc?.SF ?? 0).toFixed(1), u: "" },
-        ].map((k, i, arr) => (
-          <div key={k.l} style={{
-            flex: 1, textAlign: "center", padding: "8px 6px",
-            borderRight: i < arr.length - 1 ? `1px solid ${C.border}` : "none"
-          }}>
-            <div style={{ fontSize:13, color: C.dim, marginBottom: 2 }}>{k.l}</div>
-            <div style={{ fontSize:14, fontWeight: 500, color: C.text, fontFamily: "'Noto Sans KR', sans-serif" }}>
-              {k.v}{k.u && <span style={{ fontSize:13, fontWeight: 400, color: C.muted }}> {k.u}</span>}
-            </div>
-          </div>
-        ))}
-      </div>
 
       {/* Status bar */}
       <div style={{
