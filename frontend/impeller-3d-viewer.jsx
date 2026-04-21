@@ -880,6 +880,10 @@ export default function ImpellerViewer() {
   const [activeTab, setActiveTab] = useState(0);
   // Visualization sub-tab: 0=3D, 1=Top view, 2=Front view, 3=Bottom view
   const [vizSub, setVizSub] = useState(0);
+  // Results sub-tab: 0=1-D sim, 1=Component sim, 2=Parametric study
+  const [resultsSub, setResultsSub] = useState(1);  // default: Component (기존 fan sim 결과)
+  // Parametric study sub-tab: 0=Sweep, 1=Sensitivity, 2=Optimization
+  const [paramSub, setParamSub] = useState(0);
   // Resizable sidebar
   const [sidebarWidth, setSidebarWidth] = useState(() => {
     try { const v = localStorage.getItem('fansim_sidebar_w'); return v ? +v : 320; }
@@ -1760,33 +1764,50 @@ export default function ImpellerViewer() {
       {/* ═══ HPWD Sidebar Layout (flex on desktop, stack on mobile) ═══ */}
       <div className="hpwd-body">
       <div className="hpwd-main">
-      {/* ═══ compressor-sim 4-tab structure ═══ */}
+      {/* ═══ 3-tab structure: Model design | Fitting | Results ═══ */}
       <div className="tabs">
-        {['Visualization','Results','Fitting','Analysis'].map((t,i) => {
+        {['Model design','Fitting','Results'].map((t,i) => {
           const isOn = activeTab === i;
           return <button key={t} className={`tab ${isOn?'on':''}`}
             onClick={() => {
               setActiveTab(i);
               // Auto-select internal viewTab for each tab
-              if (i === 0) setViewTab(0); // Visualization → 3D
-              if (i === 1) setViewTab(6); // Results → PQ
-              if (i === 3) setViewTab(4); // Analysis → Sweep
+              if (i === 0) setViewTab(0);        // Model design → 3D
+              if (i === 2) {                     // Results
+                if (resultsSub === 1) setViewTab(6); // Component → PQ
+                if (resultsSub === 2) setViewTab(paramSub === 0 ? 4 : 5); // Parametric
+              }
             }}>{t}</button>;
         })}
       </div>
 
-      {/* Analysis sub-tabs (only inside Tab 3) */}
-      {activeTab === 3 && <div className="px-3 py-2 flex items-center gap-1" style={{borderBottom:`1px solid var(--bd)`,background:'var(--bg2)'}}>
+      {/* Results sub-tabs: 1-D / Component / Parametric study */}
+      {activeTab === 2 && <div className="px-3 py-2 flex items-center gap-1" style={{borderBottom:`1px solid var(--bd)`,background:'var(--bg2)'}}>
+        <span style={{fontSize:13,color:'var(--tx3)',marginRight:8}}>Results:</span>
+        {[{i:0,l:'1-D simulation'},{i:1,l:'Component simulation'},{i:2,l:'Parametric study'}].map(t =>
+          <button key={t.i} onClick={() => {
+            setResultsSub(t.i);
+            if (t.i === 1) setViewTab(6);           // Component → PQ curves
+            if (t.i === 2) setViewTab(paramSub === 0 ? 4 : paramSub === 2 ? 5 : 4);
+          }}
+            style={{padding:'4px 12px',fontSize:13,border:`1px solid ${resultsSub===t.i?'var(--accent)':'var(--bd)'}`,
+              borderRadius:6,background:resultsSub===t.i?'var(--accent)':'transparent',
+              color:resultsSub===t.i?'#fff':'var(--tx2)',cursor:'pointer',whiteSpace:'nowrap'}}>{t.l}</button>)}
+      </div>}
+
+      {/* Parametric study sub-tabs (only inside Results > Parametric) */}
+      {activeTab === 2 && resultsSub === 2 && <div className="px-3 py-2 flex items-center gap-1" style={{borderBottom:`1px solid var(--bd)`,background:'var(--bg2)'}}>
         <span style={{fontSize:13,color:'var(--tx3)',marginRight:8}}>Tool:</span>
-        {[{i:4,l:'Sweep'},{i:5,l:'Optimizer'}].map(t =>
-          <button key={t.i} onClick={()=>setViewTab(t.i)}
-            style={{padding:'4px 12px',fontSize:13,border:`1px solid ${viewTab===t.i?'var(--accent)':'var(--bd)'}`,
-              borderRadius:6,background:viewTab===t.i?'var(--accent)':'transparent',
-              color:viewTab===t.i?'#fff':'var(--tx2)',cursor:'pointer'}}>{t.l}</button>)}
+        {[{i:0,l:'Sweep',vt:4},{i:1,l:'Sensitivity analysis',vt:4},{i:2,l:'Optimization',vt:5}].map(t =>
+          <button key={t.i} onClick={()=>{setParamSub(t.i); setViewTab(t.vt);}}
+            style={{padding:'4px 12px',fontSize:13,border:`1px solid ${paramSub===t.i?'var(--accent)':'var(--bd)'}`,
+              borderRadius:6,background:paramSub===t.i?'var(--accent)':'transparent',
+              color:paramSub===t.i?'#fff':'var(--tx2)',cursor:'pointer',whiteSpace:'nowrap'}}>{t.l}</button>)}
       </div>}
 
       {/* Fitting tab placeholder */}
-      {activeTab === 2 && <div className="vp">
+      {/* TAB 1: Fitting */}
+      {activeTab === 1 && <div className="vp">
         <div className="vc full">
           <div className="vt">Fitting — Semi-empirical 계수 피팅</div>
           <div style={{padding:16,color:'var(--tx2)',fontSize:13,lineHeight:1.6}}>
@@ -1797,7 +1818,35 @@ export default function ImpellerViewer() {
         </div>
       </div>}
 
-      {/* ═══ TAB 0: VISUALIZATION with sub-tabs (one view at a time, large) ═══ */}
+      {/* TAB 2 > Results sub 0: 1-D simulation — 계산 결과 숫자 표시만 */}
+      {activeTab === 2 && resultsSub === 0 && <div className="vp">
+        <div className="vc full">
+          <div className="vt">1-D Simulation Results <span className="sub">— system-level numerical outputs</span></div>
+          <div style={{padding:16,color:'var(--tx2)',fontSize:13,lineHeight:1.6}}>
+            <p style={{marginBottom:16}}>1-D 시뮬레이션이 연결되면 여기에 시스템 레벨 계산 결과가 표시됩니다.</p>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16,maxWidth:720}}>
+              {[
+                {l:'System flow rate',v:'—',u:'m³/min'},
+                {l:'System head',v:'—',u:'Pa'},
+                {l:'Operating point η',v:'—',u:'%'},
+                {l:'Shaft power',v:'—',u:'W'},
+                {l:'Motor current',v:'—',u:'A'},
+                {l:'Acoustic power',v:'—',u:'dBA'},
+                {l:'Pipe friction loss',v:'—',u:'Pa'},
+                {l:'Total system loss',v:'—',u:'Pa'},
+              ].map(k => <div key={k.l} style={{padding:12,background:'var(--bg2)',border:'1px solid var(--bd)',borderRadius:8}}>
+                <div style={{fontSize:11,color:'var(--tx3)',marginBottom:4}}>{k.l}</div>
+                <div style={{fontSize:18,fontFamily:'var(--mono)',color:'var(--tx2)'}}>{k.v} <span style={{fontSize:12,color:'var(--tx3)'}}>{k.u}</span></div>
+              </div>)}
+            </div>
+            <p style={{marginTop:24,fontSize:12,color:'var(--tx3)'}}>
+              → 시스템 1-D 시뮬레이터 (덕트, 댐퍼, 팬 곡선 연동) 연결 예정
+            </p>
+          </div>
+        </div>
+      </div>}
+
+      {/* ═══ TAB 0: Model design with sub-tabs (one view at a time, large) ═══ */}
       {activeTab === 0 && <div className="vp" style={{display:'flex', flexDirection:'column'}}>
         {/* Sub-tab selector */}
         <div style={{display:'flex',gap:6,marginBottom:16,flexWrap:'wrap',flexShrink:0}}>
@@ -1855,8 +1904,9 @@ export default function ImpellerViewer() {
         </div>}
       </div>}
 
-      {/* ═══ Legacy hidden pass-through (renders chosen viewTab content for non-Viz tabs) ═══ */}
-      <div style={{display: activeTab === 2 || activeTab === 0 ? 'none' : 'block'}}>
+      {/* ═══ Legacy pass-through (renders viewTab 4/5/6 = Sweep/Optimizer/PQ) ═══ */}
+      {/* Shown only in Results tab, Component (sub=1) or Parametric (sub=2) */}
+      <div style={{display: (activeTab === 2 && (resultsSub === 1 || resultsSub === 2)) ? 'block' : 'none'}}>
         <div className="px-4 py-2">
         <div className="rounded-lg overflow-hidden" style={{ background: C.bg, border: `1px solid ${C.border}` }}>
           {viewTab===0 && <>
