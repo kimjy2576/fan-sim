@@ -853,6 +853,233 @@ function BottomView({ D2, Du, Deye }) {
   </svg>;
 }
 
+// ═══════════════════════════════════════════════════════════════
+// Excel-like Fitting Data Table (drag copy/paste, auto-expand rows/cols)
+// ═══════════════════════════════════════════════════════════════
+function FittingTable({ headers, setHeaders, data, setData, accent = '#d4a44a' }) {
+  const [sel, setSel] = React.useState({ r1: null, c1: null, r2: null, c2: null }); // selection range
+  const [dragging, setDragging] = React.useState(false);
+  const [editCell, setEditCell] = React.useState(null);  // {r, c} or null
+  const [editValue, setEditValue] = React.useState('');
+  const containerRef = React.useRef(null);
+
+  const nRows = data.length;
+  const nCols = headers.length;
+
+  const inRange = (r, c) => {
+    if (sel.r1 == null) return false;
+    const r0 = Math.min(sel.r1, sel.r2), r1 = Math.max(sel.r1, sel.r2);
+    const c0 = Math.min(sel.c1, sel.c2), c1 = Math.max(sel.c1, sel.c2);
+    return r >= r0 && r <= r1 && c >= c0 && c <= c1;
+  };
+
+  const cellDown = (r, c, e) => {
+    if (editCell && editCell.r === r && editCell.c === c) return;  // allow editing
+    e.preventDefault();
+    setSel({ r1: r, c1: c, r2: r, c2: c });
+    setDragging(true);
+    setEditCell(null);
+    containerRef.current?.focus();
+  };
+  const cellMove = (r, c) => {
+    if (!dragging) return;
+    setSel(s => ({ ...s, r2: r, c2: c }));
+  };
+  const cellUp = () => setDragging(false);
+  const cellDblClick = (r, c) => {
+    setEditCell({ r, c });
+    setEditValue(data[r][c] ?? '');
+  };
+
+  const commitEdit = () => {
+    if (!editCell) return;
+    const nd = data.map(row => [...row]);
+    nd[editCell.r][editCell.c] = editValue;
+    setData(nd);
+    setEditCell(null);
+  };
+
+  // Excel paste handler
+  const onPaste = (e) => {
+    if (sel.r1 == null) return;
+    e.preventDefault();
+    const text = (e.clipboardData || window.clipboardData).getData('text');
+    // Parse: split by \n (rows), then \t (cols) — Excel/Sheets default
+    const rows = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n').map(r => r.split('\t'));
+    // Remove trailing empty row if exists
+    while (rows.length > 0 && rows[rows.length-1].length === 1 && rows[rows.length-1][0] === '') rows.pop();
+    if (rows.length === 0) return;
+
+    const r0 = Math.min(sel.r1, sel.r2);
+    const c0 = Math.min(sel.c1, sel.c2);
+    const pasteH = rows.length;
+    const pasteW = Math.max(...rows.map(r => r.length));
+
+    // Auto-expand rows/columns
+    let newHeaders = [...headers];
+    let newData = data.map(row => [...row]);
+    while (newHeaders.length < c0 + pasteW) {
+      newHeaders.push(`var${newHeaders.length + 1}`);
+      newData = newData.map(row => [...row, '']);
+    }
+    while (newData.length < r0 + pasteH) {
+      newData.push(new Array(newHeaders.length).fill(''));
+    }
+    // Write values
+    for (let i = 0; i < pasteH; i++) {
+      for (let j = 0; j < rows[i].length; j++) {
+        newData[r0 + i][c0 + j] = rows[i][j];
+      }
+    }
+    setHeaders(newHeaders);
+    setData(newData);
+    // Update selection to cover pasted area
+    setSel({ r1: r0, c1: c0, r2: r0 + pasteH - 1, c2: c0 + pasteW - 1 });
+  };
+
+  const onCopy = (e) => {
+    if (sel.r1 == null) return;
+    e.preventDefault();
+    const r0 = Math.min(sel.r1, sel.r2), r1 = Math.max(sel.r1, sel.r2);
+    const c0 = Math.min(sel.c1, sel.c2), c1 = Math.max(sel.c1, sel.c2);
+    const rows = [];
+    for (let r = r0; r <= r1; r++) {
+      const row = [];
+      for (let c = c0; c <= c1; c++) row.push(data[r]?.[c] ?? '');
+      rows.push(row.join('\t'));
+    }
+    (e.clipboardData || window.clipboardData).setData('text', rows.join('\n'));
+  };
+
+  const onKey = (e) => {
+    if (editCell) {
+      if (e.key === 'Enter') { commitEdit(); e.preventDefault(); }
+      else if (e.key === 'Escape') { setEditCell(null); e.preventDefault(); }
+      return;
+    }
+    if (sel.r1 == null) return;
+    if (e.key === 'Delete' || e.key === 'Backspace') {
+      e.preventDefault();
+      const r0 = Math.min(sel.r1, sel.r2), r1 = Math.max(sel.r1, sel.r2);
+      const c0 = Math.min(sel.c1, sel.c2), c1 = Math.max(sel.c1, sel.c2);
+      const nd = data.map(row => [...row]);
+      for (let r = r0; r <= r1; r++) for (let c = c0; c <= c1; c++) nd[r][c] = '';
+      setData(nd);
+    } else if (e.key === 'Enter' || e.key === 'F2') {
+      e.preventDefault();
+      cellDblClick(sel.r1, sel.c1);
+    } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+      e.preventDefault();
+      const dr = e.key === 'ArrowUp' ? -1 : e.key === 'ArrowDown' ? 1 : 0;
+      const dc = e.key === 'ArrowLeft' ? -1 : e.key === 'ArrowRight' ? 1 : 0;
+      const nr = Math.max(0, Math.min(nRows - 1, sel.r1 + dr));
+      const nc = Math.max(0, Math.min(nCols - 1, sel.c1 + dc));
+      setSel({ r1: nr, c1: nc, r2: nr, c2: nc });
+    } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) {
+      // Start editing with typed character
+      e.preventDefault();
+      setEditCell({ r: sel.r1, c: sel.c1 });
+      setEditValue(e.key);
+    }
+  };
+
+  const addRow = () => setData([...data, new Array(nCols).fill('')]);
+  const addCol = () => {
+    setHeaders([...headers, `var${nCols + 1}`]);
+    setData(data.map(row => [...row, '']));
+  };
+  const removeRow = (r) => {
+    if (nRows <= 1) return;
+    const nd = data.filter((_, i) => i !== r);
+    setData(nd);
+    setSel({ r1: null, c1: null, r2: null, c2: null });
+  };
+  const removeCol = (c) => {
+    if (nCols <= 1) return;
+    setHeaders(headers.filter((_, i) => i !== c));
+    setData(data.map(row => row.filter((_, i) => i !== c)));
+    setSel({ r1: null, c1: null, r2: null, c2: null });
+  };
+
+  return (
+    <div ref={containerRef}
+      tabIndex={0}
+      onCopy={onCopy} onPaste={onPaste} onKeyDown={onKey}
+      onMouseUp={cellUp} onMouseLeave={cellUp}
+      style={{ outline: 'none', userSelect: 'none' }}>
+      {/* Toolbar */}
+      <div style={{ display:'flex', gap:8, marginBottom:8, alignItems:'center', flexWrap:'wrap' }}>
+        <button onClick={addRow} style={{ padding:'4px 12px', fontSize:12, border:`1px solid ${accent}44`, background:'var(--bg2)', color:accent, borderRadius:6, cursor:'pointer', fontFamily:"'Noto Sans KR', sans-serif" }}>+ 행 추가</button>
+        <button onClick={addCol} style={{ padding:'4px 12px', fontSize:12, border:`1px solid ${accent}44`, background:'var(--bg2)', color:accent, borderRadius:6, cursor:'pointer', fontFamily:"'Noto Sans KR', sans-serif" }}>+ 열 추가 (변수)</button>
+        <span style={{ fontSize:11, color:'var(--tx3)', marginLeft:'auto' }}>
+          선택: {sel.r1 != null ? `[${Math.min(sel.r1,sel.r2)+1}..${Math.max(sel.r1,sel.r2)+1}, ${headers[Math.min(sel.c1,sel.c2)]}..${headers[Math.max(sel.c1,sel.c2)]}]` : '없음'} |
+          {nRows}행 × {nCols}열
+        </span>
+        <span style={{ fontSize:10, color:'var(--tx3)' }}>Ctrl+C/V, Del, F2, 화살표</span>
+      </div>
+      {/* Table */}
+      <div style={{ overflow:'auto', maxHeight:400, border:`1px solid var(--bd)`, borderRadius:6 }}>
+        <table style={{ borderCollapse:'collapse', fontSize:12, fontFamily:'var(--mono)', width:'100%' }}>
+          <thead>
+            <tr style={{ background:'var(--bg2)', position:'sticky', top:0, zIndex:2 }}>
+              <th style={{ padding:'4px 6px', border:'1px solid var(--bd)', width:36, color:'var(--tx3)', fontSize:11, fontWeight:400 }}>#</th>
+              {headers.map((h, c) =>
+                <th key={c} style={{ padding:0, border:'1px solid var(--bd)', minWidth:80 }}>
+                  <div style={{ display:'flex', alignItems:'center', padding:'2px 4px' }}>
+                    <input value={h} onChange={e => {
+                      const nh = [...headers]; nh[c] = e.target.value; setHeaders(nh);
+                    }} style={{ width:'100%', border:'none', background:'transparent', color:accent, fontSize:12, fontFamily:"'Noto Sans KR', sans-serif", fontWeight:500, outline:'none' }}/>
+                    {nCols > 1 && <button onClick={() => removeCol(c)}
+                      title="열 삭제"
+                      style={{ padding:'2px 4px', fontSize:10, color:'var(--tx3)', background:'transparent', border:'none', cursor:'pointer' }}>✕</button>}
+                  </div>
+                </th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {data.map((row, r) =>
+              <tr key={r}>
+                <td style={{ padding:'3px 6px', border:'1px solid var(--bd)', background:'var(--bg2)', color:'var(--tx3)', fontSize:11, textAlign:'center', position:'relative' }}>
+                  <span>{r + 1}</span>
+                  {nRows > 1 && <button onClick={() => removeRow(r)}
+                    title="행 삭제"
+                    style={{ position:'absolute', right:2, top:2, padding:0, fontSize:10, color:'var(--tx3)', background:'transparent', border:'none', cursor:'pointer', display:'none' }}
+                    className="row-del">✕</button>}
+                </td>
+                {row.map((v, c) => {
+                  const isEditing = editCell && editCell.r === r && editCell.c === c;
+                  const selected = inRange(r, c);
+                  return <td key={c}
+                    onMouseDown={e => cellDown(r, c, e)}
+                    onMouseEnter={() => cellMove(r, c)}
+                    onDoubleClick={() => cellDblClick(r, c)}
+                    style={{
+                      padding: isEditing ? 0 : '3px 6px',
+                      border:'1px solid var(--bd)',
+                      background: selected ? `${accent}22` : 'var(--bg)',
+                      outline: selected && sel.r1 === r && sel.c1 === c ? `2px solid ${accent}` : 'none',
+                      outlineOffset:-2,
+                      cursor:'cell',
+                      color:'var(--tx)',
+                      whiteSpace:'nowrap',
+                      minWidth:80
+                    }}>
+                    {isEditing
+                      ? <input autoFocus value={editValue}
+                          onChange={e => setEditValue(e.target.value)}
+                          onBlur={commitEdit}
+                          style={{ width:'100%', padding:'3px 6px', border:`2px solid ${accent}`, background:'var(--bg)', color:'var(--tx)', fontSize:12, fontFamily:'var(--mono)', outline:'none', boxSizing:'border-box' }}/>
+                      : (v === '' || v == null ? '\u00A0' : v)}
+                  </td>;
+                })}
+              </tr>)}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 export default function ImpellerViewer() {
   const [Deye, setDeye] = useState(110);
   const [D1, setD1] = useState(120);
@@ -884,6 +1111,9 @@ export default function ImpellerViewer() {
   const [resultsSub, setResultsSub] = useState(1);  // default: Component (기존 fan sim 결과)
   // Parametric study sub-tab: 0=Sweep, 1=Sensitivity, 2=Optimization
   const [paramSub, setParamSub] = useState(0);
+  // Fitting table state — Excel-like spreadsheet
+  const [fittingHeaders, setFittingHeaders] = useState(['Q [m³/min]', 'Ps [Pa]', 'η [%]', 'RPM', 'ρ [kg/m³]']);
+  const [fittingData, setFittingData] = useState(() => Array.from({length: 8}, () => ['','','','','']));
   // Resizable sidebar
   const [sidebarWidth, setSidebarWidth] = useState(() => {
     try { const v = localStorage.getItem('fansim_sidebar_w'); return v ? +v : 320; }
@@ -1809,11 +2039,44 @@ export default function ImpellerViewer() {
       {/* TAB 1: Fitting */}
       {activeTab === 1 && <div className="vp">
         <div className="vc full">
-          <div className="vt">Fitting — Semi-empirical 계수 피팅</div>
-          <div style={{padding:16,color:'var(--tx2)',fontSize:13,lineHeight:1.6}}>
-            <p>실험 데이터를 업로드하면 9개 손실 계수를 자동 피팅합니다.</p>
-            <p style={{marginTop:8,fontSize:13,color:'var(--tx3)'}}>현재 피팅 기능은 헤더의 <strong>Semi-empirical</strong> 모드에서 사용할 수 있습니다.</p>
-            <p style={{marginTop:8,fontSize:13,color:'var(--tx3)'}}>→ 향후 이 탭으로 분리 예정</p>
+          <div className="vt">Fitting — 실험 데이터 입력 <span className="sub">— Excel / Sheets 에서 복사 붙여넣기 지원</span></div>
+          <div style={{padding:'12px 16px',color:'var(--tx2)',fontSize:12,lineHeight:1.5}}>
+            <div style={{marginBottom:12,padding:10,background:'var(--bg2)',borderRadius:6,border:'1px solid var(--bd)'}}>
+              <div style={{color:'var(--accent)',fontSize:12,fontWeight:500,marginBottom:4}}>📋 사용법</div>
+              <div style={{fontSize:11,color:'var(--tx2)',lineHeight:1.7}}>
+                • <b>셀 선택</b>: 클릭 후 드래그로 범위 선택<br/>
+                • <b>복사/붙여넣기</b>: Ctrl+C / Ctrl+V (Excel 클립보드 호환, 붙여넣는 양에 따라 자동으로 행/열 확장)<br/>
+                • <b>편집</b>: 더블클릭 또는 F2, Enter (완료) / Escape (취소)<br/>
+                • <b>삭제</b>: 선택 후 Delete / Backspace<br/>
+                • <b>열 삭제</b>: 헤더의 ✕ 버튼 &nbsp;·&nbsp; <b>열 이름 변경</b>: 헤더 클릭 후 수정
+              </div>
+            </div>
+            <FittingTable headers={fittingHeaders} setHeaders={setFittingHeaders} data={fittingData} setData={setFittingData} />
+            <div style={{marginTop:12,display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>
+              <button onClick={() => {
+                // Fit: use Semi-empirical mode with this data
+                alert('피팅 기능은 Semi-empirical 모드에서 동작합니다. 헤더의 Semi-empirical 을 선택하고 사이드바에서 실행하세요.');
+              }} style={{padding:'8px 16px',fontSize:13,border:'none',background:'var(--accent)',color:'#fff',borderRadius:6,cursor:'pointer'}}>
+                ▶ 피팅 실행 (9개 손실 계수)
+              </button>
+              <button onClick={() => {
+                // Export CSV
+                const csv = [fittingHeaders.join(','), ...fittingData.map(r => r.join(','))].join('\n');
+                const b = new Blob([csv],{type:'text/csv'}); const a = document.createElement('a');
+                a.href = URL.createObjectURL(b); a.download='fitting_data.csv'; a.click();
+              }} style={{padding:'8px 16px',fontSize:13,border:'1px solid var(--bd)',background:'var(--bg2)',color:'var(--tx2)',borderRadius:6,cursor:'pointer'}}>
+                📥 CSV 내보내기
+              </button>
+              <button onClick={() => {
+                if (!confirm('모든 데이터를 지우시겠습니까?')) return;
+                setFittingData(Array.from({length: 8}, () => new Array(fittingHeaders.length).fill('')));
+              }} style={{padding:'8px 16px',fontSize:13,border:'1px solid var(--bd)',background:'var(--bg2)',color:'var(--err)',borderRadius:6,cursor:'pointer'}}>
+                🗑 초기화
+              </button>
+              <span style={{marginLeft:'auto',fontSize:11,color:'var(--tx3)'}}>
+                {fittingData.filter(r => r.some(v => v !== '')).length} / {fittingData.length} 행에 데이터 있음
+              </span>
+            </div>
           </div>
         </div>
       </div>}
