@@ -1099,7 +1099,7 @@ export default function ImpellerViewer() {
   const [hubFillet, setHubFillet] = useState(5); // inlet hub fillet radius mm
   const [showShroud, setShowShroud] = useState(true);
   const [showBackplate, setShowBackplate] = useState(true);
-  const [autoRotate, setAutoRotate] = useState(true);
+  const [autoRotate, setAutoRotate] = useState(false);
   const [explode, setExplode] = useState(0);
   const [viewTab, setViewTab] = useState(0);
   // compressor-sim style 4-tab: 0=Visualization, 1=Results, 2=Fitting, 3=Analysis
@@ -1644,6 +1644,7 @@ export default function ImpellerViewer() {
 
   useEffect(() => {
     if (activeTab !== 0) return;
+    if (vizSub !== 0) return;  // only mount when on 3D sub-tab
     const mount = mountRef.current; if (!mount) return;
     const w = mount.clientWidth || 340, h = mount.clientHeight || 500;
     const scene = new THREE.Scene(); scene.background = new THREE.Color(C.bg);
@@ -1676,10 +1677,11 @@ export default function ImpellerViewer() {
     });
     resizeObs.observe(mount);
     return () => { cancelAnimationFrame(frameRef.current); resizeObs.disconnect(); rend.dispose(); };
-  }, [activeTab]);
+  }, [activeTab, vizSub]);
 
   useEffect(() => {
     if (activeTab !== 0) return;
+    if (vizSub !== 0) return;  // only rebuild when 3D sub-tab active
     const grp = grpRef.current; if (!grp) return;
     while(grp.children.length>0){const c=grp.children[0];if(c.geometry)c.geometry.dispose();if(c.material)c.material.dispose();grp.remove(c);}
     const hubR=Deye*0.2, sT=2, bpT=2, ex=explode;
@@ -1849,7 +1851,7 @@ export default function ImpellerViewer() {
       wire.position.copy(mesh.position);
       grp.add(wire);
     }
-  }, [Deye,D1,D2,Du,b1,b2,bladePts,Z,tBlade,bladeLean,eyeRise,hubDepth,hubFillet,showShroud,showBackplate,showScroll,explode,viewTab,
+  }, [Deye,D1,D2,Du,b1,b2,bladePts,Z,tBlade,bladeLean,eyeRise,hubDepth,hubFillet,showShroud,showBackplate,showScroll,explode,activeTab,vizSub,
       scrollType,wrapAngle,scrollGapF,scrollGapB,bScroll,scrollCross,scrollExpRate,scrollExpMode,scrollExpPts,cutoffGap,cutoffAngle,scrollEndAngle,Rtongue,tongueOutLen,tongueOutAngle,exitAngle,
       diffAngle,diffLength,diffType,diffInnerWall,showCasing,casingW,casingH,casingD,casingCX,casingCY]);
 
