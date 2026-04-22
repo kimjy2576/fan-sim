@@ -3076,6 +3076,19 @@ export default function ImpellerViewer() {
       <aside className="hpwd-side" style={{width: sidebarWidth + 'px'}}>
       <div className="hpwd-side-scroll">
       <div className="px-3 pb-2">
+        {/* Model info header — 최상단 */}
+        <div style={{paddingTop:12,paddingBottom:12,borderBottom:`1px solid ${C.border}`,marginBottom:8}}>
+          <div style={{fontSize:14,fontWeight:600,color:C.text,fontFamily:"'Noto Sans KR', sans-serif"}}>
+            {fanMode === 'on_design' ? 'On-design (물리 모델)' :
+             fanMode === 'semi_empirical' ? 'Semi-empirical (물리 + 피팅)' :
+             'Off-design (실험 곡선)'}
+          </div>
+          <div style={{fontSize:11,color:C.dim,lineHeight:1.6,marginTop:4,fontFamily:"'Noto Sans KR', sans-serif"}}>
+            {fanMode === 'on_design' && '기하(임펠러·스크롤·디퓨저·케이싱) 기반 물리 모델. 1D 유체 + 9개 손실 계수 + 구조 해석.'}
+            {fanMode === 'semi_empirical' && '임펠러 물리 모델 + 9개 손실 계수 피팅으로 실험 PQ 곡선에 맞춤 보정.'}
+            {fanMode === 'off_design' && '실험 PQ 곡선 데이터 기반 직접 예측. RPM + 실험 데이터만 필요 (기하 미반영).'}
+          </div>
+        </div>
         <div className="rounded-lg p-2" style={{ background: C.card, border: `1px solid ${C.border}` }}>
           {/* Material + RPM */}
           <div className="mb-2 pb-1" style={{ borderBottom: `1px solid ${C.border}` }}>
@@ -3379,14 +3392,6 @@ export default function ImpellerViewer() {
           </>}
           {/* End SCROLL~CASING (on_design only) */}
 
-          {/* Model info — 모델 타이틀만 */}
-          <div className="mt-2 pt-2" style={{ borderTop: `1px solid ${C.border}` }}>
-            <div style={{ fontSize:12, color:C.text, padding:'2px 4px', fontFamily:"'Noto Sans KR', sans-serif", fontWeight:600 }}>
-              {fanMode === 'on_design' ? 'On-design (물리 모델)' :
-               fanMode === 'semi_empirical' ? 'Semi-empirical (물리 + 피팅)' :
-               'Off-design (실험 곡선)'}
-            </div>
-          </div>
         </div>
       </div>
       </div>{/* /hpwd-side-scroll */}
