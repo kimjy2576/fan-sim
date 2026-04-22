@@ -2052,22 +2052,69 @@ export default function ImpellerViewer() {
               color:paramSub===t.i?'#fff':'var(--tx2)',cursor:'pointer',whiteSpace:'nowrap'}}>{t.l}</button>)}
       </div>}
 
+      {/* Parametric mode restrictions (comp-sim 패턴과 동일) */}
+      {activeTab === 2 && resultsSub === 2 && paramSub === 0 && fanMode === 'off_design' && (
+        <div className="vp"><div className="cp" style={{height:200,display:'flex',alignItems:'center',justifyContent:'center',color:'var(--tx3)',fontSize:13}}>
+          Sweep 은 Semi-empirical 또는 On-design 모드에서 사용 가능합니다.
+        </div></div>
+      )}
+      {activeTab === 2 && resultsSub === 2 && paramSub === 1 && fanMode !== 'semi_empirical' && (
+        <div className="vp"><div className="cp" style={{height:200,display:'flex',alignItems:'center',justifyContent:'center',color:'var(--tx3)',fontSize:13}}>
+          Sensitivity analysis 는 Semi-empirical 모드에서 사용 가능합니다.
+        </div></div>
+      )}
+      {activeTab === 2 && resultsSub === 2 && paramSub === 2 && (
+        <div className="vp"><div className="cp" style={{height:200,display:'flex',alignItems:'center',justifyContent:'center',color:'var(--tx3)',fontSize:13}}>
+          🚧 Optimization 기능은 향후 구현 예정입니다.
+        </div></div>
+      )}
+
       {/* TAB 1: Fitting (comp-sim 구조와 완전 통일) */}
       {activeTab === 1 && <div className="vp">
         {fanMode === 'on_design' && (
           <div className="vc full">
             <div className="vt">On-design 모드</div>
             <div className="cp" style={{height:200,display:'flex',alignItems:'center',justifyContent:'center',color:'var(--tx3)'}}>
-              On-design 은 피팅 없이 물리 모델(9개 손실 계수 고정값)만으로 해석합니다.
+              On-design 은 피팅 없이 기하 치수 + 물리 모델(9개 손실 계수 고정값)만으로 해석합니다.
             </div>
           </div>
         )}
         {fanMode === 'off_design' && (
-          <div className="vc full">
-            <div className="vt">Off-design 모드</div>
-            <div className="cp" style={{height:200,display:'flex',alignItems:'center',justifyContent:'center',color:'var(--tx3)'}}>
-              Off-design 은 실험 데이터를 PQ 차트에 오버레이만 합니다 (피팅 없음).<br/>
-              피팅이 필요하면 <strong>Semi-empirical</strong> 모드를 선택하세요.
+          <div className="vg" style={{gridTemplateColumns:'1fr'}}>
+            <div className="fa">
+              <div className="vt">Experimental data — Off-design <span className="sub">(실험 곡선 오버레이 + 계수 피팅)</span></div>
+              <div style={{padding:'10px 0'}}>
+                <FittingTable headers={fittingHeaders} setHeaders={setFittingHeaders} data={fittingData} setData={setFittingData} />
+              </div>
+              <button className="fit-btn fit-semi" onClick={() => {
+                const rows = fittingData.filter(r => r.some(v => v !== '' && v != null));
+                if (rows.length < 3) { alert('최소 3개 이상의 실험 데이터 행이 필요합니다'); return; }
+                const keyMap = {};
+                fittingHeaders.forEach((h, i) => {
+                  const H = h.toLowerCase();
+                  if (H.startsWith('q')) keyMap.Q = i;
+                  else if (H.startsWith('ps') || H.includes('static')) keyMap.Ps = i;
+                  else if (H.startsWith('pt') || H.includes('total')) keyMap.Pt = i;
+                  else if (H.startsWith('η') || H.startsWith('eta')) keyMap.eta = i;
+                  else if (H.toLowerCase().startsWith('rpm')) keyMap.RPM = i;
+                  else if (H.startsWith('ρ') || H.startsWith('rho')) keyMap.rho = i;
+                  else if (H.startsWith('w')) keyMap.W = i;
+                });
+                const ed = rows.map(r => ({
+                  Q: parseFloat(r[keyMap.Q]) || 0,
+                  Ps: parseFloat(r[keyMap.Ps]) || 0,
+                  Pt: parseFloat(r[keyMap.Pt]) || 0,
+                  eta: parseFloat(r[keyMap.eta]) || 0,
+                  RPM: parseFloat(r[keyMap.RPM]) || 0,
+                  W: parseFloat(r[keyMap.W]) || 0,
+                }));
+                setExpData(ed);
+              }}>
+                APPLY DATA ▶
+              </button>
+              {expData.length > 0 && <div style={{marginTop:10,fontSize:13,color:'var(--ok)'}}>
+                ✓ {expData.length}개 데이터 — Results &gt; Component simulation 의 PQ 차트에 오버레이됨
+              </div>}
             </div>
           </div>
         )}
@@ -2222,8 +2269,12 @@ export default function ImpellerViewer() {
       </div>}
 
       {/* ═══ Legacy pass-through (renders viewTab 4/5/6 = Sweep/Optimizer/PQ) ═══ */}
-      {/* Shown only in Results tab, Component (sub=1) or Parametric (sub=2) */}
-      <div style={{display: (activeTab === 2 && (resultsSub === 1 || resultsSub === 2)) ? 'block' : 'none'}}>
+      {/* Hide when Parametric sub is restricted by fanMode */}
+      <div style={{display: (activeTab === 2 && (
+        resultsSub === 1 ||
+        (resultsSub === 2 && paramSub === 0 && fanMode !== 'off_design') ||
+        (resultsSub === 2 && paramSub === 1 && fanMode === 'semi_empirical')
+      )) ? 'block' : 'none'}}>
         <div className="px-4 py-2">
         <div className="rounded-lg overflow-hidden" style={{ background: C.bg, border: `1px solid ${C.border}` }}>
           {viewTab===0 && <>
