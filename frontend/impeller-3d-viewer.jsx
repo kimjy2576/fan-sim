@@ -3414,28 +3414,21 @@ export default function ImpellerViewer() {
           </div>
           )}
 
-          {/* Performance + Structural results */}
-          <div className="mt-2 pt-2 grid grid-cols-4 gap-1" style={{ borderTop: `1px solid ${C.border}` }}>
-            {[
-              { l:"Q_BEP", v:baseAero.bep.Q.toFixed(1), u:"m³/min", c:C.amber },
-              { l:"Ps", v:baseAero.bep.Ps.toFixed(0), u:"Pa", c:C.cyan },
-              { l:"η", v:(baseAero.bep.eta*100).toFixed(1), u:"%", c:C.green },
-              { l:"SPL", v:baseAero.SPL.toFixed(1), u:"dB", c:baseAero.SPL>70?C.red:C.purple },
-              { l:"σ_max", v:baseStruc.sigma_total.toFixed(1), u:"MPa", c:C.orange },
-              { l:"SF", v:baseStruc.SF.toFixed(1), u:"", c:baseStruc.SF_ok?C.green:C.red },
-              { l:"f_n", v:baseStruc.f_n.toFixed(0), u:"Hz", c:baseStruc.res_ok?C.cyan:C.red },
-              { l:"BPF", v:baseAero.BPF.toFixed(0), u:"Hz", c:C.purple },
-            ].map(m => <div key={m.l} className="text-center py-1 rounded" style={{background:C.bg}}>
-              <div style={{color:C.dim,fontFamily: "'Noto Sans KR', sans-serif",fontSize:11}}>{m.l}</div>
-              <div className="font-bold" style={{color:m.c,fontFamily: "'Noto Sans KR', sans-serif",fontSize:13}}>{m.v}<span style={{fontSize:11,color:C.dim}}>{m.u}</span></div>
-            </div>)}
-          </div>
-
-          <div className="mt-1 p-1 rounded" style={{ background: C.bg, fontFamily: "'Noto Sans KR', sans-serif", fontSize:11, color: C.muted }}>
-            {mat.name} | σ_c={baseStruc.sigma_c.toFixed(1)}+σ_b={baseStruc.sigma_b.toFixed(1)}={baseStruc.sigma_total.toFixed(1)}MPa |
-            f_n/BPF={(baseAero.BPF>0?(baseStruc.f_n/baseAero.BPF).toFixed(2):"—")} {baseStruc.res_ok?"✓":"⚠공진"} |
-            질량:{baseStruc.bladeMass.toFixed(1)}g |
-            {bladeType==='sfs'?` SFS R=${Rfillet}`:bladeType==='arc'?' 원호':' 선형β'}
+          {/* Model info summary (모드별 간략 설명, comp-sim 의 AHRI 안내와 동일 패턴) */}
+          <div className="mt-2 pt-2" style={{ borderTop: `1px solid ${C.border}` }}>
+            <div style={{ fontSize:11, color:C.dim, lineHeight:1.7, padding:'2px 4px', fontFamily:"'Noto Sans KR', sans-serif" }}>
+              <strong style={{color:C.text,fontSize:12}}>
+                {fanMode === 'on_design' ? 'On-design (물리 모델)' :
+                 fanMode === 'semi_empirical' ? 'Semi-empirical (물리 + 피팅)' :
+                 'Off-design (실험 곡선)'}
+              </strong>
+              <br/>
+              {fanMode === 'on_design' && '1D 유체 · 9개 손실 계수 + 구조 해석 (응력, SF, 고유진동수)'}
+              {fanMode === 'semi_empirical' && '1D 유체 · 9개 손실 계수 피팅으로 실험 데이터 맞춤 보정'}
+              {fanMode === 'off_design' && '실험 PQ 곡선 기반 직접 예측 (기하 미반영)'}
+              <br/>
+              <span style={{color:C.dim}}>재질: {mat.name}</span>
+            </div>
           </div>
         </div>
       </div>
