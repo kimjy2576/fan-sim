@@ -2212,6 +2212,11 @@ export default function ImpellerViewer() {
 
       {/* ═══ TAB 0: Model design with sub-tabs (one view at a time, large) ═══ */}
       {activeTab === 0 && <div className="vp" style={{display:'flex', flexDirection:'column'}}>
+        {fanMode === 'off_design' && (
+          <div style={{padding:'10px 14px',marginBottom:12,background:'var(--bg2)',border:'1px solid var(--bd)',borderRadius:'var(--r)',fontSize:12,color:'var(--tx2)',flexShrink:0}}>
+            ℹ️ <strong>Off-design 모드</strong>: 기하 시각화는 기본값으로 표시됩니다. 상세 설계가 필요하면 Semi-empirical 또는 On-design 모드로 전환하세요.
+          </div>
+        )}
         {/* Sub-tab selector */}
         <div style={{display:'flex',gap:6,marginBottom:16,flexWrap:'wrap',flexShrink:0}}>
           {[{i:0,l:'3D Model'},{i:1,l:'Top view'},{i:2,l:'Front view'},{i:3,l:'Bottom view'}].map(t =>
@@ -3132,6 +3137,8 @@ export default function ImpellerViewer() {
             </div>
           </div>
 
+          {/* SCROLL ~ CASING — Off-design 모드에서는 숨김 (실험 기반 해석은 세부 기하 불필요) */}
+          {fanMode !== 'off_design' && <>
           {/* SCROLL parameters */}
           <div className="mt-2 pt-2" style={{ borderTop: `1px solid ${C.border}` }}>
             <div className="flex items-center gap-2 mb-1">
@@ -3351,6 +3358,19 @@ export default function ImpellerViewer() {
               </div>
             </>}
           </div>
+          {/* End SCROLL~CASING (Off-design 숨김 해제) */}
+          </>}
+
+          {/* Off-design 안내 (모드가 off_design 일 때만) */}
+          {fanMode === 'off_design' && (
+            <div className="mt-2 pt-2" style={{ borderTop: `1px solid ${C.border}` }}>
+              <div style={{ fontSize: 12, color: C.dim, lineHeight: 1.6, padding: '4px 2px', fontFamily: "'Noto Sans KR', sans-serif" }}>
+                <strong style={{color:C.text}}>Off-design 모드</strong><br/>
+                실험 데이터 기반 해석이므로 SCROLL/Tongue/Diffuser/CASING 세부 기하는 표시되지 않습니다.<br/>
+                기하 설정이 필요하면 <strong>Semi-empirical</strong> 또는 <strong>On-design</strong> 모드를 선택하세요.
+              </div>
+            </div>
+          )}
 
           <div className="mt-2 pt-2 grid grid-cols-5 gap-1" style={{ borderTop: `1px solid ${C.border}` }}>
             {[{l:"D₁/D₂",v:ratios.D1D2,ok:D1/D2>=0.65&&D1/D2<=0.8},{l:"Deye/D₁",v:ratios.DeyeD1,ok:Deye<=D1},{l:"Du/D₂",v:ratios.DuD2,ok:Du>=D2},{l:"b₂/D₂",v:ratios.b2D2,ok:b2/D2>=0.2&&b2/D2<=0.5},{l:"b₁/b₂",v:ratios.b1b2,ok:b1>=b2}].map(m=>
