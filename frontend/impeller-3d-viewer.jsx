@@ -3090,6 +3090,21 @@ export default function ImpellerViewer() {
             </div>
             <S label="RPM" value={RPM} min={400} max={3000} step={10} onChange={setRPM} unit="" color={C.green} />
           </div>
+
+          {/* Off-design: 기하 변수 모두 숨김 + 안내 */}
+          {fanMode === 'off_design' && (
+            <div className="mt-2 pt-2" style={{ borderTop: `1px solid ${C.border}` }}>
+              <div style={{ fontSize:12, color:C.dim, lineHeight:1.6, padding:'4px 2px', fontFamily:"'Noto Sans KR', sans-serif" }}>
+                <strong style={{color:C.text,fontSize:13}}>Off-design 모드</strong><br/>
+                실험 곡선(PQ) 데이터 기반 해석.<br/>
+                상단 RPM 과 Fitting 탭의 실험 데이터로 예측 수행.<br/>
+                기하 변수가 필요하면 <strong style={{color:C.accent}}>Semi-empirical</strong> 또는 <strong style={{color:C.accent}}>On-design</strong> 선택.
+              </div>
+            </div>
+          )}
+
+          {/* Semi-empirical / On-design: 임펠러 기하 + 블레이드 */}
+          {fanMode !== 'off_design' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-3">
             <div>
               <div style={{ color: C.dim, fontFamily: "'Noto Sans KR', sans-serif", fontSize:12, marginBottom: 2 }}>DIAMETERS</div>
@@ -3149,8 +3164,11 @@ export default function ImpellerViewer() {
               {bladeType === 'linear' && <div style={{ color: C.dim, fontFamily: "'Noto Sans KR', sans-serif", fontSize:11 }}>β가 r₁→r₂에서 선형 변화.</div>}
             </div>
           </div>
+          )}
+          {/* End Impeller (fanMode !== off_design) */}
 
-          {/* SCROLL ~ CASING — 모든 모드에서 표시 (3D 시각화 + On-design 에서만 해석 반영) */}
+          {/* SCROLL ~ CASING — On-design 모드에서만 편집 가능 (Semi-empirical/Off-design은 3D 시각화만) */}
+          {fanMode === 'on_design' && <>
           {/* SCROLL parameters */}
           <div className="mt-2 pt-2" style={{ borderTop: `1px solid ${C.border}` }}>
             <div className="flex items-center gap-2 mb-1">
@@ -3370,8 +3388,23 @@ export default function ImpellerViewer() {
               </div>
             </>}
           </div>
-          {/* End SCROLL~CASING */}
+          </>}
+          {/* End SCROLL~CASING (on_design only) */}
 
+          {/* Semi-empirical 모드 — 임펠러 위에서 끝. SCROLL 이하는 On-design 전용 안내 */}
+          {fanMode === 'semi_empirical' && (
+            <div className="mt-2 pt-2" style={{ borderTop: `1px solid ${C.border}` }}>
+              <div style={{ fontSize:12, color:C.dim, lineHeight:1.6, padding:'4px 2px', fontFamily:"'Noto Sans KR', sans-serif" }}>
+                <strong style={{color:C.text,fontSize:13}}>Semi-empirical 모드</strong><br/>
+                임펠러 기하 + 손실 계수 피팅으로 예측.<br/>
+                SCROLL/Tongue/Diffuser/CASING 세부 설계는<br/>
+                <strong style={{color:C.accent}}>On-design</strong> 모드에서 편집하세요.
+              </div>
+            </div>
+          )}
+
+          {/* Ratios — 임펠러 기하가 있을 때만 (off_design 숨김) */}
+          {fanMode !== 'off_design' && (
           <div className="mt-2 pt-2 grid grid-cols-5 gap-1" style={{ borderTop: `1px solid ${C.border}` }}>
             {[{l:"D₁/D₂",v:ratios.D1D2,ok:D1/D2>=0.65&&D1/D2<=0.8},{l:"Deye/D₁",v:ratios.DeyeD1,ok:Deye<=D1},{l:"Du/D₂",v:ratios.DuD2,ok:Du>=D2},{l:"b₂/D₂",v:ratios.b2D2,ok:b2/D2>=0.2&&b2/D2<=0.5},{l:"b₁/b₂",v:ratios.b1b2,ok:b1>=b2}].map(m=>
               <div key={m.l} className="text-center py-1 rounded" style={{background:C.bg}}>
@@ -3379,6 +3412,7 @@ export default function ImpellerViewer() {
                 <div className="font-bold" style={{color:m.ok?C.green:C.hub,fontFamily: "'Noto Sans KR', sans-serif",fontSize:13}}>{m.v}</div>
               </div>)}
           </div>
+          )}
 
           {/* Performance + Structural results */}
           <div className="mt-2 pt-2 grid grid-cols-4 gap-1" style={{ borderTop: `1px solid ${C.border}` }}>
