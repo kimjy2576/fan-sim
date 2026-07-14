@@ -52,6 +52,9 @@ def compute_aero(params: dict, air: dict = None, mode: str = "on_design",
     scrollExpRate = params.get("scrollExpRate", 0.12)
     diffAngle = params.get("diffAngle", 7)
     diffLength = params.get("diffLength", 40)
+    Deye = params.get("Deye", D1 * 0.9)      # inlet eye diameter (mm)
+    hubDia = params.get("hubDia", 0)          # hub diameter protruding into eye (mm), 0 = flat impeller
+    hubDepth = params.get("hubDepth", 0)      # hub protrusion depth (mm)
 
     # --- Air properties (variable or default) ---
     rho = air["rho"] if air else 1.184
@@ -68,11 +71,37 @@ def compute_aero(params: dict, air: dict = None, mode: str = "on_design",
     k_sc_mix = fc.get("k_sc_mix", 0.20)
     k_tongue_a = fc.get("k_tongue_a", 0.82)
     k_tongue_b = fc.get("k_tongue_b", 0.7)
+    k_hub = fc.get("k_hub", 1.0)              # hub curvature separation loss multiplier
 
     # --- Derived quantities ---
     omega = 2 * math.pi * RPM / 60
     r1, r2 = D1 / 2000, D2 / 2000
     b1m, b2m = b1 / 1000, b2 / 1000
+
+    # --- Hub protrusion geometry (수축 임펠러 / hub-recessed impeller) ---
+    # Quarter-ellipse hub profile:  a=r_hub (radial), h=hubDepth (axial)
+    #   z_hub(r) = hubDepth·sqrt(1 - (r/r_hub)^2)   for r < r_hub
+    r_eye = (Deye / 1000) / 2                  # inlet eye radius (m)
+    r_hub = (hubDia / 1000) / 2               # hub radius (m)
+    h_hub = hubDepth / 1000                    # hub axial depth (m)
+    has_hub = (r_hub > 1e-6 and h_hub > 1e-6 and r_hub < r_eye)
+
+    # (1) Effective inlet eye area: annulus (eye minus hub blockage)
+    A_eye_geom = math.pi * r_eye ** 2
+    A_eye_eff = math.pi * (r_eye ** 2 - r_hub ** 2) if has_hub else A_eye_geom
+    A_eye_eff = max(A_eye_eff, 0.05 * A_eye_geom)   # floor: never fully block
+
+    # (2) Meridional passage width at blade inlet r1:
+    #     hub encroaches on inlet width b1 by z_hub(r1)
+    if has_hub and r1 < r_hub:
+        z_hub_r1 = h_hub * math.sqrt(max(0.0, 1 - (r1 / r_hub) ** 2))
+    else:
+        z_hub_r1 = 0.0
+    # blockage fraction of inlet width (clamped so b1_eff stays positive)
+    b1_eff = max(0.15 * b1m, b1m - z_hub_r1)
+
+    # (3) Hub curvature parameter (aspect ratio: depth / hub radius)
+    lambda_hub = (h_hub / r_hub) if has_hub else 0.0
     b1R = math.radians(beta1)
     b2R = math.radians(beta2)
     U1, U2 = omega * r1, omega * r2
@@ -117,7 +146,10 @@ def compute_aero(params: dict, air: dict = None, mode: str = "on_design",
         Qm3s = (i / N) * Qmax_m3s
         Q = Qm3s * 60
 
-        Cr1 = Qm3s / (math.pi * (D1 / 1000) * b1m) if b1m > 0 else 0
+        # Axial velocity at inlet eye (through effective annular area)
+        Cx_eye = Qm3s / A_eye_eff if A_eye_eff > 0 else 0
+        # (2) Radial velocity at blade inlet uses hub-corrected width b1_eff
+        Cr1 = Qm3s / (math.pi * (D1 / 1000) * b1_eff) if b1_eff > 0 else 0
         Cr2 = Qm3s / (math.pi * (D2 / 1000) * b2m) if b2m > 0 else 0
         Ct2 = sigma * U2 - Cr2 / math.tan(b2R) if abs(math.tan(b2R)) > 1e-6 else sigma * U2
         C2 = math.sqrt(Cr2 ** 2 + Ct2 ** 2)
@@ -154,9 +186,18 @@ def compute_aero(params: dict, air: dict = None, mode: str = "on_design",
         eps = 0.12 + 0.5 * tBladeM / pitch2
         dP_jw = k_jw_mult * 0.5 * rho * C2 ** 2 * eps ** 2
 
+        # (6) Hub curvature separation loss (수축 임펠러)
+        #     Concave hub wall forces the axial→radial turn. Loss coefficient
+        #     follows bend-loss correlation: zeta ≈ zeta_90 · f(aspect ratio),
+        #     applied to the eye dynamic head.
+        #     zeta_90 ~ 0.15 (smooth 90° turn); grows mildly with lambda_hub.
+        #     lambda_hub = hubDepth / r_hub  (0 when no hub → loss = 0)
+        zeta_hub = 0.15 * lambda_hub / (1 + lambda_hub) if has_hub else 0
+        dP_hub = k_hub * zeta_hub * 0.5 * rho * Cx_eye ** 2 if has_hub else 0
+
         # Impeller total
         dP_disk = min(dP_disk, Pt_e * 0.5)
-        Pt_imp = max(0, Pt_e - dP_inc - dP_fric - dP_rec - dP_disk - dP_jw)
+        Pt_imp = max(0, Pt_e - dP_inc - dP_fric - dP_rec - dP_disk - dP_jw - dP_hub)
         Pdyn_imp = 0.5 * rho * C2 ** 2
 
         # --- Scroll losses ---
@@ -207,7 +248,8 @@ def compute_aero(params: dict, air: dict = None, mode: str = "on_design",
             "Pt": Pt_fan, "Ps": Ps, "Pdyn": Pdyn_exit, "eta": eta,
             "C2": C2, "W1": W1, "W2": W2, "Ct2": Ct2, "Pt_e": Pt_e,
             "dP_inc": dP_inc, "dP_fric": dP_fric, "dP_rec": dP_rec,
-            "dP_disk": dP_disk, "dP_jw": dP_jw,
+            "dP_disk": dP_disk, "dP_jw": dP_jw, "dP_hub": dP_hub,
+            "Cx_eye": Cx_eye,
             "dP_scroll": dP_scroll, "dP_tongue": dP_tongue,
             "dP_uncap": dP_uncap, "Q_recirc": Q_recirc,
             "Pt_imp": Pt_imp, "Pshaft": Pshaft,
@@ -258,6 +300,14 @@ def compute_aero(params: dict, air: dict = None, mode: str = "on_design",
         "Lb": Lb,
         "rho": rho,
         "sigma": sigma,
+        "hub": {
+            "hasHub": has_hub,
+            "A_eye_eff": A_eye_eff,
+            "A_eye_geom": A_eye_geom,
+            "blockRatio": (1 - A_eye_eff / A_eye_geom) if A_eye_geom > 0 else 0,
+            "b1_eff_mm": b1_eff * 1000,
+            "lambda_hub": lambda_hub,
+        },
     }
 
 

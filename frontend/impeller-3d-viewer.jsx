@@ -63,7 +63,8 @@ function VArrow({ x1,y1,x2,y2,color,label,dashed,sw=2 }) {
 function computeAero(p) {
   const { D1,D2,b1,b2,beta1,beta2,Z,RPM,tBlade=1,
     cutoffGap=8, Rtongue=5, wrapAngle=360, scrollExpRate=0.12, diffAngle=7, diffLength=40,
-    tongueOutLen=35, tongueOutAngle=5, scrollExpMode='uniform', scrollExpPts=null } = p;
+    tongueOutLen=35, tongueOutAngle=5, scrollExpMode='uniform', scrollExpPts=null,
+    Deye=D1*0.9, hubDia=0, hubDepth=0 } = p;
   const T=298.15, rho=1.184, mu=1.85e-5;
   const omega=2*Math.PI*RPM/60, r1=D1/2000, r2=D2/2000, b1m=b1/1000, b2m=b2/1000;
   const b1R=beta1*Math.PI/180, b2R=beta2*Math.PI/180;
@@ -74,6 +75,15 @@ function computeAero(p) {
   const tBladeM=tBlade/1000, k_inc=1-(tBladeM/(Math.PI*(D1/1000)/Z))**2;
   const gapM=cutoffGap/1000;
   const wrapFrac=Math.min(1,wrapAngle/360);
+  // --- Hub protrusion geometry (수축 임펠러) ---
+  const r_eye=(Deye/1000)/2, r_hub=(hubDia/1000)/2, h_hub=hubDepth/1000;
+  const hasHub=(r_hub>1e-6 && h_hub>1e-6 && r_hub<r_eye);
+  const A_eye_geom=Math.PI*r_eye**2;
+  let A_eye_eff=hasHub?Math.PI*(r_eye**2-r_hub**2):A_eye_geom;
+  A_eye_eff=Math.max(A_eye_eff,0.05*A_eye_geom);
+  const z_hub_r1=(hasHub && r1<r_hub)?h_hub*Math.sqrt(Math.max(0,1-(r1/r_hub)**2)):0;
+  const b1_eff=Math.max(0.15*b1m, b1m-z_hub_r1);
+  const lambda_hub=hasHub?(h_hub/r_hub):0;
   let Lb=0,px=r1,py=0,th=0;
   for(let i=1;i<=20;i++){const t=i/20,r=r1+t*(r2-r1),rP=r1+(i-1)/20*(r2-r1),rM=(r+rP)/2,tM=(t+(i-1)/20)/2,bM=b1R+tM*(b2R-b1R);if(Math.abs(Math.tan(bM))>0.001)th+=(-1/(rM*Math.tan(bM)))*(r-rP);const x=r*Math.cos(th),y=r*Math.sin(th);Lb+=Math.sqrt((x-px)**2+(y-py)**2);px=x;py=y;}
   let bestEta=0, bep=null, bestIdx=0;
@@ -81,7 +91,8 @@ function computeAero(p) {
   const minBepIdx = Math.floor(N * 0.1); // skip first 10% (shutoff region)
   for(let i=0;i<=N;i++){
     const Qm3s=(i/N)*QmaxM3s,Q=Qm3s*60;
-    const Cr1=Qm3s/(Math.PI*(D1/1000)*b1m),Cr2=Qm3s/(Math.PI*(D2/1000)*b2m);
+    const Cx_eye=A_eye_eff>0?Qm3s/A_eye_eff:0;
+    const Cr1=Qm3s/(Math.PI*(D1/1000)*b1_eff),Cr2=Qm3s/(Math.PI*(D2/1000)*b2m);
     const Ct2=sigma*U2-Cr2/Math.tan(b2R),C2=Math.sqrt(Cr2**2+Ct2**2);
     const W1=Math.sqrt(Cr1**2+U1**2),W2=Math.sqrt(Cr2**2+(Ct2-U2)**2);
     const Pt_e=rho*U2*Ct2;
@@ -94,7 +105,10 @@ function computeAero(p) {
     const ReDisk=rho*omega*r2**2/mu,Cm=ReDisk>0?0.0622/Math.pow(ReDisk,0.2):0.005;
     const Pdf=2*0.5*Cm*rho*omega**3*r2**5,dPdisk=Qm3s>1e-6?Pdf/Qm3s:Pdf/1e-6;
     const eps=0.12+0.5*tBladeM/pitch2,dPjw=0.5*rho*C2**2*eps**2;
-    const dPtotImp=dPinc+dPfric+dPrec+Math.min(dPdisk,Pt_e*0.5)+dPjw;
+    // Hub curvature separation loss (수축 임펠러)
+    const zeta_hub=hasHub?0.15*lambda_hub/(1+lambda_hub):0;
+    const dP_hub=hasHub?zeta_hub*0.5*rho*Cx_eye**2:0;
+    const dPtotImp=dPinc+dPfric+dPrec+Math.min(dPdisk,Pt_e*0.5)+dPjw+dP_hub;
     const Pt_imp=Math.max(0,Pt_e-dPtotImp);
     const Pdyn_imp=0.5*rho*C2**2;
 
@@ -158,7 +172,7 @@ function computeAero(p) {
     const Pshaft=Qm3s>1e-6?Pt_e*Qm3s+Pdf:Pdf; // shaft sees full Q_impeller
     const eta=Pshaft>0?Math.max(0,Ps*Q_delivered)/Pshaft:0; // η based on Q_delivered
     pts.push({Q:Q_del_m3min,Qm3s:Q_delivered,Pt:Pt_fan,Ps,Pdyn:Pdyn_exit,eta,C2,W1,W2,Ct2,Pt_e,
-      dPinc,dPfric,dPrec,dPdisk:Math.min(dPdisk,Pt_e*0.5),dPjw,dP_scroll,dP_tongue,dPs_diff,dP_uncap,Q_recirc,
+      dPinc,dPfric,dPrec,dPdisk:Math.min(dPdisk,Pt_e*0.5),dPjw,dP_hub,Cx_eye,dP_scroll,dP_tongue,dPs_diff,dP_uncap,Q_recirc,
       Pt_imp, deH:W1>0?W2/W1:1, C2U2:U2>0?C2/U2:0});
     if(i >= minBepIdx && eta>bestEta){bestEta=eta;bestIdx=i;}
   }
@@ -182,7 +196,8 @@ function computeAero(p) {
   const BPF=Z*RPM/60, Ns=bep.Qm3s>0?RPM*Math.sqrt(bep.Qm3s)/Math.pow(Math.max(1,bep.Pt)/rho,0.75):0;
   const dR=cutoffGap/(D2/2);
   const SPL=(bep.Qm3s>0&&bep.Pt>0?10*Math.log10(bep.Pt**2*bep.Qm3s/(rho*343**3))+56:30)-20*Math.log10(Math.max(0.03,dR)/0.10)-5*Math.log10(1+Rtongue/Math.max(1,cutoffGap));
-  return { bep,pts,BPF,SPL,Ns,U1,U2,omega,Lb,rho,sigma:sigma_val,Cr1_bep,Cr2_bep };
+  return { bep,pts,BPF,SPL,Ns,U1,U2,omega,Lb,rho,sigma:sigma_val,Cr1_bep,Cr2_bep,
+    hub:{hasHub,A_eye_eff,A_eye_geom,blockRatio:A_eye_geom>0?1-A_eye_eff/A_eye_geom:0,b1_eff_mm:b1_eff*1000,lambda_hub} };
 }
 
 // ═══ STRUCTURAL MODEL ═══
@@ -1095,6 +1110,7 @@ export default function ImpellerViewer() {
   const [bendPos, setBendPos] = useState(0.5);
   const [bladeLean, setBladeLean] = useState(0); // blade axial lean angle degrees (+ = forward lean)
   const [eyeRise, setEyeRise] = useState(10); // shroud eye curve height mm
+  const [hubDia, setHubDia] = useState(0);      // hub diameter protruding into eye (mm), 0 = flat impeller (수축 없음)
   const [hubDepth, setHubDepth] = useState(15); // inlet hub depth mm (how far hub protrudes)
   const [hubFillet, setHubFillet] = useState(5); // inlet hub fillet radius mm
   const [showShroud, setShowShroud] = useState(true);
@@ -1190,7 +1206,7 @@ export default function ImpellerViewer() {
 
   const collectState = () => ({
     _v: '2.0', _t: new Date().toISOString(),
-    Deye,D1,D2,Du,b1,b2,beta1,beta2,Z,tBlade,bladeType,Rfillet,bendPos,bladeLean,eyeRise,hubDepth,hubFillet,RPM,matKey,
+    Deye,D1,D2,Du,b1,b2,beta1,beta2,Z,tBlade,bladeType,Rfillet,bendPos,bladeLean,eyeRise,hubDia,hubDepth,hubFillet,RPM,matKey,
     scrollType,scrollEndAngle,scrollGapF,scrollGapB,bScroll,scrollExpRate,scrollExpMode,scrollExpPts,scrollCross,scrollR3,scrollM,scrollMPts,
     cutoffGap,cutoffAngle,Rtongue,exitAngle,tongueOutLen,tongueOutAngle,
     diffAngle,diffLength,diffType,diffInnerWall,
@@ -1205,7 +1221,7 @@ export default function ImpellerViewer() {
     s('b1',setB1);s('b2',setB2);s('beta1',setBeta1);s('beta2',setBeta2);
     s('Z',setZ);s('tBlade',setTBlade);s('bladeType',setBladeType);
     s('Rfillet',setRfillet);s('bendPos',setBendPos);s('bladeLean',setBladeLean);
-    s('eyeRise',setEyeRise);s('hubDepth',setHubDepth);s('hubFillet',setHubFillet);
+    s('eyeRise',setEyeRise);s('hubDia',setHubDia);s('hubDepth',setHubDepth);s('hubFillet',setHubFillet);
     s('RPM',setRPM);s('matKey',setMatKey);
     s('scrollType',setScrollType);s('scrollEndAngle',setScrollEndAngle);
     s('scrollGapF',setScrollGapF);s('scrollGapB',setScrollGapB);
@@ -1426,6 +1442,15 @@ export default function ImpellerViewer() {
     const gapM=(p.cutoffGap||8)/1000;
     const wrapFrac=Math.min(1,(p.wrapAngle||360)/360);
     const bScrollM=b2m*1.1;
+    // Hub protrusion geometry (수축 임펠러)
+    const r_eye=((p.Deye||p.D1*0.9)/1000)/2, r_hub=((p.hubDia||0)/1000)/2, h_hub=(p.hubDepth||0)/1000;
+    const hasHub=(r_hub>1e-6 && h_hub>1e-6 && r_hub<r_eye);
+    const A_eye_geom=Math.PI*r_eye**2;
+    let A_eye_eff=hasHub?Math.PI*(r_eye**2-r_hub**2):A_eye_geom;
+    A_eye_eff=Math.max(A_eye_eff,0.05*A_eye_geom);
+    const z_hub_r1=(hasHub && r1<r_hub)?h_hub*Math.sqrt(Math.max(0,1-(r1/r_hub)**2)):0;
+    const b1_eff=Math.max(0.15*b1m, b1m-z_hub_r1);
+    const lambda_hub=hasHub?(h_hub/r_hub):0;
     const N=100, pts=[];
     let bestEta=0, bestIdx=0;
     for(let i=0;i<=N;i++){
@@ -1433,7 +1458,8 @@ export default function ImpellerViewer() {
       const Cr2=Qm3s/(Math.PI*(p.D2/1000)*b2m);
       const Ct2=sigma*U2-Cr2/Math.tan(b2R);
       const C2=Math.sqrt(Cr2**2+Ct2**2);
-      const Cr1=Qm3s/(Math.PI*(p.D1/1000)*b1m);
+      const Cx_eye=A_eye_eff>0?Qm3s/A_eye_eff:0;
+      const Cr1=Qm3s/(Math.PI*(p.D1/1000)*b1_eff);
       const W1=Math.sqrt(Cr1**2+U1**2), W2=Math.sqrt(Cr2**2+(Ct2-U2)**2);
       const Pt_e=rho*U2*Ct2;
       const incA=Math.atan2(Cr1,U1)-b1R;
@@ -1448,7 +1474,9 @@ export default function ImpellerViewer() {
       const dPdisk=Qm3s>1e-6?Pdf/Qm3s:Pdf/1e-6;
       const eps_jw=0.12+0.5*tBladeM/pitch2;
       const dPjw=fc.k_jw*0.5*rho*C2**2*eps_jw**2;
-      const Pt_imp=Math.max(0,Pt_e-dPinc-dPfric-dPrec-Math.min(dPdisk,Pt_e*0.5)-dPjw);
+      const zeta_hub=hasHub?0.15*lambda_hub/(1+lambda_hub):0;
+      const dP_hub=hasHub?(fc.k_hub||1.0)*zeta_hub*0.5*rho*Cx_eye**2:0;
+      const Pt_imp=Math.max(0,Pt_e-dPinc-dPfric-dPrec-Math.min(dPdisk,Pt_e*0.5)-dPjw-dP_hub);
       const Pdyn_cap=0.5*rho*C2**2*wrapFrac;
       const L_sc=2*Math.PI*r2*wrapFrac;
       const rExit=r2+r2*(p.scrollExpRate||0.12)*wrapFrac*2*Math.PI;
@@ -1590,7 +1618,8 @@ export default function ImpellerViewer() {
   const mat = MATERIALS[matKey];
   const baseParams = { D1, D2, Du, Deye, b1, b2, beta1, beta2, Z, RPM, tBlade, bladeLean,
     cutoffGap, cutoffAngle, Rtongue, exitAngle, tongueOutLen, tongueOutAngle,
-    wrapAngle, scrollEndAngle, scrollExpRate, scrollExpMode, scrollExpPts, bScroll, diffAngle, diffLength };
+    wrapAngle, scrollEndAngle, scrollExpRate, scrollExpMode, scrollExpPts, bScroll, diffAngle, diffLength,
+    hubDia, hubDepth };
 
   // Auto-fit: calculate max scroll that fits within casing box
   const autoFitScroll = () => {
@@ -1718,15 +1747,25 @@ export default function ImpellerViewer() {
       }
     }
     const hg=new THREE.CylinderGeometry(hubR,hubR,bpT+8,32); hg.translate(0,-(bpT+8)/2,0); grp.add(new THREE.Mesh(hg,new THREE.MeshPhongMaterial({color:0xf59e0b,shininess:100})));
-    // Inlet hub — protrudes into eye
-    if (hubDepth > 0) {
+    // Inlet hub — 수축 임펠러: 모터 허브가 흡입구로 함몰 (concave cup)
+    // hubDia = 허브 직경 (흡입 막는 반경), hubDepth = 함몰 깊이
+    if (hubDia > 0 && hubDepth > 0) {
+      const hR = hubDia / 2;
       const hDepth = hubDepth;
-      const hR = hubR * 0.95;
-      const hGeo = new THREE.CylinderGeometry(hR * 0.3, hR, hDepth, 24);
-      hGeo.translate(0, b2 + hDepth / 2 + ex, 0);
-      const hMat = new THREE.MeshPhongMaterial({ color: 0xf59e0b, shininess: 100 });
-      grp.add(new THREE.Mesh(hGeo, hMat));
-      // Fillet torus at hub base
+      // Quarter-ellipse profile lathe: 위(shroud측)에서 반경 hR, 아래로 갈수록 좁아지며 함몰
+      // Profile points (r, y) from outer rim down into recess
+      const profPts = [];
+      const nP = 16;
+      for (let i = 0; i <= nP; i++) {
+        const t = i / nP;                          // 0=rim, 1=deepest
+        const r = hR * Math.sqrt(Math.max(0, 1 - t * t));  // ellipse: r shrinks
+        const y = b2 + ex + hDepth * t;            // descends into eye (upward = +y toward inlet)
+        profPts.push(new THREE.Vector2(Math.max(0.5, r), y));
+      }
+      const hubGeo = new THREE.LatheGeometry(profPts, 48);
+      const hubMat = new THREE.MeshPhongMaterial({ color: 0xf59e0b, shininess: 100, side: THREE.DoubleSide });
+      grp.add(new THREE.Mesh(hubGeo, hubMat));
+      // Fillet torus at hub rim (blends to backplate)
       if (hubFillet > 1) {
         const fGeo = new THREE.TorusGeometry(hR - hubFillet * 0.5, hubFillet * 0.5, 8, 32);
         fGeo.rotateX(Math.PI / 2);
@@ -1852,14 +1891,14 @@ export default function ImpellerViewer() {
       wire.position.copy(mesh.position);
       grp.add(wire);
     }
-  }, [Deye,D1,D2,Du,b1,b2,bladePts,Z,tBlade,bladeLean,eyeRise,hubDepth,hubFillet,showShroud,showBackplate,showScroll,explode,activeTab,vizSub,
+  }, [Deye,D1,D2,Du,b1,b2,bladePts,Z,tBlade,bladeLean,eyeRise,hubDia,hubDepth,hubFillet,showShroud,showBackplate,showScroll,explode,activeTab,vizSub,
       scrollType,wrapAngle,scrollGapF,scrollGapB,bScroll,scrollCross,scrollExpRate,scrollExpMode,scrollExpPts,cutoffGap,cutoffAngle,scrollEndAngle,Rtongue,tongueOutLen,tongueOutAngle,exitAngle,
       diffAngle,diffLength,diffType,diffInnerWall,showCasing,casingW,casingH,casingD,casingCX,casingCY]);
 
   const ratios = useMemo(() => ({ D1D2:(D1/D2).toFixed(3), DeyeD1:(Deye/D1).toFixed(3), DuD2:(Du/D2).toFixed(3), b2D2:(b2/D2).toFixed(3), b1b2:(b1/b2).toFixed(2) }), [D1,D2,Deye,Du,b1,b2]);
 
   // Base case performance + structure
-  const baseAero = useMemo(() => computeAero(baseParams), [D1,D2,Deye,b1,b2,beta1,beta2,Z,RPM,tBlade,cutoffGap,Rtongue,scrollEndAngle,cutoffAngle,scrollExpRate,scrollExpMode,scrollExpPts,diffAngle,diffLength,tongueOutLen,tongueOutAngle]);
+  const baseAero = useMemo(() => computeAero(baseParams), [D1,D2,Deye,b1,b2,beta1,beta2,Z,RPM,tBlade,cutoffGap,Rtongue,scrollEndAngle,cutoffAngle,scrollExpRate,scrollExpMode,scrollExpPts,diffAngle,diffLength,tongueOutLen,tongueOutAngle,hubDia,hubDepth]);
   const baseStruc = useMemo(() => computeStructure(baseParams, baseAero, mat), [baseAero, matKey, tBlade, b1, b2, D1, D2, Z]);
 
   // Input validation for sidebar (comp-sim compatible)
@@ -3117,8 +3156,18 @@ export default function ImpellerViewer() {
               <S label="b₁" value={b1} min={15} max={120} step={1} onChange={setB1} unit="mm" color={C.text} />
               <S label="b₂" value={b2} min={15} max={120} step={1} onChange={setB2} unit="mm" color={C.hub} />
               <S label="Eye R" value={eyeRise} min={0} max={25} step={1} onChange={setEyeRise} unit="mm" color={C.shroud} />
-              <S label="Hub D" value={hubDepth} min={0} max={40} step={1} onChange={setHubDepth} unit="mm" color={C.hub} />
+              <div style={{ color: C.hub, fontFamily: "'Noto Sans KR', sans-serif", fontSize:11, marginTop: 6, marginBottom: 2, fontWeight:600 }}>
+                수축 임펠러 (Hub-recessed)
+              </div>
+              <S label="Hub Ø" value={hubDia} min={0} max={Math.round(Deye*0.9)} step={1} onChange={setHubDia} unit="mm" color={C.hub} />
+              <S label="함몰깊이" value={hubDepth} min={0} max={40} step={1} onChange={setHubDepth} unit="mm" color={C.hub} />
               <S label="Hub R" value={hubFillet} min={0} max={15} step={0.5} onChange={setHubFillet} unit="mm" color={C.hub} />
+              {hubDia > 0 && baseAero.hub && (
+                <div style={{ fontSize:10, color:C.dim, lineHeight:1.5, marginTop:2, fontFamily:"'Noto Sans KR', sans-serif" }}>
+                  흡입 막힘 {(baseAero.hub.blockRatio*100).toFixed(0)}% · λ={baseAero.hub.lambda_hub.toFixed(2)}
+                  {' · '}유량 {((baseAero.bep.Q/Math.max(0.01,computeAero({...baseParams,hubDia:0}).bep.Q)-1)*100).toFixed(0)}%
+                </div>
+              )}
             </div>
             <div>
               <div className="flex items-center gap-1 mb-1">
