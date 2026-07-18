@@ -780,12 +780,15 @@ function FrontView({ Deye, D1, D2, Du, bladePts, Z, bladeType, bendPos, showScro
   </svg>;
 }
 
-function SectionView({ Deye, D1, D2, Du, b1, b2, eyeRise, showScroll, scrollGapF, scrollGapB, bScroll, hubDepth, hubFillet }) {
+function SectionView({ Deye, D1, D2, Du, b1, b2, eyeRise, showScroll, scrollGapF, scrollGapB, bScroll, hubDia = 0, hubDepth, hubFillet }) {
   const w = 340, h = 200, cx = w / 2, cy = h / 2 + 10;
   const maxR = Math.max(D2, Du) / 2; const sc = (w / 2 - 30) / maxR;
   const bSc = (h - 70) / Math.max(b1, b2, b1 + eyeRise);
   const rE = Deye/2*sc, r1s = D1/2*sc, r2s = D2/2*sc, rU = Du/2*sc;
   const h1 = b1*bSc*0.5, h2 = b2*bSc*0.5, hubR = rE*0.4;
+  // 수축 임펠러 (hub-recessed): dome radius in SVG units; backplate must reach the dome rim
+  const recR = hubDia > 0 ? hubDia/2*sc : 0;
+  const bpInnerR = Math.max(hubR, recR);
   const eyeH = eyeRise * bSc * 0.5; // eye rise in SVG units
   // Eye curve control point offset
   const eyeCurveR = eyeRise * 0.8 * sc; // radial spread of curve
@@ -795,7 +798,7 @@ function SectionView({ Deye, D1, D2, Du, b1, b2, eyeRise, showScroll, scrollGapF
     <text x={cx+3} y={26} fill={C.dim} fontSize={7} fontFamily="'Noto Sans KR', sans-serif">CL</text>
     {[1, -1].map(s => <g key={s}>
       <path d={`M${cx+s*rE} ${cy-h1-eyeH} Q${cx+s*(rE+eyeCurveR*0.5)} ${cy-h1-eyeH*0.2} ${cx+s*(rE+eyeCurveR)} ${cy-h1} L${cx+s*r2s} ${cy-h2}`} fill="none" stroke={C.shroud} strokeWidth={1.5} />
-      <line x1={cx+s*rU} y1={cy+h2} x2={cx+s*hubR} y2={cy+h1} stroke={C.backplate} strokeWidth={1.5} />
+      <line x1={cx+s*rU} y1={cy+h2} x2={cx+s*bpInnerR} y2={cy+h1} stroke={C.backplate} strokeWidth={1.5} />
       {Du>D2 && <line x1={cx+s*rU} y1={cy+h2} x2={cx+s*r2s} y2={cy+h2} stroke={C.accent} strokeWidth={1.5} strokeDasharray="3,2" />}
       <line x1={cx+s*r2s} y1={cy-h2} x2={cx+s*r2s} y2={cy+h2} stroke={C.blade} strokeWidth={1} opacity={0.5} />
       <line x1={cx+s*r1s} y1={cy-h1} x2={cx+s*r1s} y2={cy+h1} stroke={C.cyan} strokeWidth={0.7} opacity={0.3} strokeDasharray="2,2" />
@@ -823,16 +826,24 @@ function SectionView({ Deye, D1, D2, Du, b1, b2, eyeRise, showScroll, scrollGapF
     <defs><marker id="aS" viewBox="0 0 10 10" refX={8} refY={5} markerWidth={5} markerHeight={5} orient="auto"><path d="M0 0L10 5L0 10z" fill={C.green} opacity={0.5} /></marker></defs>
     <rect x={cx-r2s} y={cy-h2} width={r2s*2} height={h2+h1} fill={C.blade} opacity={0.06} rx={1} />
     <rect x={cx-hubR} y={cy+h1} width={hubR*2} height={4} fill={C.border} stroke={C.hub} strokeWidth={0.8} rx={1} />
-    {/* Inlet hub depth */}
-    {hubDepth > 0 && (() => {
+    {/* 수축 임펠러 (hub-recessed): 백플레이트에서 임펠러 내부로 솟는 1/4 타원 돔.
+        물리 모델과 동일:  z_hub(r) = hubDepth·√(1-(r/r_hub)²) */}
+    {hubDia > 0 && hubDepth > 0 && (() => {
       const hD = hubDepth * bSc * 0.5;
-      const hTopR = hubR * 0.3;
-      const fR = hubFillet * bSc * 0.5;
+      const yB = cy + h1;        // rim on backplate
+      const yA = yB - hD;        // apex (rises into interior, toward eye)
+      const blk = Deye > 0 ? Math.min(1, (hubDia/Deye)**2) : 0;  // A_eye blockage = (r_hub/r_eye)²
       return <>
-        {[-1,1].map(s => <path key={s} d={`M${cx+s*hubR} ${cy+h1} L${cx+s*hubR} ${cy+h1-hD+fR} Q${cx+s*hubR} ${cy+h1-hD} ${cx+s*(hubR-fR)} ${cy+h1-hD} L${cx+s*hTopR} ${cy+h1-hD}`}
-          fill="none" stroke={C.hub} strokeWidth={1.2} />)}
-        <line x1={cx-hTopR} y1={cy+h1-hD} x2={cx+hTopR} y2={cy+h1-hD} stroke={C.hub} strokeWidth={1} />
-        <text x={cx+hubR+4} y={cy+h1-hD/2} fill={C.hub} fontSize={6} fontFamily="'Noto Sans KR', sans-serif" opacity={0.6}>Hub {hubDepth}mm</text>
+        {/* Dome body */}
+        <path d={`M${cx-recR} ${yB} A${recR} ${hD} 0 0 1 ${cx} ${yA} A${recR} ${hD} 0 0 1 ${cx+recR} ${yB} Z`}
+          fill={C.hub} fillOpacity={0.22} stroke={C.hub} strokeWidth={1.4} />
+        {/* Blocked core: dashed lines from eye plane down to dome (유효 흡입 환형 표시) */}
+        {[1,-1].map(s => <line key={s} x1={cx+s*recR} y1={cy-h1-eyeH} x2={cx+s*recR} y2={yA}
+          stroke={C.hub} strokeWidth={0.6} strokeDasharray="3,3" opacity={0.4} />)}
+        {/* Depth dimension */}
+        <line x1={cx+recR+6} y1={yB} x2={cx+recR+6} y2={yA} stroke={C.hub} strokeWidth={0.5} opacity={0.6} />
+        <text x={cx+recR+9} y={(yB+yA)/2+2} fill={C.hub} fontSize={6} fontFamily="'Noto Sans KR', sans-serif" opacity={0.75}>Ø{hubDia}×{hubDepth}</text>
+        <text x={cx} y={yA-3} fill={C.hub} fontSize={5.5} fontFamily="'Noto Sans KR', sans-serif" textAnchor="middle" opacity={0.7}>막힘 {(blk*100).toFixed(0)}%</text>
       </>;
     })()}
     <text x={cx} y={cy-h1-eyeH-18} fill={C.green} fontSize={8} fontFamily="'Noto Sans KR', sans-serif" textAnchor="middle" opacity={0.6}>↓ AIR IN ↓</text>
@@ -1752,25 +1763,26 @@ export default function ImpellerViewer() {
     if (hubDia > 0 && hubDepth > 0) {
       const hR = hubDia / 2;
       const hDepth = hubDepth;
-      // Quarter-ellipse profile lathe: 위(shroud측)에서 반경 hR, 아래로 갈수록 좁아지며 함몰
-      // Profile points (r, y) from outer rim down into recess
+      // Quarter-ellipse dome rising from BACKPLATE (y=-ex) up into the impeller interior.
+      // Matches physics:  z_hub(r) = hubDepth·√(1-(r/r_hub)²)
+      //   → r(t) = hR·√(1-t²),  z(t) = hubDepth·t   (t: 0=rim on backplate, 1=apex)
       const profPts = [];
       const nP = 16;
       for (let i = 0; i <= nP; i++) {
-        const t = i / nP;                          // 0=rim, 1=deepest
-        const r = hR * Math.sqrt(Math.max(0, 1 - t * t));  // ellipse: r shrinks
-        const y = b2 + ex + hDepth * t;            // descends into eye (upward = +y toward inlet)
-        profPts.push(new THREE.Vector2(Math.max(0.5, r), y));
+        const t = i / nP;                                  // 0=rim, 1=apex
+        const r = hR * Math.sqrt(Math.max(0, 1 - t * t));  // radius shrinks toward apex
+        const y = -ex + hDepth * t;                        // rises from backplate into interior
+        profPts.push(new THREE.Vector2(Math.max(0.4, r), y));
       }
       const hubGeo = new THREE.LatheGeometry(profPts, 48);
       const hubMat = new THREE.MeshPhongMaterial({ color: 0xf59e0b, shininess: 100, side: THREE.DoubleSide });
       grp.add(new THREE.Mesh(hubGeo, hubMat));
-      // Fillet torus at hub rim (blends to backplate)
+      // Fillet torus at hub rim (blends dome into backplate)
       if (hubFillet > 1) {
-        const fGeo = new THREE.TorusGeometry(hR - hubFillet * 0.5, hubFillet * 0.5, 8, 32);
+        const fGeo = new THREE.TorusGeometry(Math.max(1, hR - hubFillet * 0.5), hubFillet * 0.5, 8, 32);
         fGeo.rotateX(Math.PI / 2);
         const fMesh = new THREE.Mesh(fGeo, new THREE.MeshPhongMaterial({ color: 0xf59e0b, shininess: 80, transparent: true, opacity: 0.8 }));
-        fMesh.position.y = b2 + ex;
+        fMesh.position.y = -ex;
         grp.add(fMesh);
       }
     }
@@ -2312,7 +2324,7 @@ export default function ImpellerViewer() {
         {vizSub === 2 && <div className="vc" style={{flex:1, display:'flex', flexDirection:'column', minHeight:0}}>
           <div className="vt" style={{flexShrink:0}}>Front view <span className="sub">— axial cross section</span></div>
           <div style={{flex:1, minHeight:400, display:'flex',alignItems:'center',justifyContent:'center',overflow:'auto'}}>
-            <SectionView {...{Deye,D1,D2,Du,b1,b2,eyeRise,showScroll,scrollGapF,scrollGapB,bScroll,hubDepth,hubFillet}} />
+            <SectionView {...{Deye,D1,D2,Du,b1,b2,eyeRise,showScroll,scrollGapF,scrollGapB,bScroll,hubDia,hubDepth,hubFillet}} />
           </div>
         </div>}
 
@@ -2347,7 +2359,7 @@ export default function ImpellerViewer() {
             </div>
           </>}
           {viewTab===1 && <div className="py-2"><FrontView {...{Deye,D1,D2,Du,b1,b2,bladePts,Z,bladeType,bendPos,showScroll,scrollType,wrapAngle,cutoffGap,cutoffAngle,Rtongue,tongueOutLen,tongueOutAngle,diffAngle,diffLength,diffType,diffInnerWall,showCasing,casingW,casingH,casingCX,casingCY,scrollExpRate,exitAngle,scrollExpMode,scrollExpPts,scrollR3,scrollM,scrollMPts}} /></div>}
-          {viewTab===2 && <div className="py-2"><SectionView {...{Deye,D1,D2,Du,b1,b2,eyeRise,showScroll,scrollGapF,scrollGapB,bScroll,hubDepth,hubFillet}} /></div>}
+          {viewTab===2 && <div className="py-2"><SectionView {...{Deye,D1,D2,Du,b1,b2,eyeRise,showScroll,scrollGapF,scrollGapB,bScroll,hubDia,hubDepth,hubFillet}} /></div>}
           {viewTab===3 && <div className="py-2"><BottomView {...{D2,Du,Deye}} /></div>}
           <div style={{display:viewTab===4?'block':'none'}}>
           {(() => {
