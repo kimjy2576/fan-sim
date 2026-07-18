@@ -131,6 +131,37 @@ python backend/impeller_step_gen.py          # 기본 파라미터
 | `HOST` | `0.0.0.0` | 바인딩 주소. `run.bat` 는 `127.0.0.1` 로 설정 |
 | `PORT` | `8000` | 포트 |
 | `OPEN_BROWSER` | — | `1` 이면 기동 후 브라우저 자동 오픈 |
+| `PYTHON` | `python3` | parity 검증에서 사용할 Python 경로 |
+
+---
+
+## 물리 동등성 검증 (개발용)
+
+fan-sim 은 같은 공력 물리를 **3벌**로 구현한다: `backend/fan_model.py`(API),
+프론트 `computeAero`(On-design), `computeAeroFit`(Semi-empirical 피팅).
+세 벌은 반드시 같은 답을 내야 하지만, 물리를 고칠 때 한 벌만 고치면
+**에러 없이 결과만 조용히 갈라진다**. 이를 자동 검출한다.
+
+### 실행
+
+```
+test.bat            (Windows, 원클릭 — venv + npm 자동 셋업 후 검증)
+```
+
+수동:
+```bash
+npm install                              # @babel (최초 1회, 검증 전용)
+PYTHON=.venv/bin/python node tests/parity.js
+```
+
+종료코드 `0`=통과, `1`=불일치. Node.js 필요(서버 실행에는 불필요).
+자세한 내용은 `tests/README.md` 참조.
+
+### 물리 수정 시 규칙
+
+1. 세 벌(backend / computeAero / computeAeroFit)을 **모두** 같이 고친다.
+2. `test.bat` 으로 여전히 통과하는지 확인.
+3. 새 손실항·상수를 추가하면 `tests/cases.json` 에 극단 케이스를 넣는다.
 
 ---
 

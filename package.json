@@ -1,0 +1,13 @@
+{
+  "name": "fan-sim-tests",
+  "version": "1.0.0",
+  "private": true,
+  "description": "fan-sim 물리 동등성 검증 도구 (개발용). 서버 실행에는 불필요.",
+  "scripts": {
+    "parity": "node tests/parity.js"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.24.0",
+    "@babel/preset-react": "^7.24.0"
+  }
+}
