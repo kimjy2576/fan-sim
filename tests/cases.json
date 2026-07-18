@@ -23,6 +23,8 @@
     { "name": "r_scroll_w↑",  "fc": { "r_scroll_w": 1.4 } },
     { "name": "c_scroll_v↓",  "fc": { "c_scroll_v": 0.5 } },
     { "name": "c_tongue↑",    "fc": { "c_tongue_loss": 0.5 } },
-    { "name": "eps_leak_max↓","fc": { "eps_leak_max": 0.15 } }
+    { "name": "eps_leak_max↓","fc": { "eps_leak_max": 0.15 } },
+    { "name": "w_rec↑",       "fc": { "w_rec": 0.10 } },
+    { "name": "w_rec=0",      "fc": { "w_rec": 0 } }
   ]
 }

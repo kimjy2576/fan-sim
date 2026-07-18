@@ -60,12 +60,21 @@ function VArrow({ x1,y1,x2,y2,color,label,dashed,sw=2 }) {
 }
 
 // ═══ AERO COMPUTE ═══
+// (x)+ 의 smooth 근사. w→0 이면 max(x,0). recirc DR>DR_crit 불연속 완화.
+// backend _softplus / studio fan_on.py 와 동일.
+function _softplus(x, w) {
+  if (w <= 0) return Math.max(0, x);
+  const z = x / w;
+  if (z > 30) return x;
+  if (z < -30) return 0;
+  return w * Math.log1p(Math.exp(z));
+}
 function computeAero(p) {
   const { D1,D2,b1,b2,beta1,beta2,Z,RPM,tBlade=1,
     cutoffGap=8, Rtongue=5, wrapAngle=360, scrollExpRate=0.12, diffAngle=7, diffLength=40,
     tongueOutLen=35, tongueOutAngle=5, scrollExpMode='uniform', scrollExpPts=null,
     Deye=D1*0.9, hubDia=0, hubDepth=0,
-    c_wake=0.12, r_scroll_w=1.1, c_scroll_v=0.7, c_tongue_loss=0.3, eps_leak_max=0.25 } = p;
+    c_wake=0.12, r_scroll_w=1.1, c_scroll_v=0.7, c_tongue_loss=0.3, eps_leak_max=0.25, w_rec=0.02 } = p;
   const T=298.15, rho=1.184, mu=1.85e-5;
   const omega=2*Math.PI*RPM/60, r1=D1/2000, r2=D2/2000, b1m=b1/1000, b2m=b2/1000;
   const b1R=beta1*Math.PI/180, b2R=beta2*Math.PI/180;
@@ -102,7 +111,7 @@ function computeAero(p) {
     const Wa=(W1+W2)/2,Re=rho*Wa*Dh/mu,f=Re>2300?1/Math.pow(-1.8*Math.log10(6.9/Re+(0.00005/Dh/3.7)**1.11),2):(Re>0?64/Re:0.02);
     const dPfric=f*(Lb/Dh)*0.5*rho*Wa**2;
     const DR=W1>0?1-W2/W1+Math.abs(Ct2)/(2*Z*W1/Math.PI):0;
-    const dPrec=DR>0.5?0.0085*(DR-0.5)**2*rho*U2**2:0;
+    const dPrec=0.0085*_softplus(DR-0.5,w_rec)**2*rho*U2**2;
     const ReDisk=rho*omega*r2**2/mu,Cm=ReDisk>0?0.0622/Math.pow(ReDisk,0.2):0.005;
     const Pdf=2*0.5*Cm*rho*omega**3*r2**5,dPdisk=Qm3s>1e-6?Pdf/Qm3s:Pdf/1e-6;
     const eps=c_wake+0.5*tBladeM/pitch2,dPjw=0.5*rho*C2**2*eps**2;
@@ -1130,6 +1139,7 @@ export default function ImpellerViewer() {
   const [cScrollV, setCScrollV] = useState(0.7);    // 스크롤 유효속도계수
   const [cTongueLoss, setCTongueLoss] = useState(0.3);  // tongue 손실계수
   const [epsLeakMax, setEpsLeakMax] = useState(0.25);   // tongue 누설 상한
+  const [wRec, setWRec] = useState(0.02);               // recirc softplus 전이폭
   const [hubDepth, setHubDepth] = useState(15); // inlet hub depth mm (how far hub protrudes)
   const [hubFillet, setHubFillet] = useState(5); // inlet hub fillet radius mm
   const [showShroud, setShowShroud] = useState(true);
@@ -1225,7 +1235,7 @@ export default function ImpellerViewer() {
 
   const collectState = () => ({
     _v: '2.0', _t: new Date().toISOString(),
-    Deye,D1,D2,Du,b1,b2,beta1,beta2,Z,tBlade,bladeType,Rfillet,bendPos,bladeLean,eyeRise,hubDia,hubDepth,hubFillet,cWake,rScrollW,cScrollV,cTongueLoss,epsLeakMax,RPM,matKey,
+    Deye,D1,D2,Du,b1,b2,beta1,beta2,Z,tBlade,bladeType,Rfillet,bendPos,bladeLean,eyeRise,hubDia,hubDepth,hubFillet,cWake,rScrollW,cScrollV,cTongueLoss,epsLeakMax,wRec,RPM,matKey,
     scrollType,scrollEndAngle,scrollGapF,scrollGapB,bScroll,scrollExpRate,scrollExpMode,scrollExpPts,scrollCross,scrollR3,scrollM,scrollMPts,
     cutoffGap,cutoffAngle,Rtongue,exitAngle,tongueOutLen,tongueOutAngle,
     diffAngle,diffLength,diffType,diffInnerWall,
@@ -1240,7 +1250,7 @@ export default function ImpellerViewer() {
     s('b1',setB1);s('b2',setB2);s('beta1',setBeta1);s('beta2',setBeta2);
     s('Z',setZ);s('tBlade',setTBlade);s('bladeType',setBladeType);
     s('Rfillet',setRfillet);s('bendPos',setBendPos);s('bladeLean',setBladeLean);
-    s('eyeRise',setEyeRise);s('hubDia',setHubDia);s('hubDepth',setHubDepth);s('hubFillet',setHubFillet);s('cWake',setCWake);s('rScrollW',setRScrollW);s('cScrollV',setCScrollV);s('cTongueLoss',setCTongueLoss);s('epsLeakMax',setEpsLeakMax);
+    s('eyeRise',setEyeRise);s('hubDia',setHubDia);s('hubDepth',setHubDepth);s('hubFillet',setHubFillet);s('cWake',setCWake);s('rScrollW',setRScrollW);s('cScrollV',setCScrollV);s('cTongueLoss',setCTongueLoss);s('epsLeakMax',setEpsLeakMax);s('wRec',setWRec);
     s('RPM',setRPM);s('matKey',setMatKey);
     s('scrollType',setScrollType);s('scrollEndAngle',setScrollEndAngle);
     s('scrollGapF',setScrollGapF);s('scrollGapB',setScrollGapB);
@@ -1411,7 +1421,7 @@ export default function ImpellerViewer() {
 
       // RMSE before fitting (default coeffs)
       const baseGeom = { D1,D2,Deye:Deye,b1,b2,beta1,beta2,Z,RPM,tBlade,cutoffGap,Rtongue,wrapAngle,scrollExpRate,diffAngle,diffLength,tongueOutLen,tongueOutAngle,
-        c_wake:cWake, r_scroll_w:rScrollW, c_scroll_v:cScrollV, c_tongue_loss:cTongueLoss, eps_leak_max:epsLeakMax };
+        c_wake:cWake, r_scroll_w:rScrollW, c_scroll_v:cScrollV, c_tongue_loss:cTongueLoss, eps_leak_max:epsLeakMax, w_rec:wRec };
       const evalRMSE = (coeffArr) => {
         const fc = {};
         coeffNames.forEach((k,i) => { fc[k] = Math.max(bounds_lo[i], Math.min(bounds_hi[i], coeffArr[i])); });
@@ -1503,7 +1513,7 @@ export default function ImpellerViewer() {
       const f=Re>2300?1/(-1.8*Math.log10(6.9/Re+(5e-5/Dh/3.7)**1.11))**2:(Re>0?64/Re:0.02);
       const dPfric=fc.k_fric*f*(Lb/Dh)*0.5*rho*Wa**2;
       const DR=W1>0?1-W2/W1+Math.abs(Ct2)/(2*p.Z*W1/Math.PI):0;
-      const dPrec=DR>fc.DR_crit?fc.k_rec*(DR-fc.DR_crit)**2*rho*U2**2:0;
+      const dPrec=fc.k_rec*_softplus(DR-fc.DR_crit,(fc.w_rec!=null?fc.w_rec:0.02))**2*rho*U2**2;
       const ReDisk=rho*omega*r2**2/mu, Cm=ReDisk>0?0.0622/Math.pow(ReDisk,0.2):0.005;
       const Pdf=fc.k_disk*2*0.5*Cm*rho*omega**3*r2**5;
       const dPdisk=Qm3s>1e-6?Pdf/Qm3s:Pdf/1e-6;
@@ -1656,7 +1666,7 @@ export default function ImpellerViewer() {
     cutoffGap, cutoffAngle, Rtongue, exitAngle, tongueOutLen, tongueOutAngle,
     wrapAngle, scrollEndAngle, scrollExpRate, scrollExpMode, scrollExpPts, bScroll, diffAngle, diffLength,
     hubDia, hubDepth,
-    c_wake: cWake, r_scroll_w: rScrollW, c_scroll_v: cScrollV, c_tongue_loss: cTongueLoss, eps_leak_max: epsLeakMax };
+    c_wake: cWake, r_scroll_w: rScrollW, c_scroll_v: cScrollV, c_tongue_loss: cTongueLoss, eps_leak_max: epsLeakMax, w_rec: wRec };
 
   // Auto-fit: calculate max scroll that fits within casing box
   const autoFitScroll = () => {
@@ -1936,7 +1946,7 @@ export default function ImpellerViewer() {
   const ratios = useMemo(() => ({ D1D2:(D1/D2).toFixed(3), DeyeD1:(Deye/D1).toFixed(3), DuD2:(Du/D2).toFixed(3), b2D2:(b2/D2).toFixed(3), b1b2:(b1/b2).toFixed(2) }), [D1,D2,Deye,Du,b1,b2]);
 
   // Base case performance + structure
-  const baseAero = useMemo(() => computeAero(baseParams), [D1,D2,Deye,b1,b2,beta1,beta2,Z,RPM,tBlade,cutoffGap,Rtongue,scrollEndAngle,cutoffAngle,scrollExpRate,scrollExpMode,scrollExpPts,diffAngle,diffLength,tongueOutLen,tongueOutAngle,hubDia,hubDepth,cWake,rScrollW,cScrollV,cTongueLoss,epsLeakMax]);
+  const baseAero = useMemo(() => computeAero(baseParams), [D1,D2,Deye,b1,b2,beta1,beta2,Z,RPM,tBlade,cutoffGap,Rtongue,scrollEndAngle,cutoffAngle,scrollExpRate,scrollExpMode,scrollExpPts,diffAngle,diffLength,tongueOutLen,tongueOutAngle,hubDia,hubDepth,cWake,rScrollW,cScrollV,cTongueLoss,epsLeakMax,wRec]);
   const baseStruc = useMemo(() => computeStructure(baseParams, baseAero, mat), [baseAero, matKey, tBlade, b1, b2, D1, D2, Z]);
 
   // Input validation for sidebar (comp-sim compatible)
@@ -3491,7 +3501,8 @@ export default function ImpellerViewer() {
               <S label="c_scroll_v" value={cScrollV} min={0.4} max={1.0} step={0.05} onChange={setCScrollV} unit="" color={C.purple} />
               <S label="c_tongue" value={cTongueLoss} min={0.1} max={0.6} step={0.05} onChange={setCTongueLoss} unit="" color={C.purple} />
               <S label="ε_leak_max" value={epsLeakMax} min={0.1} max={0.4} step={0.01} onChange={setEpsLeakMax} unit="" color={C.purple} />
-              <button onClick={() => { setCWake(0.12); setRScrollW(1.1); setCScrollV(0.7); setCTongueLoss(0.3); setEpsLeakMax(0.25); }}
+              <S label="w_rec" value={wRec} min={0} max={0.1} step={0.005} onChange={setWRec} unit="" color={C.purple} />
+              <button onClick={() => { setCWake(0.12); setRScrollW(1.1); setCScrollV(0.7); setCTongueLoss(0.3); setEpsLeakMax(0.25); setWRec(0.02); }}
                 style={{ marginTop:6, fontSize:11, padding:'4px 10px', border:`1px solid ${C.border}`, borderRadius:6, background:'transparent', color:C.dim, cursor:'pointer', fontFamily:"'Noto Sans KR', sans-serif" }}>
                 기본값 복원
               </button>

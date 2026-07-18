@@ -14,6 +14,21 @@ import math
 from typing import Optional
 
 
+def _softplus(x: float, w: float) -> float:
+    """(x)+ 의 smooth 근사. w→0 이면 max(x, 0) 과 수렴.
+    recirculation 손실의 DR>DR_crit 불연속을 매끄럽게 하기 위함.
+    (studio hpwd-studio-task fan_on.py 와 동일 구현)
+    """
+    if w <= 0:
+        return max(0.0, x)
+    z = x / w
+    if z > 30:
+        return x
+    if z < -30:
+        return 0.0
+    return w * math.log1p(math.exp(z))
+
+
 def compute_aero(params: dict, air: dict = None, mode: str = "on_design",
                  fit_coeffs: dict = None, pq_map: dict = None) -> dict:
     """
@@ -82,6 +97,7 @@ def compute_aero(params: dict, air: dict = None, mode: str = "on_design",
     c_scroll_v    = _const("c_scroll_v", 0.7)     # 스크롤 유효속도계수
     c_tongue_loss = _const("c_tongue_loss", 0.3)  # tongue 손실계수
     eps_leak_max  = _const("eps_leak_max", 0.25)  # tongue 누설분율 상한
+    w_rec         = _const("w_rec", 0.02)         # recirc softplus 전이폭 (0 이면 hard threshold)
 
     # --- Derived quantities ---
     omega = 2 * math.pi * RPM / 60
@@ -184,7 +200,9 @@ def compute_aero(params: dict, air: dict = None, mode: str = "on_design",
 
         # (3) Recirculation
         DR = 1 - W2 / W1 + abs(Ct2) / (2 * Z * W1 / math.pi) if W1 > 0 else 0
-        dP_rec = k_rec_coeff * (DR - k_rec_thresh) ** 2 * rho * U2 ** 2 if DR > k_rec_thresh else 0
+        # ⑤ Recirculation (Oh 1997) — DR>DR_crit 불연속을 softplus 로 매끄럽게
+        #    (w_rec=0 이면 기존 hard threshold 와 동일)
+        dP_rec = k_rec_coeff * _softplus(DR - k_rec_thresh, w_rec) ** 2 * rho * U2 ** 2
 
         # (4) Disk friction
         Re_disk = rho * omega * r2 ** 2 / mu if mu > 0 else 1e6

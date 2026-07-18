@@ -26,6 +26,10 @@ function loadFrontendPhysics(jsxPath) {
   const src = fs.readFileSync(jsxPath, 'utf8');
   const lines = src.split('\n');
 
+  // 공유 헬퍼 _softplus (computeAero 앞에 선언됨)
+  const spStart = lines.findIndex(l => l.includes('function _softplus('));
+  const spSrc = spStart >= 0 ? extractBlock(lines, spStart) : '';
+
   const aeroStart = lines.findIndex(l => l.includes('function computeAero(p)'));
   if (aeroStart < 0) throw new Error('computeAero 선언을 찾지 못함');
   const aeroSrc = extractBlock(lines, aeroStart);
@@ -37,7 +41,7 @@ function loadFrontendPhysics(jsxPath) {
     .replace('const computeAeroFit = (geom, fc) => {', 'function computeAeroFit(geom, fc) {')
     .replace(/;\s*$/, '');
 
-  const combined = aeroSrc + '\n' + fitSrc + '\nmodule.exports = { computeAero, computeAeroFit };';
+  const combined = spSrc + '\n' + aeroSrc + '\n' + fitSrc + '\nmodule.exports = { computeAero, computeAeroFit };';
   const { code } = babel.transformSync(combined, { presets: ['@babel/preset-react'] });
 
   const m = { exports: {} };
