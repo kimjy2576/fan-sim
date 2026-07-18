@@ -235,7 +235,8 @@ def compute_aero(params: dict, air: dict = None, mode: str = "on_design",
         dP_uncap = 0.5 * rho * (C2 * math.sqrt(1 - wrapFrac)) ** 2 * (1 - wrapFrac)
 
         # --- Fan totals ---
-        Pt_fan = max(0, Pt_imp - dP_jw - dP_scroll - dP_tongue - dP_uncap)
+        # dP_jw 는 Pt_imp 에서 이미 차감됨 (임펠러 출구 손실 1회). 여기서 다시 빼지 않음.
+        Pt_fan = max(0, Pt_imp - dP_scroll - dP_tongue - dP_uncap)
         V_exit = Q_delivered / A_exit if Q_delivered > 0 else 0
         Pdyn_exit = 0.5 * rho * V_exit ** 2
         Ps = Pt_fan - Pdyn_exit

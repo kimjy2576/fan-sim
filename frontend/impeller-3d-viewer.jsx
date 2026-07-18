@@ -162,7 +162,8 @@ function computeAero(p) {
     const dP_uncap=0.5*rho*(C2*Math.sqrt(1-wrapFrac))**2*(1-wrapFrac);
 
     // Fan totals
-    const Pt_fan=Math.max(0,Pt_imp-dPjw-dP_scroll-dP_tongue-dP_uncap);
+    // dP_jw 는 Pt_imp 에서 이미 차감됨 (임펠러 출구 손실 1회). 여기서 다시 빼지 않음.
+    const Pt_fan=Math.max(0,Pt_imp-dP_scroll-dP_tongue-dP_uncap);
     // Exit dynamic pressure: V_exit = Q / A_exit (actual duct velocity)
     // Diffuser increases A_exit → reduces V_exit → reduces Pdyn → increases Ps
     const A_exit = Math.max(0.001, A_sc * Math.max(1, diffAR));
@@ -1453,6 +1454,17 @@ export default function ImpellerViewer() {
     const gapM=(p.cutoffGap||8)/1000;
     const wrapFrac=Math.min(1,(p.wrapAngle||360)/360);
     const bScrollM=b2m*1.1;
+    // Blade length Lb [m] — computeAero / backend 와 동일한 적분.
+    // (기존 '10/Dh' 는 단위 버그: Lb 는 미터인데 10 을 넣어 Lb=10m 로 계산 → 마찰 296배 과대,
+    //  그 결과 기본계수에서 Pt_imp 가 전 구간 0 으로 붕괴했음)
+    let Lb=0,px_=r1,py_=0,th_=0;
+    for(let i=1;i<=20;i++){
+      const t=i/20, r=r1+t*(r2-r1), rP=r1+(i-1)/20*(r2-r1), rM=(r+rP)/2;
+      const tM=(t+(i-1)/20)/2, bM=b1R+tM*(b2R-b1R);
+      if(Math.abs(Math.tan(bM))>0.001) th_+=(-1/(rM*Math.tan(bM)))*(r-rP);
+      const x=r*Math.cos(th_), y=r*Math.sin(th_);
+      Lb+=Math.sqrt((x-px_)**2+(y-py_)**2); px_=x; py_=y;
+    }
     // Hub protrusion geometry (수축 임펠러)
     const r_eye=((p.Deye||p.D1*0.9)/1000)/2, r_hub=((p.hubDia||0)/1000)/2, h_hub=(p.hubDepth||0)/1000;
     const hasHub=(r_hub>1e-6 && h_hub>1e-6 && r_hub<r_eye);
@@ -1477,7 +1489,7 @@ export default function ImpellerViewer() {
       const dPinc=fc.k_inc*k_inc_base*0.5*rho*(W1*Math.sin(incA))**2;
       const Wa=(W1+W2)/2,Re=rho*Wa*Dh/mu;
       const f=Re>2300?1/(-1.8*Math.log10(6.9/Re+(5e-5/Dh/3.7)**1.11))**2:(Re>0?64/Re:0.02);
-      const dPfric=fc.k_fric*f*(10/Dh)*0.5*rho*Wa**2; // Lb ≈ 10mm approx
+      const dPfric=fc.k_fric*f*(Lb/Dh)*0.5*rho*Wa**2;
       const DR=W1>0?1-W2/W1+Math.abs(Ct2)/(2*p.Z*W1/Math.PI):0;
       const dPrec=DR>fc.DR_crit?fc.k_rec*(DR-fc.DR_crit)**2*rho*U2**2:0;
       const ReDisk=rho*omega*r2**2/mu, Cm=ReDisk>0?0.0622/Math.pow(ReDisk,0.2):0.005;
@@ -1502,7 +1514,8 @@ export default function ImpellerViewer() {
       const Q_delivered=Qm3s*(1-eps_leak);
       const dP_tongue=eps_leak*Pt_imp*0.3;
       const dP_uncap=0.5*rho*(C2*Math.sqrt(1-wrapFrac))**2*(1-wrapFrac);
-      const Pt_fan=Math.max(0,Pt_imp-dPjw-dP_scroll-dP_tongue-dP_uncap);
+      // dP_jw 는 Pt_imp 에서 이미 차감됨 (임펠러 출구 손실 1회). 여기서 다시 빼지 않음.
+      const Pt_fan=Math.max(0,Pt_imp-dP_scroll-dP_tongue-dP_uncap);
       const diffAR=(p.diffLength||0)>0?1+2*((p.diffLength||40)/1000)*Math.tan(Math.abs(p.diffAngle||7)*Math.PI/180)/Math.max(0.01,Math.sqrt(A_sc)):1;
       const A_exit=Math.max(0.001,A_sc*Math.max(1,diffAR));
       const V_exit=Q_delivered>0?Q_delivered/A_exit:0;
