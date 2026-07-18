@@ -3,6 +3,7 @@ __pycache__/
 *.step
 *.stl
 node_modules/
+.venv/
 .env
 *.egg-info/
 dist/

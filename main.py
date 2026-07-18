@@ -120,6 +120,8 @@ async def fan_compute(request: Request):
             "BPF": result.get("BPF"),
             "SPL": result.get("SPL"),
             "Ns": result.get("Ns"),
+            # 수축 임펠러 요약 (hasHub / A_eye_eff / blockRatio / b1_eff_mm / lambda_hub)
+            "hub": result.get("hub"),
         },
         "operating_point": op_point,
         "mode": mode,
@@ -183,9 +185,18 @@ async def generate_step(request: Request):
         )
 
         if result.returncode != 0:
+            stderr = result.stderr or ""
+            # cadquery 는 선택 의존성(requirements-step.txt). 미설치를 명확히 구분해서 안내.
+            if "ModuleNotFoundError" in stderr and "cadquery" in stderr:
+                return JSONResponse({
+                    "error": "STEP 내보내기 미설치",
+                    "detail": "cadquery 가 설치되지 않았습니다. install-step.bat 를 실행하면 "
+                              "STEP 내보내기를 사용할 수 있습니다 (설치 ~500MB, 수 분 소요). "
+                              "다른 기능은 설치 없이 그대로 동작합니다."
+                }, status_code=501)
             return JSONResponse({
                 "error": "STEP generation failed",
-                "detail": result.stderr[-500:] if result.stderr else "Unknown error"
+                "detail": stderr[-500:] if stderr else "Unknown error"
             }, status_code=500)
 
         if not os.path.exists(tmp_path) or os.path.getsize(tmp_path) == 0:
@@ -208,5 +219,20 @@ async def generate_step(request: Request):
 
 if __name__ == "__main__":
     import uvicorn
+
     port = int(os.environ.get("PORT", 8000))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    # HOST 기본값은 0.0.0.0 (컨테이너/원격 배포용).
+    # 로컬 실행(run.bat)은 HOST=127.0.0.1 로 설정 → 루프백만 바인딩하여
+    # Windows 방화벽 허용 팝업을 피함. LAN 공유가 필요하면 run.bat --lan.
+    host = os.environ.get("HOST", "0.0.0.0")
+
+    # 로컬 실행 시 서버가 뜬 직후 브라우저 자동 오픈
+    if os.environ.get("OPEN_BROWSER") == "1":
+        import threading
+        import webbrowser
+
+        shown = "127.0.0.1" if host in ("0.0.0.0", "127.0.0.1") else host
+        threading.Timer(1.5, lambda: webbrowser.open(f"http://{shown}:{port}")).start()
+
+    print(f"  fan-sim  ->  http://{'127.0.0.1' if host == '0.0.0.0' else host}:{port}")
+    uvicorn.run(app, host=host, port=port)

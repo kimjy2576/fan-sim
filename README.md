@@ -64,22 +64,73 @@ fan-sim/
 └── README.md
 ```
 
-## 사용법
+## 실행 방법 (로컬)
 
-### React 앱 (Claude Artifact / Railway)
-`frontend/fan-sim-pro.jsx`를 React 환경에서 실행.
-Railway 배포 시 FastAPI 백엔드와 연동.
+### Windows — `run.bat` 더블클릭
 
-### STEP 파일 생성
+```
+run.bat
+```
+
+최초 실행 시 가상환경(`.venv`) 생성 + 패키지 설치를 자동으로 하고,
+서버가 뜨면 브라우저가 자동으로 열림.
+
+| 명령 | 설명 |
+|---|---|
+| `run.bat` | 기본 실행 → http://127.0.0.1:8000 |
+| `run.bat 8080` | 포트 지정 (8000이 사용 중일 때) |
+| `run.bat --lan` | 같은 네트워크의 다른 기기(폰/노트북)에서도 접속 허용 |
+
+- 종료: 실행 창에서 `Ctrl+C`
+- 사전 준비: Python 3.10+ 설치 (설치 시 **"Add Python to PATH"** 체크 필수)
+- 기본값은 `127.0.0.1`(루프백)만 바인딩하므로 Windows 방화벽 허용 팝업이 뜨지 않음.
+  `--lan` 사용 시에만 외부 접속이 열림.
+
+### 수동 실행 (Mac / Linux / 직접 제어)
+
 ```bash
-pip install cadquery
+python -m venv .venv
+.venv/bin/pip install -r requirements.txt
+HOST=127.0.0.1 PORT=8000 .venv/bin/python main.py
+# → http://127.0.0.1:8000
+```
+
+FastAPI 하나가 프론트엔드(`/`, `/static/*`)와 API(`/api/*`)를 함께 서빙하므로
+별도 프론트엔드 서버가 필요 없음.
+
+---
+
+## STEP 내보내기 (선택 기능)
+
+STEP export 는 `cadquery`(OpenCascade 커널 포함, 약 500MB)가 필요함.
+**서버 구동 및 나머지 모든 기능과는 무관**하므로, 필요할 때만 설치하면 됨.
+
+```
+install-step.bat
+```
+
+수동 설치:
+```bash
+.venv/bin/pip install -r requirements-step.txt
+```
+
+미설치 상태에서 STEP 내보내기를 누르면 `501` 과 함께 안내 메시지가 표시됨.
+
+CLI 로 직접 생성:
+```bash
 python backend/impeller_step_gen.py '{"D_eye":110,"D1":120,"D2":175,"b1":60,"b2":50,"beta1":30,"beta2":145,"Z":36,"t_blade":1.0}' output.step
+python backend/impeller_step_gen.py          # 기본 파라미터
 ```
 
-### 기본 파라미터로 실행
-```bash
-python backend/impeller_step_gen.py
-```
+---
+
+## 환경변수
+
+| 변수 | 기본값 | 설명 |
+|---|---|---|
+| `HOST` | `0.0.0.0` | 바인딩 주소. `run.bat` 는 `127.0.0.1` 로 설정 |
+| `PORT` | `8000` | 포트 |
+| `OPEN_BROWSER` | — | `1` 이면 기동 후 브라우저 자동 오픈 |
 
 ---
 
@@ -101,9 +152,12 @@ python backend/impeller_step_gen.py
 ---
 
 ## 기술 스택
-- **Frontend**: React + Tailwind + SVG (인터랙티브 시각화)
-- **Backend**: Python + CadQuery + OpenCascade (3D 모델링)
-- **배포**: Railway (FastAPI + React)
+- **Frontend**: React + Tailwind + SVG (CDN 기반 단일 파일, 빌드 스텝 없음)
+- **Backend**: FastAPI + Uvicorn (프론트/API 통합 서빙)
+- **3D STEP**: CadQuery + OpenCascade (선택 설치)
+- **실행**: 로컬 `run.bat` (Railway 설정 `Procfile`/`railway.json` 은 재배포용으로 남겨둠.
+  단, `requirements.txt` 는 코어만 포함하므로 원격에서 STEP 이 필요하면
+  `requirements-step.txt` 를 쓰도록 바꿀 것)
 
 ## 라이선스
 Internal use only — LG Electronics 건조기 선행 플랫폼 Task

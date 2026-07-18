@@ -1,0 +1,6 @@
+# STEP 파일 내보내기(선택) 전용 추가 패키지
+#   cadquery 는 OCC 커널 포함으로 ~500MB, 설치에 수 분 소요됨.
+#   STEP export 를 쓰지 않으면 설치 불필요 (서버 구동과 무관).
+#   설치:  install-step.bat   또는   .venv\Scripts\pip install -r requirements-step.txt
+-r requirements.txt
+cadquery==2.4.0
