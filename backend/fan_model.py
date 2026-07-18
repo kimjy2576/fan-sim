@@ -73,6 +73,16 @@ def compute_aero(params: dict, air: dict = None, mode: str = "on_design",
     k_tongue_b = fc.get("k_tongue_b", 0.7)
     k_hub = fc.get("k_hub", 1.0)              # hub curvature separation loss multiplier
 
+    # --- Semi-empirical shape constants (studio fan_on.py 와 이름 통일) ---
+    # fit_coeffs 로 조절 가능하되, 없으면 params → 마지막으로 물리 기본값.
+    def _const(name, default):
+        return fc.get(name, params.get(name, default))
+    c_wake        = _const("c_wake", 0.12)        # jet-wake 기저 폭분율 (Whitfield 0.1~0.15)
+    r_scroll_w    = _const("r_scroll_w", 1.1)     # 스크롤/임펠러 폭비
+    c_scroll_v    = _const("c_scroll_v", 0.7)     # 스크롤 유효속도계수
+    c_tongue_loss = _const("c_tongue_loss", 0.3)  # tongue 손실계수
+    eps_leak_max  = _const("eps_leak_max", 0.25)  # tongue 누설분율 상한
+
     # --- Derived quantities ---
     omega = 2 * math.pi * RPM / 60
     r1, r2 = D1 / 2000, D2 / 2000
@@ -183,7 +193,7 @@ def compute_aero(params: dict, air: dict = None, mode: str = "on_design",
         dP_disk = Pdf / Qm3s if Qm3s > 1e-6 else Pdf / 1e-6
 
         # (5) Jet-wake
-        eps = 0.12 + 0.5 * tBladeM / pitch2
+        eps = c_wake + 0.5 * tBladeM / pitch2
         dP_jw = k_jw_mult * 0.5 * rho * C2 ** 2 * eps ** 2
 
         # (6) Hub curvature separation loss (수축 임펠러)
@@ -203,12 +213,12 @@ def compute_aero(params: dict, air: dict = None, mode: str = "on_design",
         # --- Scroll losses ---
         Pdyn_cap = Pdyn_imp * wrapFrac
         L_scroll = 2 * math.pi * r2 * wrapFrac
-        bScrollM = b2m * 1.1
+        bScrollM = b2m * r_scroll_w
         rExit = r2 + r2 * scrollExpRate * wrapFrac * 2 * math.pi
         A_sc_exit = bScrollM * (rExit - r2)
         A_sc = max(A_sc_exit, Qm3s / max(1, C2 * 0.5) if Qm3s > 0 else bScrollM * 0.02)
         D_h_sc = 2 * A_sc / (math.sqrt(A_sc / bScrollM) + bScrollM) if bScrollM > 0 else 0.01
-        C_sc = Qm3s / max(1e-4, A_sc) * 0.7 if Qm3s > 0 else C2 * 0.5
+        C_sc = Qm3s / max(1e-4, A_sc) * c_scroll_v if Qm3s > 0 else C2 * 0.5
         Re_sc = rho * abs(C_sc) * max(0.005, D_h_sc) / mu if mu > 0 else 1e5
         f_sc = 0.316 / Re_sc ** 0.25 if Re_sc > 2300 else (64 / Re_sc if Re_sc > 0 else 0.02)
         dP_sc_fric = f_sc * (L_scroll / max(0.005, D_h_sc)) * 0.5 * rho * C_sc ** 2
@@ -218,11 +228,11 @@ def compute_aero(params: dict, air: dict = None, mode: str = "on_design",
         # --- Tongue recirculation ---
         gapRatio = gapM / (2 * r2)
         denom_tongue = 1 + Rtongue / cutoffGap if cutoffGap > 0 else 1
-        eps_leak = min(0.25, k_tongue_a * gapRatio ** k_tongue_b / denom_tongue)
+        eps_leak = min(eps_leak_max, k_tongue_a * gapRatio ** k_tongue_b / denom_tongue)
         Q_recirc = Qm3s * eps_leak
         Q_delivered = Qm3s * (1 - eps_leak)
         Q_del_m3min = Q_delivered * 60
-        dP_tongue = eps_leak * Pt_imp * 0.3
+        dP_tongue = eps_leak * Pt_imp * c_tongue_loss
 
         # --- Diffuser ---
         if diffLength > 0:

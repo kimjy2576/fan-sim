@@ -64,7 +64,8 @@ function computeAero(p) {
   const { D1,D2,b1,b2,beta1,beta2,Z,RPM,tBlade=1,
     cutoffGap=8, Rtongue=5, wrapAngle=360, scrollExpRate=0.12, diffAngle=7, diffLength=40,
     tongueOutLen=35, tongueOutAngle=5, scrollExpMode='uniform', scrollExpPts=null,
-    Deye=D1*0.9, hubDia=0, hubDepth=0 } = p;
+    Deye=D1*0.9, hubDia=0, hubDepth=0,
+    c_wake=0.12, r_scroll_w=1.1, c_scroll_v=0.7, c_tongue_loss=0.3, eps_leak_max=0.25 } = p;
   const T=298.15, rho=1.184, mu=1.85e-5;
   const omega=2*Math.PI*RPM/60, r1=D1/2000, r2=D2/2000, b1m=b1/1000, b2m=b2/1000;
   const b1R=beta1*Math.PI/180, b2R=beta2*Math.PI/180;
@@ -104,7 +105,7 @@ function computeAero(p) {
     const dPrec=DR>0.5?0.0085*(DR-0.5)**2*rho*U2**2:0;
     const ReDisk=rho*omega*r2**2/mu,Cm=ReDisk>0?0.0622/Math.pow(ReDisk,0.2):0.005;
     const Pdf=2*0.5*Cm*rho*omega**3*r2**5,dPdisk=Qm3s>1e-6?Pdf/Qm3s:Pdf/1e-6;
-    const eps=0.12+0.5*tBladeM/pitch2,dPjw=0.5*rho*C2**2*eps**2;
+    const eps=c_wake+0.5*tBladeM/pitch2,dPjw=0.5*rho*C2**2*eps**2;
     // Hub curvature separation loss (수축 임펠러)
     const zeta_hub=hasHub?0.15*lambda_hub/(1+lambda_hub):0;
     const dP_hub=hasHub?zeta_hub*0.5*rho*Cx_eye**2:0;
@@ -115,7 +116,7 @@ function computeAero(p) {
     // Scroll losses
     const Pdyn_cap=Pdyn_imp*wrapFrac;
     const L_scroll=2*Math.PI*r2*wrapFrac;
-    const bScrollM=b2m*1.1;
+    const bScrollM=b2m*r_scroll_w;
     // Scroll exit radius — depends on expansion mode
     let rExit;
     if (scrollExpMode === 'variable' && scrollExpPts && scrollExpPts.length >= 2) {
@@ -135,7 +136,7 @@ function computeAero(p) {
     const A_sc_exit = bScrollM * (rExit - r2); // exit cross-section area
     const A_sc=Math.max(A_sc_exit, Qm3s>0?Qm3s/Math.max(1,C2*0.5):bScrollM*0.02);
     const D_h_sc=2*A_sc/(Math.sqrt(A_sc/bScrollM)+bScrollM);
-    const C_sc=Qm3s>0?Qm3s/Math.max(0.0001,A_sc)*0.7:C2*0.5;
+    const C_sc=Qm3s>0?Qm3s/Math.max(0.0001,A_sc)*c_scroll_v:C2*0.5;
     const Re_sc=rho*Math.abs(C_sc)*Math.max(0.005,D_h_sc)/mu;
     const f_sc=Re_sc>2300?0.316/Math.pow(Re_sc,0.25):(Re_sc>0?64/Re_sc:0.02);
     const dP_sc_fric=f_sc*(L_scroll/Math.max(0.005,D_h_sc))*0.5*rho*C_sc**2;
@@ -146,11 +147,11 @@ function computeAero(p) {
     // ε_leak = f(gap/D₂, R_tongue) — fraction of Q that recirculates
     // gap↑ → ε_leak↑ → Q_delivered↓, η↓ | R_tongue↑ → ε_leak↓ (smoother turn)
     const gapRatio = gapM / (2*r2); // δ/D₂
-    const eps_leak = Math.min(0.25, 0.82 * Math.pow(gapRatio, 0.7) / (1 + Rtongue/cutoffGap));
+    const eps_leak = Math.min(eps_leak_max, 0.82 * Math.pow(gapRatio, 0.7) / (1 + Rtongue/cutoffGap));
     const Q_recirc = Qm3s * eps_leak;
     const Q_delivered = Qm3s * (1 - eps_leak);
     const Q_del_m3min = Q_delivered * 60;
-    const dP_tongue = eps_leak * Pt_imp * 0.3; // mixing loss from recirculated flow
+    const dP_tongue = eps_leak * Pt_imp * c_tongue_loss; // mixing loss from recirculated flow
 
     // Diffuser recovery
     const diffAR=diffLength>0?1+2*(diffLength/1000)*Math.tan(Math.abs(diffAngle)*Math.PI/180)/Math.max(0.01,Math.sqrt(A_sc)):1;
@@ -1123,6 +1124,12 @@ export default function ImpellerViewer() {
   const [bladeLean, setBladeLean] = useState(0); // blade axial lean angle degrees (+ = forward lean)
   const [eyeRise, setEyeRise] = useState(10); // shroud eye curve height mm
   const [hubDia, setHubDia] = useState(0);      // hub diameter protruding into eye (mm), 0 = flat impeller (수축 없음)
+  // Semi-empirical shape constants (studio fan_on.py 와 통일) — On-design 에서 조절 가능
+  const [cWake, setCWake] = useState(0.12);         // jet-wake 기저 폭분율
+  const [rScrollW, setRScrollW] = useState(1.1);    // 스크롤/임펠러 폭비
+  const [cScrollV, setCScrollV] = useState(0.7);    // 스크롤 유효속도계수
+  const [cTongueLoss, setCTongueLoss] = useState(0.3);  // tongue 손실계수
+  const [epsLeakMax, setEpsLeakMax] = useState(0.25);   // tongue 누설 상한
   const [hubDepth, setHubDepth] = useState(15); // inlet hub depth mm (how far hub protrudes)
   const [hubFillet, setHubFillet] = useState(5); // inlet hub fillet radius mm
   const [showShroud, setShowShroud] = useState(true);
@@ -1218,7 +1225,7 @@ export default function ImpellerViewer() {
 
   const collectState = () => ({
     _v: '2.0', _t: new Date().toISOString(),
-    Deye,D1,D2,Du,b1,b2,beta1,beta2,Z,tBlade,bladeType,Rfillet,bendPos,bladeLean,eyeRise,hubDia,hubDepth,hubFillet,RPM,matKey,
+    Deye,D1,D2,Du,b1,b2,beta1,beta2,Z,tBlade,bladeType,Rfillet,bendPos,bladeLean,eyeRise,hubDia,hubDepth,hubFillet,cWake,rScrollW,cScrollV,cTongueLoss,epsLeakMax,RPM,matKey,
     scrollType,scrollEndAngle,scrollGapF,scrollGapB,bScroll,scrollExpRate,scrollExpMode,scrollExpPts,scrollCross,scrollR3,scrollM,scrollMPts,
     cutoffGap,cutoffAngle,Rtongue,exitAngle,tongueOutLen,tongueOutAngle,
     diffAngle,diffLength,diffType,diffInnerWall,
@@ -1233,7 +1240,7 @@ export default function ImpellerViewer() {
     s('b1',setB1);s('b2',setB2);s('beta1',setBeta1);s('beta2',setBeta2);
     s('Z',setZ);s('tBlade',setTBlade);s('bladeType',setBladeType);
     s('Rfillet',setRfillet);s('bendPos',setBendPos);s('bladeLean',setBladeLean);
-    s('eyeRise',setEyeRise);s('hubDia',setHubDia);s('hubDepth',setHubDepth);s('hubFillet',setHubFillet);
+    s('eyeRise',setEyeRise);s('hubDia',setHubDia);s('hubDepth',setHubDepth);s('hubFillet',setHubFillet);s('cWake',setCWake);s('rScrollW',setRScrollW);s('cScrollV',setCScrollV);s('cTongueLoss',setCTongueLoss);s('epsLeakMax',setEpsLeakMax);
     s('RPM',setRPM);s('matKey',setMatKey);
     s('scrollType',setScrollType);s('scrollEndAngle',setScrollEndAngle);
     s('scrollGapF',setScrollGapF);s('scrollGapB',setScrollGapB);
@@ -1403,7 +1410,8 @@ export default function ImpellerViewer() {
       const bounds_hi = [3.0, 3.0, 0.8, 0.05, 3.0, 3.0, 0.50, 2.0, 1.2];
 
       // RMSE before fitting (default coeffs)
-      const baseGeom = { D1,D2,Deye:Deye,b1,b2,beta1,beta2,Z,RPM,tBlade,cutoffGap,Rtongue,wrapAngle,scrollExpRate,diffAngle,diffLength,tongueOutLen,tongueOutAngle };
+      const baseGeom = { D1,D2,Deye:Deye,b1,b2,beta1,beta2,Z,RPM,tBlade,cutoffGap,Rtongue,wrapAngle,scrollExpRate,diffAngle,diffLength,tongueOutLen,tongueOutAngle,
+        c_wake:cWake, r_scroll_w:rScrollW, c_scroll_v:cScrollV, c_tongue_loss:cTongueLoss, eps_leak_max:epsLeakMax };
       const evalRMSE = (coeffArr) => {
         const fc = {};
         coeffNames.forEach((k,i) => { fc[k] = Math.max(bounds_lo[i], Math.min(bounds_hi[i], coeffArr[i])); });
@@ -1453,7 +1461,11 @@ export default function ImpellerViewer() {
     const k_inc_base=1-(tBladeM/(Math.PI*(p.D1/1000)/p.Z))**2;
     const gapM=(p.cutoffGap||8)/1000;
     const wrapFrac=Math.min(1,(p.wrapAngle||360)/360);
-    const bScrollM=b2m*1.1;
+    // Semi-empirical shape constants (fc 우선, geom fallback, 물리 기본값) — studio fan_on.py 와 통일
+    const _c=(n,d)=>fc[n]!=null?fc[n]:(p[n]!=null?p[n]:d);
+    const c_wake=_c('c_wake',0.12), r_scroll_w=_c('r_scroll_w',1.1), c_scroll_v=_c('c_scroll_v',0.7),
+          c_tongue_loss=_c('c_tongue_loss',0.3), eps_leak_max=_c('eps_leak_max',0.25);
+    const bScrollM=b2m*r_scroll_w;
     // Blade length Lb [m] — computeAero / backend 와 동일한 적분.
     // (기존 '10/Dh' 는 단위 버그: Lb 는 미터인데 10 을 넣어 Lb=10m 로 계산 → 마찰 296배 과대,
     //  그 결과 기본계수에서 Pt_imp 가 전 구간 0 으로 붕괴했음)
@@ -1495,7 +1507,7 @@ export default function ImpellerViewer() {
       const ReDisk=rho*omega*r2**2/mu, Cm=ReDisk>0?0.0622/Math.pow(ReDisk,0.2):0.005;
       const Pdf=fc.k_disk*2*0.5*Cm*rho*omega**3*r2**5;
       const dPdisk=Qm3s>1e-6?Pdf/Qm3s:Pdf/1e-6;
-      const eps_jw=0.12+0.5*tBladeM/pitch2;
+      const eps_jw=c_wake+0.5*tBladeM/pitch2;
       const dPjw=fc.k_jw*0.5*rho*C2**2*eps_jw**2;
       const zeta_hub=hasHub?0.15*lambda_hub/(1+lambda_hub):0;
       const dP_hub=hasHub?(fc.k_hub||1.0)*zeta_hub*0.5*rho*Cx_eye**2:0;
@@ -1505,14 +1517,14 @@ export default function ImpellerViewer() {
       const rExit=r2+r2*(p.scrollExpRate||0.12)*wrapFrac*2*Math.PI;
       const A_sc=Math.max(bScrollM*(rExit-r2),Qm3s>0?Qm3s/Math.max(1,C2*0.5):bScrollM*0.02);
       const D_h_sc=2*A_sc/(Math.sqrt(A_sc/bScrollM)+bScrollM);
-      const C_sc=Qm3s>0?Qm3s/Math.max(1e-4,A_sc)*0.7:C2*0.5;
+      const C_sc=Qm3s>0?Qm3s/Math.max(1e-4,A_sc)*c_scroll_v:C2*0.5;
       const Re_sc=rho*Math.abs(C_sc)*Math.max(0.005,D_h_sc)/mu;
       const f_sc=Re_sc>2300?0.316/Math.pow(Re_sc,0.25):(Re_sc>0?64/Re_sc:0.02);
       const dP_scroll=f_sc*(L_sc/Math.max(0.005,D_h_sc))*0.5*rho*C_sc**2+fc.k_sc_mix*Pdyn_cap;
       const gapRatio=gapM/(2*r2);
-      const eps_leak=Math.min(0.25,fc.k_tongue_a*Math.pow(gapRatio,fc.k_tongue_b)/(1+(p.Rtongue||5)/(p.cutoffGap||8)));
+      const eps_leak=Math.min(eps_leak_max,fc.k_tongue_a*Math.pow(gapRatio,fc.k_tongue_b)/(1+(p.Rtongue||5)/(p.cutoffGap||8)));
       const Q_delivered=Qm3s*(1-eps_leak);
-      const dP_tongue=eps_leak*Pt_imp*0.3;
+      const dP_tongue=eps_leak*Pt_imp*c_tongue_loss;
       const dP_uncap=0.5*rho*(C2*Math.sqrt(1-wrapFrac))**2*(1-wrapFrac);
       // dP_jw 는 Pt_imp 에서 이미 차감됨 (임펠러 출구 손실 1회). 여기서 다시 빼지 않음.
       const Pt_fan=Math.max(0,Pt_imp-dP_scroll-dP_tongue-dP_uncap);
@@ -1643,7 +1655,8 @@ export default function ImpellerViewer() {
   const baseParams = { D1, D2, Du, Deye, b1, b2, beta1, beta2, Z, RPM, tBlade, bladeLean,
     cutoffGap, cutoffAngle, Rtongue, exitAngle, tongueOutLen, tongueOutAngle,
     wrapAngle, scrollEndAngle, scrollExpRate, scrollExpMode, scrollExpPts, bScroll, diffAngle, diffLength,
-    hubDia, hubDepth };
+    hubDia, hubDepth,
+    c_wake: cWake, r_scroll_w: rScrollW, c_scroll_v: cScrollV, c_tongue_loss: cTongueLoss, eps_leak_max: epsLeakMax };
 
   // Auto-fit: calculate max scroll that fits within casing box
   const autoFitScroll = () => {
@@ -1923,7 +1936,7 @@ export default function ImpellerViewer() {
   const ratios = useMemo(() => ({ D1D2:(D1/D2).toFixed(3), DeyeD1:(Deye/D1).toFixed(3), DuD2:(Du/D2).toFixed(3), b2D2:(b2/D2).toFixed(3), b1b2:(b1/b2).toFixed(2) }), [D1,D2,Deye,Du,b1,b2]);
 
   // Base case performance + structure
-  const baseAero = useMemo(() => computeAero(baseParams), [D1,D2,Deye,b1,b2,beta1,beta2,Z,RPM,tBlade,cutoffGap,Rtongue,scrollEndAngle,cutoffAngle,scrollExpRate,scrollExpMode,scrollExpPts,diffAngle,diffLength,tongueOutLen,tongueOutAngle,hubDia,hubDepth]);
+  const baseAero = useMemo(() => computeAero(baseParams), [D1,D2,Deye,b1,b2,beta1,beta2,Z,RPM,tBlade,cutoffGap,Rtongue,scrollEndAngle,cutoffAngle,scrollExpRate,scrollExpMode,scrollExpPts,diffAngle,diffLength,tongueOutLen,tongueOutAngle,hubDia,hubDepth,cWake,rScrollW,cScrollV,cTongueLoss,epsLeakMax]);
   const baseStruc = useMemo(() => computeStructure(baseParams, baseAero, mat), [baseAero, matKey, tBlade, b1, b2, D1, D2, Z]);
 
   // Input validation for sidebar (comp-sim compatible)
@@ -3463,6 +3476,27 @@ export default function ImpellerViewer() {
               </div>
             </>}
           </div>
+
+          {/* 고급: 반경험 상수 (studio fan_on.py 와 통일) — On-design 전용 */}
+          <details style={{ marginTop:8, paddingTop:8, borderTop:`1px solid ${C.border}` }}>
+            <summary style={{ cursor:'pointer', fontSize:12, fontWeight:600, color:C.dim, fontFamily:"'Noto Sans KR', sans-serif" }}>
+              고급 · 반경험 상수
+            </summary>
+            <div style={{ marginTop:6 }}>
+              <div style={{ fontSize:10, color:C.dim, lineHeight:1.5, marginBottom:6, fontFamily:"'Noto Sans KR', sans-serif" }}>
+                손실 모델의 형상 상수. 통상 기본값 사용. (Whitfield/문헌 기반)
+              </div>
+              <S label="c_wake" value={cWake} min={0.05} max={0.25} step={0.01} onChange={setCWake} unit="" color={C.purple} />
+              <S label="r_scroll_w" value={rScrollW} min={0.8} max={1.6} step={0.05} onChange={setRScrollW} unit="" color={C.purple} />
+              <S label="c_scroll_v" value={cScrollV} min={0.4} max={1.0} step={0.05} onChange={setCScrollV} unit="" color={C.purple} />
+              <S label="c_tongue" value={cTongueLoss} min={0.1} max={0.6} step={0.05} onChange={setCTongueLoss} unit="" color={C.purple} />
+              <S label="ε_leak_max" value={epsLeakMax} min={0.1} max={0.4} step={0.01} onChange={setEpsLeakMax} unit="" color={C.purple} />
+              <button onClick={() => { setCWake(0.12); setRScrollW(1.1); setCScrollV(0.7); setCTongueLoss(0.3); setEpsLeakMax(0.25); }}
+                style={{ marginTop:6, fontSize:11, padding:'4px 10px', border:`1px solid ${C.border}`, borderRadius:6, background:'transparent', color:C.dim, cursor:'pointer', fontFamily:"'Noto Sans KR', sans-serif" }}>
+                기본값 복원
+              </button>
+            </div>
+          </details>
           </>}
           {/* End SCROLL~CASING (on_design only) */}
 

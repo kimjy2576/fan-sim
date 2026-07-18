@@ -78,8 +78,9 @@ for (const item of backend.neutral) {
 // ── 계수 스윕 (기본 형상) ──
 const baseGeom = spec.cases[0].geom;
 for (const item of backend.fc) {
-  const a = computeAero(baseGeom).bep;  // computeAero 는 계수 미적용(on-design) → 참고용, 여기선 ③만 계수반영
-  const f = computeAeroFit(baseGeom, item.fc).bep;
+  // 부분 계수만 준 케이스는 나머지를 기본값으로 채워야 함 (computeAeroFit 은 fc.k_tongue_a 등 필수)
+  const fcFull = { ...NEUTRAL, ...item.fc };
+  const f = computeAeroFit(baseGeom, fcFull).bep;
   // 계수 케이스는 ①(backend, 계수반영) ↔ ③(computeAeroFit, 계수반영) 만 대조
   const relQ = Math.abs(item.bep.Q - f.Q) / Math.max(0.5, Math.abs(item.bep.Q));
   const ok_bf = Math.abs(item.bep.Ps - f.Ps) <= TOL_FIT.Ps && relQ <= 0.04 && Math.abs(item.bep.eta - f.eta) <= TOL_FIT.eta;

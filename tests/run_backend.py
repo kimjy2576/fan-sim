@@ -31,10 +31,12 @@ def main():
     for c in spec["cases"]:
         out["neutral"].append({"name": c["name"], "bep": bep_of(c["geom"], None)})
 
-    # 계수 스윕 (기본 형상 고정)
+    # 계수 스윕 (기본 형상 고정). 부분 계수는 neutral 로 채워 프론트와 동일 조건.
     base_geom = spec["cases"][0]["geom"]
+    neutral = spec["fc_neutral"]
     for c in spec["fc_cases"]:
-        out["fc"].append({"name": c["name"], "fc": c["fc"], "bep": bep_of(base_geom, c["fc"])})
+        fc_full = {**neutral, **c["fc"]}
+        out["fc"].append({"name": c["name"], "fc": fc_full, "bep": bep_of(base_geom, fc_full)})
 
     print(json.dumps(out, ensure_ascii=False))
 
