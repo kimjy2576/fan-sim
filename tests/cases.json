@@ -1,0 +1,23 @@
+{
+  "_comment": "물리 3벌(backend / computeAero / computeAeroFit) 동등성 검증용 케이스. geom=형상, fc=피팅계수(기본값이면 on-design 등가).",
+  "fc_neutral": {
+    "k_inc": 1, "k_fric": 1, "k_rec": 0.0085, "DR_crit": 0.5, "k_disk": 1, "k_jw": 1,
+    "k_sc_mix": 0.20, "k_tongue_a": 0.82, "k_tongue_b": 0.7, "k_hub": 1
+  },
+  "cases": [
+    { "name": "기본 형상", "geom": { "D1": 120, "D2": 175, "b1": 60, "b2": 50, "beta1": 30, "beta2": 145, "Z": 36, "RPM": 1400, "Deye": 110 } },
+    { "name": "저RPM",     "geom": { "D1": 120, "D2": 175, "b1": 60, "b2": 50, "beta1": 30, "beta2": 145, "Z": 36, "RPM": 800,  "Deye": 110 } },
+    { "name": "고RPM",     "geom": { "D1": 120, "D2": 175, "b1": 60, "b2": 50, "beta1": 30, "beta2": 145, "Z": 36, "RPM": 2400, "Deye": 110 } },
+    { "name": "소형팬",     "geom": { "D1": 90,  "D2": 130, "b1": 40, "b2": 35, "beta1": 25, "beta2": 150, "Z": 30, "RPM": 1800, "Deye": 80  } },
+    { "name": "대형팬",     "geom": { "D1": 160, "D2": 230, "b1": 80, "b2": 65, "beta1": 35, "beta2": 140, "Z": 42, "RPM": 1000, "Deye": 145 } },
+    { "name": "블레이드적음", "geom": { "D1": 120, "D2": 175, "b1": 60, "b2": 50, "beta1": 30, "beta2": 145, "Z": 18, "RPM": 1400, "Deye": 110 } },
+    { "name": "후향깃",     "geom": { "D1": 120, "D2": 175, "b1": 60, "b2": 50, "beta1": 30, "beta2": 60,  "Z": 12, "RPM": 1400, "Deye": 110 } },
+    { "name": "수축 소",    "geom": { "D1": 120, "D2": 175, "b1": 60, "b2": 50, "beta1": 30, "beta2": 145, "Z": 36, "RPM": 1400, "Deye": 110, "hubDia": 40, "hubDepth": 15 } },
+    { "name": "수축 중",    "geom": { "D1": 120, "D2": 175, "b1": 60, "b2": 50, "beta1": 30, "beta2": 145, "Z": 36, "RPM": 1400, "Deye": 110, "hubDia": 60, "hubDepth": 20 } },
+    { "name": "수축 대",    "geom": { "D1": 120, "D2": 175, "b1": 60, "b2": 50, "beta1": 30, "beta2": 145, "Z": 36, "RPM": 1400, "Deye": 110, "hubDia": 80, "hubDepth": 25 } }
+  ],
+  "fc_cases": [
+    { "name": "계수 상향", "fc": { "k_inc": 1.5, "k_fric": 1.8, "k_rec": 0.02, "DR_crit": 0.45, "k_disk": 1.3, "k_jw": 1.4, "k_sc_mix": 0.30, "k_tongue_a": 1.0, "k_tongue_b": 0.8, "k_hub": 1.5 } },
+    { "name": "계수 하향", "fc": { "k_inc": 0.5, "k_fric": 0.4, "k_rec": 0.003, "DR_crit": 0.6, "k_disk": 0.6, "k_jw": 0.6, "k_sc_mix": 0.10, "k_tongue_a": 0.5, "k_tongue_b": 0.5, "k_hub": 0.5 } }
+  ]
+}

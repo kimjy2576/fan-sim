@@ -1516,7 +1516,7 @@ export default function ImpellerViewer() {
       const dP_uncap=0.5*rho*(C2*Math.sqrt(1-wrapFrac))**2*(1-wrapFrac);
       // dP_jw 는 Pt_imp 에서 이미 차감됨 (임펠러 출구 손실 1회). 여기서 다시 빼지 않음.
       const Pt_fan=Math.max(0,Pt_imp-dP_scroll-dP_tongue-dP_uncap);
-      const diffAR=(p.diffLength||0)>0?1+2*((p.diffLength||40)/1000)*Math.tan(Math.abs(p.diffAngle||7)*Math.PI/180)/Math.max(0.01,Math.sqrt(A_sc)):1;
+      const diffAR=((p.diffLength||40)>0)?1+2*((p.diffLength||40)/1000)*Math.tan(Math.abs(p.diffAngle||7)*Math.PI/180)/Math.max(0.01,Math.sqrt(A_sc)):1;
       const A_exit=Math.max(0.001,A_sc*Math.max(1,diffAR));
       const V_exit=Q_delivered>0?Q_delivered/A_exit:0;
       const Pdyn_exit=0.5*rho*V_exit**2;
